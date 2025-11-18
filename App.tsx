@@ -1,0 +1,369 @@
+import React, { useState, useRef } from 'react';
+import { Home, MessageCircle, PlusSquare, User as UserIcon, BarChart2, LogOut, Wallet, X, Feather, Image as ImageIcon, Loader, ChevronLeft, ChevronRight } from 'lucide-react';
+import { User, ViewState } from './types';
+import { BlockchainService } from './services';
+import { Button, GlassCard } from './components/UIComponents';
+
+// Views
+import { FeedView } from './views/FeedView';
+import { ChatView } from './views/ChatView';
+import { ProfileView } from './views/ProfileView';
+import { DashboardView } from './views/DashboardView';
+
+// Guest Protection Component
+const ConnectWalletPrompt: React.FC<{ onConnect: () => void, title?: string, subtitle?: string }> = ({ onConnect, title = "Connect Wallet", subtitle = "You need to connect your wallet to access this feature." }) => (
+    <div className="flex flex-col items-center justify-center h-[70vh] text-center px-4">
+         <div className="relative group mb-8">
+             <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+             <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center shadow-2xl relative z-10">
+               <Wallet size={32} className="text-gray-400 group-hover:text-primary transition-colors duration-500" />
+             </div>
+         </div>
+         <h2 className="text-2xl font-bold text-white mb-2">{title}</h2>
+         <p className="text-gray-400 max-w-sm mb-8">{subtitle}</p>
+         <Button onClick={onConnect} size="lg" className="rounded-full px-8">Connect Wallet</Button>
+    </div>
+);
+
+const App: React.FC = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [view, setView] = useState<ViewState>(ViewState.FEED);
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [viewingProfileUser, setViewingProfileUser] = useState<User | null>(null);
+  
+  // Create Post State
+  const [isCreating, setIsCreating] = useState(false);
+  const [postContent, setPostContent] = useState("");
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [mintingStatus, setMintingStatus] = useState<'idle' | 'uploading' | 'confirming' | 'success'>('idle');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- Wallet Connection ---
+  const handleConnect = async () => {
+    const connectedUser = await BlockchainService.connectWallet();
+    setUser(connectedUser);
+  };
+
+  // --- Navigation Handlers ---
+  const handleNavigateToProfile = (targetUser: User) => {
+    setViewingProfileUser(targetUser);
+    setView(ViewState.PROFILE);
+  };
+
+  const handleNavigateToChat = () => {
+    setView(ViewState.CHAT);
+  };
+
+  const handleUpdateProfile = (updatedFields: Partial<User>) => {
+      if (user) {
+          const updatedUser = { ...user, ...updatedFields };
+          setUser(updatedUser);
+          // If we are viewing our own profile, update that view as well
+          if (viewingProfileUser && viewingProfileUser.address === user.address) {
+              setViewingProfileUser(updatedUser);
+          }
+      }
+  };
+
+  // --- Image Handling ---
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // --- Create Post Logic ---
+  const handleCreatePost = async () => {
+    if (!postContent && !selectedImage) return;
+    
+    // Step 1: Upload to IPFS (Simulated)
+    setMintingStatus('uploading');
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Step 2: Blockchain Confirmation
+    setMintingStatus('confirming');
+    await BlockchainService.mintPost(postContent, selectedImage || undefined);
+    
+    // Step 3: Success
+    setMintingStatus('success');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Reset
+    setMintingStatus('idle');
+    setPostContent("");
+    removeImage();
+    setIsCreating(false);
+    setView(ViewState.FEED); 
+  };
+
+  // --- Render View Switcher ---
+  const renderContent = () => {
+    switch (view) {
+      case ViewState.FEED: 
+        return <FeedView type="global" onUserClick={handleNavigateToProfile} currentUser={user || undefined} />;
+      
+      case ViewState.CHAT: 
+        if (!user) return <ConnectWalletPrompt onConnect={handleConnect} title="Encrypted Messaging" subtitle="Connect your wallet to access your secure, end-to-end encrypted messages." />;
+        return <ChatView currentUser={user} onUserClick={handleNavigateToProfile} />;
+      
+      case ViewState.PROFILE: 
+        // Determine which profile to show:
+        // 1. The specific user we clicked on (viewingProfileUser)
+        // 2. OR the current logged-in user (user)
+        const targetUser = viewingProfileUser || user;
+
+        // If neither exists, it means a guest is trying to view "My Profile". Block it.
+        if (!targetUser) {
+           return <ConnectWalletPrompt onConnect={handleConnect} title="Your Profile" subtitle="Connect your wallet to view your decentralized identity." />;
+        }
+
+        return (
+          <ProfileView 
+            user={targetUser} 
+            currentUser={user || undefined}
+            onNavigateToChat={handleNavigateToChat}
+            onUpdateProfile={handleUpdateProfile} 
+            onConnect={handleConnect}
+          />
+        );
+      
+      case ViewState.DASHBOARD: 
+        if (!user) return <ConnectWalletPrompt onConnect={handleConnect} title="Analytics Dashboard" subtitle="Connect your wallet to view your on-chain performance metrics." />;
+        return <DashboardView user={user} />;
+      
+      default: 
+        return <FeedView type="global" onUserClick={handleNavigateToProfile} currentUser={user || undefined} />;
+    }
+  };
+
+  // --- Navigation Item ---
+  const NavItem: React.FC<{ icon: React.ReactNode; label: string; target: ViewState; active: boolean; onClick?: () => void }> = ({ icon, label, target, active, onClick }) => (
+    <button 
+      onClick={() => {
+        if (onClick) onClick();
+        else setView(target);
+      }}
+      title={isSidebarCollapsed ? label : undefined}
+      className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-2' : 'px-5 gap-4'} py-3.5 rounded-2xl transition-all duration-300 w-full group relative overflow-hidden ${
+        active ? 'bg-white/10 text-white font-bold shadow-lg border border-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+      }`}
+    >
+      <div className={`transition-transform duration-300 flex-shrink-0 ${active ? 'scale-110 text-primary' : 'group-hover:scale-110'}`}>
+        {icon}
+      </div>
+      <span className={`transition-all duration-300 whitespace-nowrap ${isSidebarCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100 w-auto block'} text-sm tracking-wide`}>
+        {label}
+      </span>
+    </button>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#0B0E11] text-foreground font-sans selection:bg-primary/30 selection:text-white overflow-x-hidden pb-24 md:pb-0">
+      {/* Global Ambient Background */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+          <div className="absolute top-0 left-[20%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[150px]" />
+          <div className="absolute bottom-0 right-[10%] w-[500px] h-[500px] bg-blue-900/5 rounded-full blur-[150px]" />
+      </div>
+
+      {/* Desktop Sidebar (Always visible now) */}
+      <aside className={`hidden md:flex fixed top-0 left-0 h-screen flex-col border-r border-white/5 bg-black/20 backdrop-blur-xl z-40 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-20' : 'w-72'}`}>
+        
+        {/* Sidebar Header */}
+        <div className={`p-6 flex items-center relative ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start'}`}>
+          <div className="flex items-center gap-3 text-white">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20 shrink-0 z-10 relative">
+                <Feather size={18} className="text-black" />
+              </div>
+              <h1 className={`text-2xl font-bold tracking-tight whitespace-nowrap overflow-hidden transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'}`}>
+                BSN
+              </h1>
+          </div>
+
+          {/* Toggle Button */}
+          <button 
+            onClick={() => setSidebarCollapsed(!isSidebarCollapsed)}
+            className="absolute -right-3 top-8 w-6 h-6 bg-[#0B0E11] border border-white/10 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 transition-all shadow-lg z-50"
+          >
+            {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+        </div>
+        
+        <nav className="flex-1 px-3 space-y-2 mt-4">
+          <NavItem icon={<Home size={20} />} label="Home" target={ViewState.FEED} active={view === ViewState.FEED} />
+          <NavItem icon={<MessageCircle size={20} />} label="Messages" target={ViewState.CHAT} active={view === ViewState.CHAT} />
+          <NavItem 
+            icon={<UserIcon size={20} />} 
+            label="Profile" 
+            target={ViewState.PROFILE} 
+            active={view === ViewState.PROFILE && (viewingProfileUser?.address === user?.address || (!viewingProfileUser && !user))} 
+            onClick={() => {
+              // When clicking "Profile" in nav:
+              // 1. If logged in, set view to self (viewingProfileUser = user)
+              // 2. If guest, clear any previous profile view (viewingProfileUser = null) to trigger the Connect Prompt
+              setViewingProfileUser(user || null);
+              setView(ViewState.PROFILE);
+            }}
+          />
+          <NavItem icon={<BarChart2 size={20} />} label="Analytics" target={ViewState.DASHBOARD} active={view === ViewState.DASHBOARD} />
+        </nav>
+
+        <div className="p-4 mt-auto">
+          <Button 
+            onClick={() => user ? setIsCreating(true) : handleConnect()} 
+            size={isSidebarCollapsed ? 'sm' : 'lg'} 
+            className={`w-full mb-6 shadow-xl shadow-primary/10 transition-all duration-300 ${isSidebarCollapsed ? 'px-0 aspect-square flex items-center justify-center rounded-2xl' : ''}`}
+            title="Create Post"
+          >
+            {user ? <PlusSquare size={20} /> : <Wallet size={20} />}
+            <span className={`${isSidebarCollapsed ? 'hidden' : 'ml-2'}`}>{user ? 'Post' : 'Connect'}</span>
+          </Button>
+          
+          {user ? (
+            <div className={`flex items-center gap-3 p-2 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-pointer overflow-hidden ${isSidebarCollapsed ? 'justify-center bg-transparent border-transparent hover:bg-white/5' : ''}`}>
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-yellow-200 shrink-0 shadow-md" />
+              
+              <div className={`overflow-hidden transition-all duration-300 ${isSidebarCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+                <p className="text-sm font-bold text-white truncate">{user.ens || "0xUser"}</p>
+                <p className="text-xs text-gray-500 font-mono truncate">{user.address.substring(0, 10)}...</p>
+              </div>
+              
+              <LogOut size={16} className={`text-gray-500 ml-auto transition-all duration-300 ${isSidebarCollapsed ? 'w-0 opacity-0 hidden' : 'opacity-100'}`} />
+            </div>
+          ) : (
+             <button 
+                onClick={handleConnect}
+                className={`w-full flex items-center justify-center gap-2 text-gray-400 hover:text-white text-sm p-2 transition-colors ${isSidebarCollapsed ? 'hidden' : ''}`}
+             >
+                <LogOut size={14} className="rotate-180" />
+                Login
+             </button>
+          )}
+        </div>
+      </aside>
+
+      {/* Mobile Bottom Nav - Floating Pill */}
+      <div className="md:hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] max-w-md z-50 safe-area-pb">
+        <div className="bg-gray-900/90 backdrop-blur-2xl border border-white/10 rounded-full shadow-2xl flex justify-around items-center p-1.5 px-2">
+            <button onClick={() => setView(ViewState.FEED)} className={`p-3.5 rounded-full transition-colors ${view === ViewState.FEED ? 'text-primary bg-white/10' : 'text-gray-500'}`}><Home size={24} /></button>
+            <button onClick={() => setView(ViewState.CHAT)} className={`p-3.5 rounded-full transition-colors ${view === ViewState.CHAT ? 'text-primary bg-white/10' : 'text-gray-500'}`}><MessageCircle size={24} /></button>
+            <button onClick={() => user ? setIsCreating(true) : handleConnect()} className="p-3.5 rounded-full bg-primary text-black shadow-lg shadow-primary/30 transform -translate-y-6 border-4 border-[#0B0E11]">{user ? <PlusSquare size={28} /> : <Wallet size={24} />}</button>
+            <button onClick={() => { setViewingProfileUser(user || null); setView(ViewState.PROFILE); }} className={`p-3.5 rounded-full transition-colors ${view === ViewState.PROFILE ? 'text-primary bg-white/10' : 'text-gray-500'}`}><UserIcon size={24} /></button>
+            <button onClick={() => setView(ViewState.DASHBOARD)} className={`p-3.5 rounded-full transition-colors ${view === ViewState.DASHBOARD ? 'text-primary bg-white/10' : 'text-gray-500'}`}><BarChart2 size={24} /></button>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <main className={`relative z-10 transition-all duration-300 ease-in-out min-h-screen ${isSidebarCollapsed ? 'md:ml-20' : 'md:ml-72'}`}>
+        {renderContent()}
+      </main>
+
+      {/* Create Post Modal - Responsive */}
+      {isCreating && (
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center md:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+          <GlassCard className="w-full h-[90vh] md:h-auto md:max-w-lg p-0 overflow-hidden rounded-t-[2.5rem] md:rounded-3xl flex flex-col">
+            <div className="flex justify-between items-center p-5 border-b border-white/10">
+              <h2 className="text-lg font-bold text-white">New Post</h2>
+              <button onClick={() => setIsCreating(false)} className="p-2 bg-white/5 rounded-full text-gray-500 hover:text-white transition-colors">
+                  <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 flex-1 flex flex-col overflow-y-auto">
+                <div className="flex gap-4 mb-4">
+                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 border border-white/10 shrink-0" />
+                   <textarea 
+                      className="w-full bg-transparent border-none text-white resize-none focus:ring-0 text-lg placeholder-gray-600 min-h-[120px]"
+                      placeholder="What's happening on-chain?"
+                      value={postContent}
+                      onChange={(e) => setPostContent(e.target.value)}
+                      maxLength={280}
+                      autoFocus
+                    />
+                </div>
+
+                {imagePreview && (
+                  <div className="relative rounded-2xl overflow-hidden mb-6 border border-white/10 group">
+                    <img src={imagePreview} alt="Preview" className="w-full max-h-64 object-cover" />
+                    <button 
+                      onClick={removeImage}
+                      className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-red-500/80 text-white rounded-full backdrop-blur-md transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
+                
+                {mintingStatus !== 'idle' && (
+                  <div className="mb-auto mt-2 bg-blue-500/10 text-blue-400 text-sm p-4 rounded-2xl border border-blue-500/20 flex items-center gap-3">
+                    {mintingStatus === 'uploading' && (
+                      <>
+                        <Loader size={18} className="animate-spin" />
+                        <span>Uploading assets to IPFS...</span>
+                      </>
+                    )}
+                    {mintingStatus === 'confirming' && (
+                      <>
+                        <Loader size={18} className="animate-spin" />
+                        <span>Waiting for blockchain confirmation...</span>
+                      </>
+                    )}
+                    {mintingStatus === 'success' && (
+                      <>
+                        <Feather size={18} className="text-green-400" />
+                        <span className="text-green-400 font-bold">Successfully Minted!</span>
+                      </>
+                    )}
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-center pt-4 border-t border-white/5 mt-auto md:mt-0">
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="file" 
+                      ref={fileInputRef}
+                      onChange={handleImageSelect} 
+                      className="hidden" 
+                      accept="image/*"
+                    />
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-2.5 text-primary hover:bg-primary/10 rounded-full transition-colors"
+                    >
+                      <ImageIcon size={22} />
+                    </button>
+                    <span className="text-xs text-gray-500">
+                        {280 - postContent.length} / 280
+                    </span>
+                  </div>
+
+                  <Button 
+                    disabled={(!postContent && !selectedImage) || mintingStatus !== 'idle'} 
+                    onClick={handleCreatePost} 
+                    className="rounded-full px-8 py-3"
+                    size="md"
+                  >
+                    {mintingStatus === 'idle' ? 'Mint Post' : 'Processing...'}
+                  </Button>
+                </div>
+            </div>
+          </GlassCard>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
