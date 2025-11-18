@@ -53,8 +53,11 @@ The app runs on port 5000 with Vite dev server configured for Replit's proxy env
 ## Recent Changes
 - **2024-11-18**: Initial Replit setup
   - Configured Vite to use port 5000 for Replit compatibility
+  - Added `allowedHosts` configuration to allow Replit proxy domains (.replit.dev, .repl.co)
+  - Added script tag to index.html to load the main entry point
   - Set up workflow for `npm run dev`
   - Installed Node.js 20 and dependencies
+  - Configured deployment settings for static build (dist folder)
 
 ## Development Notes
 - The app uses Tailwind CSS via CDN (configured in index.html)

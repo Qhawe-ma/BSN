@@ -12,6 +12,11 @@ export default defineConfig(({ mode }) => {
         hmr: {
           clientPort: 5000,
         },
+        allowedHosts: [
+          '.replit.dev',
+          '.repl.co',
+          'localhost'
+        ],
       },
       plugins: [react()],
       define: {
