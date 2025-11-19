@@ -68,11 +68,14 @@ The app runs on port 5000 with Vite dev server configured for Replit's proxy env
   - ✅ **Chat ID Format**: Fixed startNewChat to create proper Firebase-compatible chat IDs (sorted addresses)
   - ✅ **Memory Management**: Added proper cleanup for Firebase listeners to prevent memory leaks
   - ✅ **No Draft State**: Messages now send immediately to Firebase - no more stuck "draft" conversations
+  - ✅ **Case-Insensitive Matching**: Fixed getUserChats to properly match wallet addresses regardless of casing
+  - ✅ **Chat ID Validation**: Added validation to prevent crashes from malformed chat IDs
   - 🐛 **Fixed Issues**: 
     - Messages were stuck in "draft" state and not being sent
     - New chats not appearing until page refresh
     - Messages not updating in real-time
     - Chat sessions not persisting between navigation
+    - Recipients couldn't see chats when address casing didn't match exactly
 
 - **2024-11-19**: Fixed Firebase Undefined Values Error
   - ✅ **Firebase Compatibility**: Removed undefined fields from user profile creation (Firebase doesn't allow undefined values)
