@@ -23,9 +23,6 @@ export const generateAvatar = (address: string) =>
 export const formatAddress = (addr: string) => 
   `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
 
-// --- Store for posts (empty by default, will be populated from backend/chain) ---
-let POSTS_STORE: Post[] = [];
-
 // --- Store current connected user ---
 let CURRENT_USER: User | null = null;
 
@@ -101,78 +98,59 @@ export const BlockchainService = {
       throw new Error('Please connect your wallet first');
     }
 
-    // In a real implementation, this would:
+    // TODO: Real implementation would:
     // 1. Upload image to IPFS
-    // 2. Create post metadata
-    // 3. Mint NFT on BSC
-    // 4. Store reference in backend
+    // 2. Create post metadata JSON
+    // 3. Mint NFT on BSC smart contract
+    // 4. Store post reference in backend database
     
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const newPost: Post = {
-          id: Math.floor(Math.random() * 10000),
-          tokenId: Math.floor(Math.random() * 5000).toString(),
-          author: CURRENT_USER!,
-          content,
-          timestamp: Date.now(),
-          likes: 0,
-          commentsCount: 0,
-          ipfsHash: `Qm${Math.random().toString(36).substring(7)}`,
-          txHash: `0x${Math.random().toString(36).substring(2)}`,
-          attachmentUrl: attachment ? URL.createObjectURL(attachment) : undefined,
-        };
-        POSTS_STORE = [newPost, ...POSTS_STORE];
-        resolve(newPost);
-      }, 2000); // Simulate block time
-    });
+    throw new Error('Minting posts requires backend and smart contract integration. Please implement the backend API first.');
   }
 };
 
 // --- Service: Data/Firebase (Real implementation will use backend API) ---
 export const DataService = {
   getFeed: async (): Promise<Post[]> => {
-    // In a real app, this would fetch from your backend API or blockchain
-    return new Promise(resolve => setTimeout(() => resolve([...POSTS_STORE]), 300));
+    // TODO: Fetch posts from backend API
+    // Example: const response = await fetch('/api/feed');
+    // return response.json();
+    return [];
   },
 
   toggleLike: async (postId: number): Promise<void> => {
-    // In a real app, this would update on backend/blockchain
-    const post = POSTS_STORE.find(p => p.id === postId);
-    if (post) {
-      post.isLiked = !post.isLiked;
-      post.likes += post.isLiked ? 1 : -1;
-    }
+    // TODO: Update like status via backend API
+    // Example: await fetch(`/api/posts/${postId}/like`, { method: 'POST' });
+    throw new Error('Toggling likes requires backend API integration');
   },
 
   getComments: async (postId: number): Promise<Comment[]> => {
-    // In a real app, fetch comments from backend
-    return new Promise(resolve => setTimeout(() => {
-      resolve([]);
-    }, 300));
+    // TODO: Fetch comments from backend API
+    // Example: const response = await fetch(`/api/posts/${postId}/comments`);
+    // return response.json();
+    return [];
   },
 
   postComment: async (postId: number, content: string, author: User): Promise<Comment> => {
-    // In a real app, post to backend
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          id: `c_new_${Date.now()}`,
-          postId,
-          author,
-          content,
-          timestamp: Date.now()
-        });
-      }, 300);
-    });
+    // TODO: Post comment to backend API
+    // Example: const response = await fetch(`/api/posts/${postId}/comments`, {
+    //   method: 'POST',
+    //   body: JSON.stringify({ content, author })
+    // });
+    // return response.json();
+    throw new Error('Posting comments requires backend API integration');
   },
 
   getChats: async (): Promise<ChatSession[]> => {
-    // In a real app, fetch from backend
+    // TODO: Fetch chat sessions from backend API
+    // Example: const response = await fetch('/api/chats');
+    // return response.json();
     return [];
   },
 
   getMessages: async (chatId: string): Promise<Message[]> => {
-    // In a real app, fetch messages from backend
+    // TODO: Fetch messages from backend API
+    // Example: const response = await fetch(`/api/chats/${chatId}/messages`);
+    // return response.json();
     return [];
   },
   
@@ -181,40 +159,22 @@ export const DataService = {
       throw new Error('Please connect your wallet first');
     }
 
-    // In a real app, send via backend with encryption
-    return {
-      id: `m_new_${Date.now()}`,
-      sender: CURRENT_USER.address,
-      recipient: recipientAddress,
-      content: text,
-      timestamp: Date.now(),
-      isRead: false
-    }
+    // TODO: Send message via backend API with encryption
+    // Example: const response = await fetch('/api/messages', {
+    //   method: 'POST',
+    //   body: JSON.stringify({ text, recipient: recipientAddress })
+    // });
+    // return response.json();
+    throw new Error('Sending messages requires backend API integration');
   },
 
   startNewChat: async (address: string): Promise<ChatSession> => {
-    // In a real app, create chat session in backend
-    return new Promise(resolve => setTimeout(() => {
-      resolve({
-        id: `temp_${Date.now()}`,
-        participant: {
-          address: address,
-          ens: undefined,
-          followers: 0,
-          following: 0,
-          totalPosts: 0,
-          avatarUrl: generateAvatar(address)
-        },
-        lastMessage: {
-          id: 'init',
-          sender: '',
-          recipient: '',
-          content: 'New conversation',
-          timestamp: Date.now(),
-          isRead: true
-        },
-        unreadCount: 0
-      });
-    }, 300));
+    // TODO: Create chat session via backend API
+    // Example: const response = await fetch('/api/chats', {
+    //   method: 'POST',
+    //   body: JSON.stringify({ participantAddress: address })
+    // });
+    // return response.json();
+    throw new Error('Starting chats requires backend API integration');
   }
 };
