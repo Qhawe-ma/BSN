@@ -43,12 +43,46 @@ const App: React.FC = () => {
   // --- Wallet Connection ---
   const handleConnect = async () => {
     const connectedUser = await BlockchainService.connectWallet();
-    setUser(connectedUser);
+    
+    // Load user profile from Firebase to get real data
+    try {
+      const firebaseUser = await FirebaseService.getUserProfile(connectedUser.address);
+      if (firebaseUser) {
+        // Merge blockchain data with Firebase data
+        setUser({
+          ...connectedUser,
+          ...firebaseUser
+        });
+      } else {
+        // If no profile exists, just use the blockchain data
+        setUser(connectedUser);
+      }
+    } catch (error) {
+      console.error('Failed to load user profile from Firebase:', error);
+      setUser(connectedUser);
+    }
   };
 
   // --- Navigation Handlers ---
-  const handleNavigateToProfile = (targetUser: User) => {
-    setViewingProfileUser(targetUser);
+  const handleNavigateToProfile = async (targetUser: User) => {
+    // Fetch real user data from Firebase
+    try {
+      const firebaseUser = await FirebaseService.getUserProfile(targetUser.address);
+      if (firebaseUser) {
+        // Merge blockchain data with Firebase data
+        setViewingProfileUser({
+          ...targetUser,
+          ...firebaseUser
+        });
+      } else {
+        // If no Firebase profile exists, use the basic user data
+        setViewingProfileUser(targetUser);
+      }
+    } catch (error) {
+      console.error('Failed to load user profile from Firebase:', error);
+      // Fallback to basic user data
+      setViewingProfileUser(targetUser);
+    }
     setView(ViewState.PROFILE);
   };
 
@@ -58,22 +92,26 @@ const App: React.FC = () => {
 
   const handleUpdateProfile = async (updatedFields: Partial<User>) => {
       if (user) {
-          const updatedUser = { ...user, ...updatedFields };
-          
           // Save to Firebase
           try {
             await FirebaseService.updateUserProfile(user.address, updatedFields);
             console.log('✅ Profile updated successfully');
+            
+            // Reload from Firebase to get canonical data
+            const firebaseUser = await FirebaseService.getUserProfile(user.address);
+            if (firebaseUser) {
+              const updatedUser = { ...user, ...firebaseUser };
+              setUser(updatedUser);
+              
+              // If we are viewing our own profile, update that view as well
+              if (viewingProfileUser && viewingProfileUser.address === user.address) {
+                  setViewingProfileUser(updatedUser);
+              }
+            }
           } catch (error) {
             console.error('Failed to update profile:', error);
             alert('Failed to save profile changes. Please try again.');
             return;
-          }
-          
-          setUser(updatedUser);
-          // If we are viewing our own profile, update that view as well
-          if (viewingProfileUser && viewingProfileUser.address === user.address) {
-              setViewingProfileUser(updatedUser);
           }
       }
   };
@@ -236,11 +274,13 @@ const App: React.FC = () => {
             target={ViewState.PROFILE} 
             active={view === ViewState.PROFILE && (viewingProfileUser?.address === user?.address || (!viewingProfileUser && !user))} 
             onClick={() => {
-              // When clicking "Profile" in nav:
-              // 1. If logged in, set view to self (viewingProfileUser = user)
-              // 2. If guest, clear any previous profile view (viewingProfileUser = null) to trigger the Connect Prompt
-              setViewingProfileUser(user || null);
-              setView(ViewState.PROFILE);
+              // When clicking "Profile" in nav, load real data from Firebase
+              if (user) {
+                handleNavigateToProfile(user);
+              } else {
+                setViewingProfileUser(null);
+                setView(ViewState.PROFILE);
+              }
             }}
           />
           <NavItem icon={<BarChart2 size={20} />} label="Analytics" target={ViewState.DASHBOARD} active={view === ViewState.DASHBOARD} />
@@ -286,7 +326,7 @@ const App: React.FC = () => {
             <button onClick={() => setView(ViewState.FEED)} className={`p-3.5 rounded-full transition-colors ${view === ViewState.FEED ? 'text-primary bg-white/10' : 'text-gray-500'}`}><Home size={24} /></button>
             <button onClick={() => setView(ViewState.CHAT)} className={`p-3.5 rounded-full transition-colors ${view === ViewState.CHAT ? 'text-primary bg-white/10' : 'text-gray-500'}`}><MessageCircle size={24} /></button>
             <button onClick={() => user ? setIsCreating(true) : handleConnect()} className="p-3.5 rounded-full bg-primary text-black shadow-lg shadow-primary/30 transform -translate-y-6 border-4 border-[#0B0E11]">{user ? <PlusSquare size={28} /> : <Wallet size={24} />}</button>
-            <button onClick={() => { setViewingProfileUser(user || null); setView(ViewState.PROFILE); }} className={`p-3.5 rounded-full transition-colors ${view === ViewState.PROFILE ? 'text-primary bg-white/10' : 'text-gray-500'}`}><UserIcon size={24} /></button>
+            <button onClick={() => { if (user) { handleNavigateToProfile(user); } else { setViewingProfileUser(null); setView(ViewState.PROFILE); } }} className={`p-3.5 rounded-full transition-colors ${view === ViewState.PROFILE ? 'text-primary bg-white/10' : 'text-gray-500'}`}><UserIcon size={24} /></button>
             <button onClick={() => setView(ViewState.DASHBOARD)} className={`p-3.5 rounded-full transition-colors ${view === ViewState.DASHBOARD ? 'text-primary bg-white/10' : 'text-gray-500'}`}><BarChart2 size={24} /></button>
         </div>
       </div>

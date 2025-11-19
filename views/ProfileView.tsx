@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, Check, MapPin, Link as LinkIcon, Grid, Calendar, MessageSquare, UserPlus, Settings, X, Save, Wallet, Image as ImageIcon } from 'lucide-react';
+import { Copy, Check, Link as LinkIcon, Grid, Calendar, MessageSquare, UserPlus, Settings, X, Save, Wallet, Image as ImageIcon } from 'lucide-react';
 import { User } from '../types';
 import { GlassCard, Avatar, Button, Badge, Input } from '../components/UIComponents';
 
@@ -124,10 +124,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
               </p>
 
               <div className="flex gap-6 text-sm text-gray-400 mb-8">
-                <div className="flex items-center gap-2">
-                  <MapPin size={16} className="text-gray-500" />
-                  <span>BSC Mainnet</span>
-                </div>
                 {user.createdAt && (
                   <div className="flex items-center gap-2">
                     <Calendar size={16} className="text-gray-500" />
