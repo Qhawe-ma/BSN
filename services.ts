@@ -132,11 +132,13 @@ export const BlockchainService = {
 
       // Step 3: Mint NFT on BSC smart contract
       console.log('🔗 Connecting to smart contract...');
+      console.log('📍 Contract address:', CONTRACT_ADDRESS);
       const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const contract = new Contract(CONTRACT_ADDRESS, POST_MINTING_ABI, signer);
 
       console.log('⛏️ Minting post NFT on blockchain...');
+      console.log('📦 IPFS Hash:', ipfsHash);
       const tx = await contract.mintPost(ipfsHash);
       console.log('📡 Transaction sent:', tx.hash);
       console.log('⏳ Waiting for confirmation...');

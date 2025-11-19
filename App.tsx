@@ -36,7 +36,7 @@ const App: React.FC = () => {
   const [postContent, setPostContent] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [mintingStatus, setMintingStatus] = useState<'idle' | 'uploading' | 'confirming' | 'success'>('idle');
+  const [mintingStatus, setMintingStatus] = useState<'idle' | 'uploading' | 'confirming' | 'success' | 'error'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- Wallet Connection ---
@@ -89,24 +89,38 @@ const App: React.FC = () => {
   const handleCreatePost = async () => {
     if (!postContent && !selectedImage) return;
     
-    // Step 1: Upload to IPFS (Simulated)
-    setMintingStatus('uploading');
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      // Step 1: Upload to IPFS (Simulated)
+      setMintingStatus('uploading');
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // Step 2: Blockchain Confirmation
-    setMintingStatus('confirming');
-    await BlockchainService.mintPost(postContent, selectedImage || undefined);
-    
-    // Step 3: Success
-    setMintingStatus('success');
-    await new Promise(resolve => setTimeout(resolve, 1000));
+      // Step 2: Blockchain Confirmation
+      setMintingStatus('confirming');
+      await BlockchainService.mintPost(postContent, selectedImage || undefined);
+      
+      // Step 3: Success
+      setMintingStatus('success');
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Reset
-    setMintingStatus('idle');
-    setPostContent("");
-    removeImage();
-    setIsCreating(false);
-    setView(ViewState.FEED); 
+      // Reset
+      setMintingStatus('idle');
+      setPostContent("");
+      removeImage();
+      setIsCreating(false);
+      setView(ViewState.FEED);
+    } catch (error: any) {
+      // Handle errors gracefully
+      console.error('Minting error:', error);
+      setMintingStatus('error');
+      
+      // Show error for 5 seconds then reset
+      setTimeout(() => {
+        setMintingStatus('idle');
+      }, 5000);
+      
+      // Display error to user
+      alert(error.message || 'Failed to mint post. Please try again.');
+    }
   };
 
   // --- Render View Switcher ---
