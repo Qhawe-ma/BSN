@@ -61,6 +61,19 @@ The app runs on port 5000 with Vite dev server configured for Replit's proxy env
 - HMR enabled on port 5000
 
 ## Recent Changes
+- **2024-11-19**: Fixed Real-Time Messaging Functionality
+  - ✅ **Message Sending**: Fixed handleSend to pass recipient address when sending messages
+  - ✅ **Real-Time Updates**: Implemented live message subscriptions so messages appear instantly
+  - ✅ **Chat Sessions**: Implemented real-time chat list subscription to show new conversations immediately
+  - ✅ **Chat ID Format**: Fixed startNewChat to create proper Firebase-compatible chat IDs (sorted addresses)
+  - ✅ **Memory Management**: Added proper cleanup for Firebase listeners to prevent memory leaks
+  - ✅ **No Draft State**: Messages now send immediately to Firebase - no more stuck "draft" conversations
+  - 🐛 **Fixed Issues**: 
+    - Messages were stuck in "draft" state and not being sent
+    - New chats not appearing until page refresh
+    - Messages not updating in real-time
+    - Chat sessions not persisting between navigation
+
 - **2024-11-19**: Fixed Firebase Undefined Values Error
   - ✅ **Firebase Compatibility**: Removed undefined fields from user profile creation (Firebase doesn't allow undefined values)
   - ✅ **Data Sanitization**: Added filtering in saveUserProfile and updateUserProfile to strip undefined values before saving
