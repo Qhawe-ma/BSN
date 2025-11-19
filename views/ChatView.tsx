@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, ArrowLeft, MessageSquare, MoreVertical, Plus, Search, PanelLeftClose, PanelLeftOpen, X, ShieldCheck, CheckCheck, Lock, UserPlus, Loader } from 'lucide-react';
+import { Send, ArrowLeft, MessageSquare, MoreVertical, Plus, Search, PanelLeftClose, PanelLeftOpen, X, ShieldCheck, CheckCheck, Check, Lock, UserPlus, Loader } from 'lucide-react';
 import { Message, ChatSession, User } from '../types';
 import { DataService, formatAddress } from '../services';
 import { GlassCard, Avatar, Button, Input } from '../components/UIComponents';
@@ -235,9 +235,16 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick }) 
                             {activeSession?.participant.ens || (activeSession && formatAddress(activeSession.participant.address))}
                             {activeSession?.participant.ens && <ShieldCheck size={14} className="text-blue-400" />}
                         </h3>
-                        <div className="flex items-center gap-1.5">
-                            <Lock size={10} className="text-green-500" />
-                            <span className="text-[10px] text-green-500/80 font-mono tracking-wider">END-TO-END ENCRYPTED</span>
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
+                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                <span className="text-[10px] text-green-500/80 font-medium">Online</span>
+                            </div>
+                            <span className="text-gray-600">•</span>
+                            <div className="flex items-center gap-1.5">
+                                <Lock size={10} className="text-gray-500" />
+                                <span className="text-[10px] text-gray-500 font-mono tracking-wider">ENCRYPTED</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -301,10 +308,20 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick }) 
                               </div>
                               
                               {isLastInSequence && (
-                                <span className="text-[10px] text-gray-500 mt-1 px-1 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
-                                  {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                  {isMe && <span className="ml-1">{msg.isRead ? '• Read' : '• Sent'}</span>}
-                                </span>
+                                <div className="flex items-center gap-1.5 mt-1 px-1">
+                                  <span className="text-[10px] text-gray-500 font-mono">
+                                    {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                  </span>
+                                  {isMe && (
+                                    <span className="flex items-center">
+                                      {msg.isRead ? (
+                                        <CheckCheck size={14} className="text-blue-400" />
+                                      ) : (
+                                        <Check size={14} className="text-gray-500" />
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
                               )}
                           </div>
                         </div>

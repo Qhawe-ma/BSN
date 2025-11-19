@@ -15,6 +15,7 @@ interface ProfileViewProps {
 export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onNavigateToChat, onUpdateProfile, onConnect, isConnecting = false }) => {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
   
   // Determine if we are viewing our own profile (requires currentUser to exist)
   const isOwnProfile = currentUser?.address === user.address;
@@ -24,6 +25,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
   const [editBio, setEditBio] = useState(user.bio || "");
   const [editWebsite, setEditWebsite] = useState(user.website || "");
   const [editAvatar, setEditAvatar] = useState(user.avatarUrl);
+  
+  const handleFollow = () => {
+    setIsFollowing(!isFollowing);
+    // TODO: Integrate with backend API to save follow state
+  };
 
   const copyAddress = () => {
     navigator.clipboard.writeText(user.address);
@@ -75,9 +81,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
                    </>
                  ) : (
                    <>
-                      <Button variant="secondary" size="sm" className="gap-2 group hover:border-primary/50 hover:text-primary transition-all">
-                          <UserPlus size={18} className="text-gray-400 group-hover:text-primary transition-colors" />
-                          Follow
+                      <Button 
+                        onClick={handleFollow}
+                        variant="secondary" 
+                        size="sm" 
+                        className={`gap-2 group transition-all ${isFollowing ? 'border-primary/50 bg-primary/10' : 'hover:border-primary/50 hover:text-primary'}`}
+                      >
+                          <UserPlus size={18} className={`transition-colors ${isFollowing ? 'text-primary' : 'text-gray-400 group-hover:text-primary'}`} />
+                          {isFollowing ? 'Following' : 'Follow'}
                       </Button>
                       <Button 
                           size="sm" 
@@ -107,8 +118,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
           <div className="flex flex-col md:flex-row gap-8">
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-white flex items-center gap-3 mb-2 tracking-tight">
-                {user.ens || "Unnamed User"}
-                <Badge color="bg-blue-500" variant="solid">Beta</Badge>
+                {user.ens || `${user.address.substring(0, 6)}...${user.address.substring(user.address.length - 4)}`}
               </h1>
               
               <button 
