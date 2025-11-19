@@ -10,23 +10,31 @@ BSN is a decentralized social network application built with React, TypeScript, 
 - **Build Tool**: Vite 6.2.0
 - **Language**: TypeScript 5.8.2
 - **Blockchain**: Ethers.js 6.x for BSC mainnet integration
+- **Storage**: Pinata for IPFS metadata and images
+- **Database**: Firebase Realtime Database for messaging
 - **UI Library**: Tailwind CSS (via CDN)
 - **Icons**: Lucide React
 - **Charts**: Recharts
+- **HTTP Client**: Axios for API calls
 
 ### Project Structure
 ```
 ├── components/          # Reusable UI components
 │   └── UIComponents.tsx
 ├── views/              # Main application views
-│   ├── ChatView.tsx    # Encrypted messaging
+│   ├── ChatView.tsx    # Real-time messaging
 │   ├── DashboardView.tsx # Analytics dashboard
 │   ├── FeedView.tsx    # Social feed
 │   └── ProfileView.tsx # User profiles
 ├── App.tsx             # Main application component
 ├── index.tsx           # Application entry point
-├── services.ts         # Blockchain services
+├── services.ts         # Main service layer
+├── ipfsService.ts      # IPFS/Pinata integration
+├── firebaseService.ts  # Firebase real-time messaging
+├── firebaseConfig.ts   # Firebase configuration
 ├── types.ts            # TypeScript type definitions
+├── ethereum.d.ts       # Web3 wallet types
+├── vite-env.d.ts       # Vite environment types
 └── vite.config.ts      # Vite configuration
 
 ```
@@ -52,16 +60,17 @@ The app runs on port 5000 with Vite dev server configured for Replit's proxy env
 - HMR enabled on port 5000
 
 ## Recent Changes
-- **2024-11-19**: Real BSC Mainnet Wallet Integration
-  - ✅ Installed ethers.js for web3 wallet integration
-  - ✅ Implemented real BSC mainnet wallet connection (Chain ID 56)
-  - ✅ Removed ALL mock/dummy data (MOCK_USER, OTHER_USERS, POSTS_STORE)
-  - ✅ Added proper error handling for wallet connection
-  - ✅ All data services now return empty arrays or throw clear errors indicating backend integration needed
-  - ✅ Created ethereum.d.ts for window.ethereum type declarations
-  - 🔒 Wallet connection fully functional with MetaMask and other Web3 wallets
-  - 🔗 Network auto-switches/adds BSC mainnet if not present
-  - 📝 All services are backend-ready with TODO comments for API integration
+- **2024-11-19**: IPFS & Firebase Integration + Real Wallet
+  - ✅ **Wallet**: Real BSC mainnet connection (Chain ID 56) with MetaMask
+  - ✅ **IPFS/Pinata**: Post minting now uploads images and metadata to IPFS
+  - ✅ **Firebase**: Real-time messaging with Firebase Realtime Database
+  - ✅ Removed ALL mock/dummy data from services
+  - ✅ Post creation uploads to IPFS and stores metadata hash on-chain
+  - ✅ Chat messages sync in real-time across users via Firebase
+  - ✅ Proper TypeScript definitions for all environment variables
+  - ⚠️ **Security Note**: Pinata keys are in frontend (should move to backend proxy for production)
+  - 🔒 Firebase integration is secure and follows best practices
+  - 📦 Installed: ethers.js, firebase, axios
 
 - **2024-11-18**: Initial Replit setup
   - Configured Vite to use port 5000 for Replit compatibility
@@ -85,10 +94,17 @@ The app runs on port 5000 with Vite dev server configured for Replit's proxy env
 - The app automatically prompts to switch to BSC mainnet if on a different network
 - If BSC network is not configured in the wallet, the app will automatically add it
 
-## Next Steps for Full Functionality
-The wallet connection is now working with real BSC mainnet. To complete the app, you'll need to:
-1. **Backend API**: Implement backend endpoints for posts, comments, likes, and messaging
-2. **Smart Contracts**: Deploy smart contracts on BSC for post minting (BEP-721 NFTs)
-3. **IPFS Integration**: Set up IPFS for decentralized content storage
-4. **Database**: Connect a database to store user profiles, posts, and chat messages
-5. **Authentication**: Implement signature-based authentication for wallet users
+## Current Functionality Status
+✅ **Wallet Connection**: Fully working with BSC mainnet
+✅ **IPFS Upload**: Images and metadata upload to Pinata
+✅ **Real-time Messaging**: Firebase Realtime Database syncs messages
+⚠️ **Post Minting**: Uploads to IPFS but needs smart contract integration
+⚠️ **Feed**: No backend API to fetch/store posts yet
+⚠️ **Comments/Likes**: Need backend API integration
+
+## Next Steps for Production
+1. **Security**: Move Pinata uploads to backend proxy (currently exposed in frontend)
+2. **Smart Contracts**: Deploy NFT minting contract on BSC for posts
+3. **Backend API**: Build API for posts, comments, likes, and user profiles  
+4. **Post Storage**: Store post references in backend after minting
+5. **Authentication**: Add wallet signature verification for secure operations
