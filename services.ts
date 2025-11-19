@@ -312,9 +312,12 @@ export const DataService = {
       throw new Error('Please connect your wallet first');
     }
 
+    // Create chat ID using the same format as Firebase (sorted addresses)
+    const chatId = [CURRENT_USER.address, address].sort().join('_');
+
     // Create a new chat session
     const chatSession: ChatSession = {
-      id: `temp_${Date.now()}`,
+      id: chatId,
       participant: {
         address: address,
         ens: undefined,
@@ -327,7 +330,7 @@ export const DataService = {
         id: 'init',
         sender: '',
         recipient: '',
-        content: 'New conversation',
+        content: 'Start chatting',
         timestamp: Date.now(),
         isRead: true
       },

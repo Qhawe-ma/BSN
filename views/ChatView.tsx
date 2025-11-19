@@ -37,14 +37,34 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick }) 
   }, []);
 
   useEffect(() => {
-    DataService.getChats().then(setSessions);
-  }, []);
+    if (!currentUser) return;
+    
+    const unsubscribe = DataService.subscribeToChats(currentUser.address, (chats) => {
+      setSessions(chats);
+    });
+    
+    return () => unsubscribe();
+  }, [currentUser]);
 
   useEffect(() => {
-    if (activeSessionId) {
-      DataService.getMessages(activeSessionId).then(setMessages);
+    if (!activeSessionId || !currentUser) {
+      setMessages([]);
+      return;
     }
-  }, [activeSessionId]);
+    
+    const [user1, user2] = activeSessionId.split('_');
+    const otherUserId = user1 === currentUser.address ? user2 : user1;
+    
+    const unsubscribe = DataService.subscribeToMessages(
+      currentUser.address,
+      otherUserId,
+      (messages) => {
+        setMessages(messages);
+      }
+    );
+    
+    return () => unsubscribe();
+  }, [activeSessionId, currentUser]);
 
   // Smart Auto-scrolling
   useEffect(() => {
@@ -55,22 +75,18 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick }) 
 
   // Handlers
   const handleSend = async () => {
-    if (!inputValue.trim() || !currentUser) return;
+    if (!inputValue.trim() || !currentUser || !activeSession) return;
     
-    const tempMsg: Message = {
-        id: `temp_${Date.now()}`,
-        sender: currentUser.address,
-        recipient: activeSession?.participant.address || '',
-        content: inputValue,
-        timestamp: Date.now(),
-        isRead: false
-    };
-
-    setMessages(prev => [...prev, tempMsg]);
+    const recipientAddress = activeSession.participant.address;
+    const messageContent = inputValue.trim();
+    
     setInputValue("");
     
-    // Simulate backend call
-    await DataService.sendMessage(inputValue);
+    try {
+      await DataService.sendMessage(messageContent, recipientAddress);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
   };
 
   const handleStartNewChat = async () => {
