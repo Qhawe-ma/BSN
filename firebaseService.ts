@@ -130,5 +130,62 @@ export const FirebaseService = {
     } catch (error) {
       console.error('Error marking messages as read:', error);
     }
+  },
+
+  /**
+   * Get or create user profile
+   */
+  getUserProfile: async (address: string): Promise<User | null> => {
+    try {
+      const userRef = ref(database, `users/${address}`);
+      
+      return new Promise((resolve) => {
+        onValue(userRef, (snapshot) => {
+          const userData = snapshot.val();
+          if (userData) {
+            resolve(userData as User);
+          } else {
+            resolve(null);
+          }
+        }, { onlyOnce: true });
+      });
+    } catch (error) {
+      console.error('Error getting user profile:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Save user profile to Firebase
+   */
+  saveUserProfile: async (user: User): Promise<void> => {
+    try {
+      const userRef = ref(database, `users/${user.address}`);
+      await set(userRef, user);
+      console.log('✅ User profile saved to Firebase:', user.address);
+    } catch (error) {
+      console.error('Error saving user profile:', error);
+      throw new Error('Failed to save user profile');
+    }
+  },
+
+  /**
+   * Update user profile fields
+   */
+  updateUserProfile: async (address: string, updates: Partial<User>): Promise<void> => {
+    try {
+      const userRef = ref(database, `users/${address}`);
+      
+      // Get current user data
+      const currentUser = await FirebaseService.getUserProfile(address);
+      if (currentUser) {
+        const updatedUser = { ...currentUser, ...updates };
+        await set(userRef, updatedUser);
+        console.log('✅ User profile updated:', address);
+      }
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      throw new Error('Failed to update user profile');
+    }
   }
 };

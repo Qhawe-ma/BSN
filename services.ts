@@ -76,16 +76,30 @@ export const BlockchainService = {
       // Get BNB balance
       const balance = await provider.getBalance(address);
 
-      // Create user object
-      const user: User = {
-        address,
-        ens: undefined, // ENS is not available on BSC by default
-        bio: undefined,
-        followers: 0,
-        following: 0,
-        totalPosts: 0,
-        avatarUrl: generateAvatar(address)
-      };
+      // Try to load existing user from Firebase
+      let user = await FirebaseService.getUserProfile(address);
+
+      // If user doesn't exist in Firebase, create new profile
+      if (!user) {
+        console.log('🆕 Creating new user profile...');
+        user = {
+          address,
+          ens: undefined,
+          bio: undefined,
+          website: undefined,
+          followers: 0,
+          following: 0,
+          totalPosts: 0,
+          avatarUrl: generateAvatar(address),
+          createdAt: Date.now() // Save account creation timestamp
+        };
+
+        // Save new user to Firebase
+        await FirebaseService.saveUserProfile(user);
+        console.log('✅ New user profile created in Firebase');
+      } else {
+        console.log('✅ Loaded existing user profile from Firebase');
+      }
 
       CURRENT_USER = user;
 

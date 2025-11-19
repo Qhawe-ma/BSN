@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Copy, Check, MapPin, Link as LinkIcon, Grid, Calendar, MessageSquare, UserPlus, Settings, X, Save, Wallet } from 'lucide-react';
+import { Copy, Check, MapPin, Link as LinkIcon, Grid, Calendar, MessageSquare, UserPlus, Settings, X, Save, Wallet, Image as ImageIcon } from 'lucide-react';
 import { User } from '../types';
 import { GlassCard, Avatar, Button, Badge, Input } from '../components/UIComponents';
 
@@ -21,6 +21,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
   // Edit State
   const [editEns, setEditEns] = useState(user.ens || "");
   const [editBio, setEditBio] = useState(user.bio || "");
+  const [editWebsite, setEditWebsite] = useState(user.website || "");
   const [editAvatar, setEditAvatar] = useState(user.avatarUrl);
 
   const copyAddress = () => {
@@ -34,6 +35,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
           onUpdateProfile({
               ens: editEns,
               bio: editBio,
+              website: editWebsite,
               avatarUrl: editAvatar
           });
       }
@@ -126,14 +128,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
                   <MapPin size={16} className="text-gray-500" />
                   <span>BSC Mainnet</span>
                 </div>
-                <div className="flex items-center gap-2">
-                   <Calendar size={16} className="text-gray-500" />
-                   <span>Joined Sept 2023</span>
-                </div>
-                <div className="flex items-center gap-2 hover:text-primary transition-colors cursor-pointer group">
-                   <LinkIcon size={16} className="text-gray-500 group-hover:text-primary" />
-                   <a href="#" className="border-b border-transparent group-hover:border-primary/30">display.opensea.io</a>
-                </div>
+                {user.createdAt && (
+                  <div className="flex items-center gap-2">
+                    <Calendar size={16} className="text-gray-500" />
+                    <span>Joined {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                  </div>
+                )}
+                {user.website && (
+                  <div className="flex items-center gap-2 hover:text-primary transition-colors cursor-pointer group">
+                    <LinkIcon size={16} className="text-gray-500 group-hover:text-primary" />
+                    <a href={user.website} target="_blank" rel="noopener noreferrer" className="border-b border-transparent group-hover:border-primary/30">{user.website.replace(/^https?:\/\//, '')}</a>
+                  </div>
+                )}
               </div>
 
               {/* Simple Stats Row */}
@@ -169,23 +175,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
       </div>
 
       {/* Content Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-         {[1,2,3,4,5,6].map(i => (
-             <GlassCard key={i} className="aspect-square relative group cursor-pointer border-0 bg-gray-800/50 hover:bg-gray-800 transition-colors" hoverEffect>
-                 {/* Placeholder Abstract Art */}
-                 <div className={`absolute inset-0 opacity-40 bg-gradient-to-br ${i % 2 === 0 ? 'from-blue-500/20 to-purple-500/20' : 'from-primary/10 to-red-500/20'}`}></div>
-                 
-                 <div className="absolute inset-0 flex flex-col justify-end p-5 opacity-90">
-                     <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-                         <p className="text-white font-bold truncate">Minted Post #{1000 + i}</p>
-                         <div className="flex justify-between items-center mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75">
-                            <span className="text-xs text-gray-400 font-mono">ID: {4092 + i}</span>
-                            <Badge variant="outline" color="bg-white">BEP-20</Badge>
-                         </div>
-                     </div>
-                 </div>
-             </GlassCard>
-         ))}
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+            <ImageIcon size={24} className="text-gray-500" />
+          </div>
+          <h3 className="text-lg font-semibold text-white mb-2">No Posts Yet</h3>
+          <p className="text-gray-400 text-sm max-w-sm">
+            {isOwnProfile ? 
+              "Start minting your first post to see it here as an NFT!" : 
+              "This user hasn't minted any posts yet."
+            }
+          </p>
+        </div>
       </div>
 
       {/* EDIT PROFILE MODAL */}
@@ -216,6 +218,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
                                 value={editBio}
                                 onChange={(e) => setEditBio(e.target.value)}
                                 placeholder="Tell the world about yourself..."
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Website</label>
+                            <Input 
+                                value={editWebsite} 
+                                onChange={(e) => setEditWebsite(e.target.value)} 
+                                placeholder="https://yourwebsite.com" 
                             />
                         </div>
 

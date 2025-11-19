@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Home, MessageCircle, PlusSquare, User as UserIcon, BarChart2, LogOut, Wallet, X, Feather, Image as ImageIcon, Loader, ChevronLeft, ChevronRight } from 'lucide-react';
 import { User, ViewState } from './types';
 import { BlockchainService } from './services';
+import { FirebaseService } from './firebaseService';
 import { Button, GlassCard } from './components/UIComponents';
 
 // Views
@@ -55,9 +56,20 @@ const App: React.FC = () => {
     setView(ViewState.CHAT);
   };
 
-  const handleUpdateProfile = (updatedFields: Partial<User>) => {
+  const handleUpdateProfile = async (updatedFields: Partial<User>) => {
       if (user) {
           const updatedUser = { ...user, ...updatedFields };
+          
+          // Save to Firebase
+          try {
+            await FirebaseService.updateUserProfile(user.address, updatedFields);
+            console.log('✅ Profile updated successfully');
+          } catch (error) {
+            console.error('Failed to update profile:', error);
+            alert('Failed to save profile changes. Please try again.');
+            return;
+          }
+          
           setUser(updatedUser);
           // If we are viewing our own profile, update that view as well
           if (viewingProfileUser && viewingProfileUser.address === user.address) {

@@ -2,10 +2,12 @@ export interface User {
   address: string;
   ens?: string;
   bio?: string;
+  website?: string;
   followers: number;
   following: number;
   totalPosts: number;
   avatarUrl: string;
+  createdAt?: number; // Timestamp when user first connected wallet
 }
 
 export interface Post {
