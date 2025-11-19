@@ -139,7 +139,7 @@ export const BlockchainService = {
 
       console.log('⛏️ Minting post NFT on blockchain...');
       console.log('📦 IPFS Hash:', ipfsHash);
-      const tx = await contract.mintPost(ipfsHash);
+      const tx = await contract.mint(ipfsHash);
       console.log('📡 Transaction sent:', tx.hash);
       console.log('⏳ Waiting for confirmation...');
       

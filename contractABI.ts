@@ -3,11 +3,11 @@ export const POST_MINTING_ABI = [
     "inputs": [
       {
         "internalType": "string",
-        "name": "ipfsHash",
+        "name": "metadataURI",
         "type": "string"
       }
     ],
-    "name": "mintPost",
+    "name": "mint",
     "outputs": [
       {
         "internalType": "uint256",
@@ -24,7 +24,7 @@ export const POST_MINTING_ABI = [
       {
         "indexed": true,
         "internalType": "address",
-        "name": "creator",
+        "name": "author",
         "type": "address"
       },
       {
@@ -36,11 +36,36 @@ export const POST_MINTING_ABI = [
       {
         "indexed": false,
         "internalType": "string",
-        "name": "ipfsHash",
+        "name": "metadataURI",
         "type": "string"
       }
     ],
     "name": "PostMinted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "Transfer",
     "type": "event"
   }
 ] as const;

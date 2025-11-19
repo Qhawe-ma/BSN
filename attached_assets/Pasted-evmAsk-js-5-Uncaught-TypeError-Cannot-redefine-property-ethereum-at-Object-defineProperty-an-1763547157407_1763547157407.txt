@@ -1,0 +1,60 @@
+evmAsk.js:5 Uncaught TypeError: Cannot redefine property: ethereum
+    at Object.defineProperty (<anonymous>)
+    at r.inject (evmAsk.js:5:5093)
+    at window.addEventListener.once (evmAsk.js:5:9013)
+inpage.js:1 MetaMask encountered an error setting the global Ethereum provider - this is likely due to another Ethereum wallet extension also setting the global Ethereum provider: TypeError: Cannot set property ethereum of #<Window> which has only a getter
+    at a (inpage.js:1:142132)
+    at r.initializeProvider (inpage.js:1:141903)
+    at Object.<anonymous> (inpage.js:1:2308)
+    at Object.<anonymous> (inpage.js:1:6316)
+    at 2.../../shared/modules/provider-injection (inpage.js:1:6329)
+    at i (inpage.js:1:254)
+    at e (inpage.js:1:412)
+    at inpage.js:1:429
+a @ inpage.js:1
+(index):64 cdn.tailwindcss.com should not be used in production. To use Tailwind CSS in production, install it as a PostCSS plugin or use the Tailwind CLI: https://tailwindcss.com/docs/installation
+(anonymous) @ (index):64
+injected.js:1 Provider initialised
+injected.js:1 Provider initialised
+injected.js:1 Provider initialised
+content.js:1 Deprecation warning: tabReply will be removed
+(anonymous) @ content.js:1
+content.js:1 Deprecation warning: tabReply will be removed
+(anonymous) @ content.js:1
+content.js:1 Deprecation warning: tabReply will be removed
+(anonymous) @ content.js:1
+injected.js:1 TronLink initiated
+Error: Something went wrong.
+    at C2 (solanaActionsContentScript.js:28:207143)
+    at async H8 (solanaActionsContentScript.js:1215:363)
+client:789 [vite] connecting...
+react-dom_client.js?v=5d3b467f:20103 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+client:802 WebSocket connection to 'wss://dcb2dd3a-20cb-47d5-93c6-3e7b372ce505-00-29rdpb5b4d9ps.worf.replit.dev:5000/?token=WEtAyS6-m-dM' failed: 
+createConnection @ client:802
+client:841 [vite] failed to connect to websocket (Error: WebSocket closed without opened.). 
+connect @ client:841
+client:454 Uncaught (in promise) Error: WebSocket closed without opened.
+    at WebSocket.<anonymous> (client:454:22)
+services.ts:92 ✅ Connected to BSC Mainnet: 0x801C78480E91975b6c7B1FD95c0d6E2271B22FC4
+services.ts:93 💰 BNB Balance: 0
+services.ts:116 📤 Uploading image to IPFS...
+services.ts:122 📝 Creating post metadata...
+services.ts:131 ✅ Metadata uploaded to IPFS: QmSETEoj7VRfpUcxHdfYnUdvLoEXr1k1tbuVcJtKVJKHYk
+services.ts:134 🔗 Connecting to smart contract...
+services.ts:135 📍 Contract address: 0x9b2950fF51AC7514d1469F4990f248F5b3CBF075
+services.ts:140 ⛏️ Minting post NFT on blockchain...
+services.ts:141 📦 IPFS Hash: QmSETEoj7VRfpUcxHdfYnUdvLoEXr1k1tbuVcJtKVJKHYk
+inpage.js:1 MetaMask - RPC Error: Internal JSON-RPC error. Object
+(anonymous) @ inpage.js:1
+services.ts:222 Error minting post: Error: execution reverted (no data present; likely require(false) occurred (action="estimateGas", data="0x", reason="require(false)", transaction={ "data": "0x92ca31860000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002e516d534554456f6a3756526670556378486466596e5564764c6f455872316b3174627556634a744b564a4b48596b000000000000000000000000000000000000", "from": "0x801C78480E91975b6c7B1FD95c0d6E2271B22FC4", "to": "0x9b2950fF51AC7514d1469F4990f248F5b3CBF075" }, invocation=null, revert=null, code=CALL_EXCEPTION, version=6.15.0)
+    at makeError (ethers.js?v=5d3b467f:337:15)
+    at getBuiltinCallException (ethers.js?v=5d3b467f:12020:10)
+    at _AbiCoder.getBuiltinCallException (ethers.js?v=5d3b467f:12091:12)
+    at _BrowserProvider.getRpcError (ethers.js?v=5d3b467f:19294:26)
+    at _BrowserProvider.getRpcError (ethers.js?v=5d3b467f:21809:18)
+    at ethers.js?v=5d3b467f:19482:27
+mintPost @ services.ts:222
+App.tsx:113 Minting error: Error: execution reverted (no data present; likely require(false) occurred (action="estimateGas", data="0x", reason="require(false)", transaction={ "data": "0x92ca31860000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002e516d534554456f6a3756526670556378486466596e5564764c6f455872316b3174627556634a744b564a4b48596b000000000000000000000000000000000000", "from": "0x801C78480E91975b6c7B1FD95c0d6E2271B22FC4", "to": "0x9b2950fF51AC7514d1469F4990f248F5b3CBF075" }, invocation=null, revert=null, code=CALL_EXCEPTION, version=6.15.0)
+    at Object.mintPost (services.ts:233:13)
+    at async handleCreatePost (App.tsx:99:7)
+handleCreatePost @ App.tsx:113

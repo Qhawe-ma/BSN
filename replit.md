@@ -108,11 +108,12 @@ The app runs on port 5000 with Vite dev server configured for Replit's proxy env
 
 ## Smart Contract Integration
 - **Contract Address**: Loaded from `VITE_BSC_CONTRACT_ADDRESS` environment variable
-- **ABI**: Defined in `contractABI.ts`
-- **Function**: `mintPost(string ipfsHash)` - Mints NFT with IPFS metadata
+- **Contract**: PostToken.sol - Custom BEP-20 compatible token for BSC Social Network posts
+- **ABI**: Defined in `contractABI.ts` - matches deployed contract
+- **Function**: `mint(string metadataURI)` - Mints NFT with IPFS metadata
 - **Event Support**: 
-  - Custom `PostMinted(address creator, uint256 tokenId, string ipfsHash)` event
-  - Standard ERC721 `Transfer(address from, address to, uint256 tokenId)` event
+  - Custom `PostMinted(address author, uint256 tokenId, string metadataURI)` event
+  - Standard `Transfer(address from, address to, uint256 tokenId)` event
 - **Error Handling**: Gracefully handles transaction rejection, insufficient funds, and parsing errors
 - **Real Data**: Token ID and transaction hash are extracted from blockchain receipt
 
