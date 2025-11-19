@@ -28,7 +28,8 @@ BSN is a decentralized social network application built with React, TypeScript, 
 │   └── ProfileView.tsx # User profiles
 ├── App.tsx             # Main application component
 ├── index.tsx           # Application entry point
-├── services.ts         # Main service layer
+├── services.ts         # Main service layer with blockchain integration
+├── contractABI.ts      # Smart contract ABI for NFT minting
 ├── ipfsService.ts      # IPFS/Pinata integration
 ├── firebaseService.ts  # Firebase real-time messaging
 ├── firebaseConfig.ts   # Firebase configuration
@@ -60,12 +61,15 @@ The app runs on port 5000 with Vite dev server configured for Replit's proxy env
 - HMR enabled on port 5000
 
 ## Recent Changes
-- **2024-11-19**: IPFS & Firebase Integration + Real Wallet
+- **2024-11-19**: IPFS & Firebase Integration + Real Wallet + Smart Contract Minting
   - ✅ **Wallet**: Real BSC mainnet connection (Chain ID 56) with MetaMask
   - ✅ **IPFS/Pinata**: Post minting now uploads images and metadata to IPFS
   - ✅ **Firebase**: Real-time messaging with Firebase Realtime Database
+  - ✅ **Smart Contract**: Real blockchain minting with actual NFT creation
   - ✅ Removed ALL mock/dummy data from services
-  - ✅ Post creation uploads to IPFS and stores metadata hash on-chain
+  - ✅ Post creation uploads to IPFS and mints NFT on BSC smart contract
+  - ✅ Transaction hash and token ID extracted from blockchain
+  - ✅ Supports both custom PostMinted and standard ERC721 Transfer events
   - ✅ Chat messages sync in real-time across users via Firebase
   - ✅ Proper TypeScript definitions for all environment variables
   - ⚠️ **Security Note**: Pinata keys are in frontend (should move to backend proxy for production)
@@ -98,13 +102,22 @@ The app runs on port 5000 with Vite dev server configured for Replit's proxy env
 ✅ **Wallet Connection**: Fully working with BSC mainnet
 ✅ **IPFS Upload**: Images and metadata upload to Pinata
 ✅ **Real-time Messaging**: Firebase Realtime Database syncs messages
-⚠️ **Post Minting**: Uploads to IPFS but needs smart contract integration
+✅ **Post Minting**: Full blockchain integration - uploads to IPFS and mints NFT on smart contract
 ⚠️ **Feed**: No backend API to fetch/store posts yet
 ⚠️ **Comments/Likes**: Need backend API integration
 
+## Smart Contract Integration
+- **Contract Address**: Loaded from `VITE_BSC_CONTRACT_ADDRESS` environment variable
+- **ABI**: Defined in `contractABI.ts`
+- **Function**: `mintPost(string ipfsHash)` - Mints NFT with IPFS metadata
+- **Event Support**: 
+  - Custom `PostMinted(address creator, uint256 tokenId, string ipfsHash)` event
+  - Standard ERC721 `Transfer(address from, address to, uint256 tokenId)` event
+- **Error Handling**: Gracefully handles transaction rejection, insufficient funds, and parsing errors
+- **Real Data**: Token ID and transaction hash are extracted from blockchain receipt
+
 ## Next Steps for Production
 1. **Security**: Move Pinata uploads to backend proxy (currently exposed in frontend)
-2. **Smart Contracts**: Deploy NFT minting contract on BSC for posts
-3. **Backend API**: Build API for posts, comments, likes, and user profiles  
-4. **Post Storage**: Store post references in backend after minting
-5. **Authentication**: Add wallet signature verification for secure operations
+2. **Backend API**: Build API for posts, comments, likes, and user profiles  
+3. **Post Storage**: Store post references in backend after minting
+4. **Authentication**: Add wallet signature verification for secure operations

@@ -1,7 +1,8 @@
 import { Post, User, Message, ChatSession, Comment } from './types';
-import { BrowserProvider } from 'ethers';
+import { BrowserProvider, Contract } from 'ethers';
 import { IPFSService } from './ipfsService';
 import { FirebaseService } from './firebaseService';
+import { POST_MINTING_ABI } from './contractABI';
 
 // --- Constants ---
 const BSC_MAINNET_CHAIN_ID = '0x38'; // Chain ID 56 in hex
@@ -16,6 +17,9 @@ const BSC_MAINNET_CONFIG = {
   rpcUrls: ['https://bsc-dataseed.bnbchain.org'],
   blockExplorerUrls: ['https://bscscan.com/']
 };
+
+// Get contract address from environment
+const CONTRACT_ADDRESS = import.meta.env.VITE_BSC_CONTRACT_ADDRESS;
 
 // --- Helper: Avatar Generator ---
 export const generateAvatar = (address: string) => 
@@ -100,6 +104,10 @@ export const BlockchainService = {
       throw new Error('Please connect your wallet first');
     }
 
+    if (!CONTRACT_ADDRESS) {
+      throw new Error('Contract address not configured. Please add VITE_BSC_CONTRACT_ADDRESS to your environment.');
+    }
+
     try {
       let attachmentUrl: string | undefined;
       
@@ -122,26 +130,105 @@ export const BlockchainService = {
       const ipfsHash = await IPFSService.uploadMetadata(metadata);
       console.log('✅ Metadata uploaded to IPFS:', ipfsHash);
 
-      // Step 3: Create post object
-      // TODO: Mint actual NFT on BSC smart contract with the IPFS hash
+      // Step 3: Mint NFT on BSC smart contract
+      console.log('🔗 Connecting to smart contract...');
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(CONTRACT_ADDRESS, POST_MINTING_ABI, signer);
+
+      console.log('⛏️ Minting post NFT on blockchain...');
+      const tx = await contract.mintPost(ipfsHash);
+      console.log('📡 Transaction sent:', tx.hash);
+      console.log('⏳ Waiting for confirmation...');
+      
+      const receipt = await tx.wait();
+      console.log('✅ Transaction confirmed!');
+
+      // Extract token ID from event logs
+      let tokenId: string | null = null;
+      if (receipt.logs && receipt.logs.length > 0) {
+        try {
+          // Try to find PostMinted event
+          const postMintedEvent = receipt.logs.find((log: any) => {
+            try {
+              const parsed = contract.interface.parseLog(log);
+              return parsed?.name === 'PostMinted';
+            } catch {
+              return false;
+            }
+          });
+
+          if (postMintedEvent) {
+            const parsed = contract.interface.parseLog(postMintedEvent);
+            tokenId = parsed?.args?.tokenId?.toString();
+            console.log('📝 Extracted tokenId from PostMinted event');
+          } else {
+            // Fall back to standard ERC721 Transfer event
+            // Transfer(address indexed from, address indexed to, uint256 indexed tokenId)
+            for (const log of receipt.logs) {
+              try {
+                // Only process Transfer events from OUR contract (not random ERC20/721 tokens)
+                if (log.address.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase()) {
+                  continue;
+                }
+                
+                // Standard ERC721 Transfer event topic
+                if (log.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef') {
+                  // tokenId is the 4th topic (index 3) in a standard Transfer event
+                  if (log.topics.length >= 4) {
+                    tokenId = BigInt(log.topics[3]).toString();
+                    console.log('📝 Extracted tokenId from ERC721 Transfer event');
+                    break;
+                  }
+                }
+              } catch (error) {
+                console.warn('Could not parse Transfer event:', error);
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('Could not parse event logs:', error);
+        }
+      }
+
+      // If we still don't have a tokenId, something went wrong
+      if (!tokenId) {
+        throw new Error('Failed to extract token ID from transaction. The contract may not be compatible or the transaction failed.');
+      }
+
+      // Step 4: Create post object with real blockchain data
       const post: Post = {
         id: Date.now(),
-        tokenId: Math.floor(Math.random() * 10000).toString(), // This should come from smart contract
+        tokenId,
         author: CURRENT_USER,
         content,
         timestamp: metadata.timestamp,
         likes: 0,
         commentsCount: 0,
         ipfsHash,
-        txHash: '0x...pending', // This should come from smart contract transaction
+        txHash: receipt.hash,
         attachmentUrl
       };
 
-      console.log('🎉 Post created with IPFS metadata!');
+      console.log('🎉 Post minted successfully!');
+      console.log('Token ID:', tokenId);
+      console.log('Transaction Hash:', receipt.hash);
+      console.log('View on BSCScan:', `https://bscscan.com/tx/${receipt.hash}`);
+      
       return post;
     } catch (error: any) {
       console.error('Error minting post:', error);
-      throw new Error(error.message || 'Failed to mint post');
+      
+      // Provide more helpful error messages
+      if (error.code === 'ACTION_REJECTED') {
+        throw new Error('Transaction rejected by user');
+      } else if (error.code === 'INSUFFICIENT_FUNDS') {
+        throw new Error('Insufficient BNB for gas fees');
+      } else if (error.message?.includes('user rejected')) {
+        throw new Error('Transaction rejected by user');
+      }
+      
+      throw new Error(error.message || 'Failed to mint post on blockchain');
     }
   }
 };
