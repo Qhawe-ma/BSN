@@ -82,11 +82,9 @@ export const BlockchainService = {
       // If user doesn't exist in Firebase, create new profile
       if (!user) {
         console.log('🆕 Creating new user profile...');
+        // Only include defined fields (Firebase doesn't allow undefined values)
         user = {
           address,
-          ens: undefined,
-          bio: undefined,
-          website: undefined,
           followers: 0,
           following: 0,
           totalPosts: 0,

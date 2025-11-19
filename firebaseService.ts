@@ -161,7 +161,16 @@ export const FirebaseService = {
   saveUserProfile: async (user: User): Promise<void> => {
     try {
       const userRef = ref(database, `users/${user.address}`);
-      await set(userRef, user);
+      
+      // Filter out undefined values (Firebase doesn't allow them)
+      const cleanUser: Record<string, any> = {};
+      for (const [key, value] of Object.entries(user)) {
+        if (value !== undefined) {
+          cleanUser[key] = value;
+        }
+      }
+      
+      await set(userRef, cleanUser);
       console.log('✅ User profile saved to Firebase:', user.address);
     } catch (error) {
       console.error('Error saving user profile:', error);
@@ -180,7 +189,16 @@ export const FirebaseService = {
       const currentUser = await FirebaseService.getUserProfile(address);
       if (currentUser) {
         const updatedUser = { ...currentUser, ...updates };
-        await set(userRef, updatedUser);
+        
+        // Filter out undefined values (Firebase doesn't allow them)
+        const cleanUser: Record<string, any> = {};
+        for (const [key, value] of Object.entries(updatedUser)) {
+          if (value !== undefined) {
+            cleanUser[key] = value;
+          }
+        }
+        
+        await set(userRef, cleanUser);
         console.log('✅ User profile updated:', address);
       }
     } catch (error) {
