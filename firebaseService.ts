@@ -65,7 +65,7 @@ export const FirebaseService = {
   /**
    * Get all chat sessions for a user
    */
-  getUserChats: async (userId: string, callback: (chats: ChatSession[]) => void): (() => void) => {
+  getUserChats: (userId: string, callback: (chats: ChatSession[]) => void): (() => void) => {
     const chatsRef = ref(database, 'chats');
     
     const unsubscribe = onValue(chatsRef, (snapshot) => {

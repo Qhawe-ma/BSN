@@ -1,5 +1,7 @@
 import { Post, User, Message, ChatSession, Comment } from './types';
 import { BrowserProvider } from 'ethers';
+import { IPFSService } from './ipfsService';
+import { FirebaseService } from './firebaseService';
 
 // --- Constants ---
 const BSC_MAINNET_CHAIN_ID = '0x38'; // Chain ID 56 in hex
@@ -98,13 +100,49 @@ export const BlockchainService = {
       throw new Error('Please connect your wallet first');
     }
 
-    // TODO: Real implementation would:
-    // 1. Upload image to IPFS
-    // 2. Create post metadata JSON
-    // 3. Mint NFT on BSC smart contract
-    // 4. Store post reference in backend database
-    
-    throw new Error('Minting posts requires backend and smart contract integration. Please implement the backend API first.');
+    try {
+      let attachmentUrl: string | undefined;
+      
+      // Step 1: Upload image to IPFS if present
+      if (attachment) {
+        console.log('📤 Uploading image to IPFS...');
+        const ipfsImageUri = await IPFSService.uploadImage(attachment);
+        attachmentUrl = IPFSService.getIPFSUrl(ipfsImageUri.replace('ipfs://', ''));
+      }
+
+      // Step 2: Create and upload post metadata to IPFS
+      console.log('📝 Creating post metadata...');
+      const metadata = {
+        content,
+        author: CURRENT_USER.address,
+        timestamp: Date.now(),
+        imageUrl: attachmentUrl
+      };
+      
+      const ipfsHash = await IPFSService.uploadMetadata(metadata);
+      console.log('✅ Metadata uploaded to IPFS:', ipfsHash);
+
+      // Step 3: Create post object
+      // TODO: Mint actual NFT on BSC smart contract with the IPFS hash
+      const post: Post = {
+        id: Date.now(),
+        tokenId: Math.floor(Math.random() * 10000).toString(), // This should come from smart contract
+        author: CURRENT_USER,
+        content,
+        timestamp: metadata.timestamp,
+        likes: 0,
+        commentsCount: 0,
+        ipfsHash,
+        txHash: '0x...pending', // This should come from smart contract transaction
+        attachmentUrl
+      };
+
+      console.log('🎉 Post created with IPFS metadata!');
+      return post;
+    } catch (error: any) {
+      console.error('Error minting post:', error);
+      throw new Error(error.message || 'Failed to mint post');
+    }
   }
 };
 
@@ -141,17 +179,23 @@ export const DataService = {
   },
 
   getChats: async (): Promise<ChatSession[]> => {
-    // TODO: Fetch chat sessions from backend API
-    // Example: const response = await fetch('/api/chats');
-    // return response.json();
-    return [];
+    if (!CURRENT_USER) {
+      return [];
+    }
+    
+    return new Promise((resolve) => {
+      FirebaseService.getUserChats(CURRENT_USER!.address, (chats) => {
+        resolve(chats);
+      });
+    });
   },
 
-  getMessages: async (chatId: string): Promise<Message[]> => {
-    // TODO: Fetch messages from backend API
-    // Example: const response = await fetch(`/api/chats/${chatId}/messages`);
-    // return response.json();
-    return [];
+  getMessages: async (senderId: string, recipientId: string): Promise<Message[]> => {
+    return new Promise((resolve) => {
+      FirebaseService.subscribeToMessages(senderId, recipientId, (messages) => {
+        resolve(messages);
+      });
+    });
   },
   
   sendMessage: async (text: string, recipientAddress: string): Promise<Message> => {
@@ -159,22 +203,57 @@ export const DataService = {
       throw new Error('Please connect your wallet first');
     }
 
-    // TODO: Send message via backend API with encryption
-    // Example: const response = await fetch('/api/messages', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ text, recipient: recipientAddress })
-    // });
-    // return response.json();
-    throw new Error('Sending messages requires backend API integration');
+    return await FirebaseService.sendMessage(CURRENT_USER.address, recipientAddress, text);
   },
 
   startNewChat: async (address: string): Promise<ChatSession> => {
-    // TODO: Create chat session via backend API
-    // Example: const response = await fetch('/api/chats', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ participantAddress: address })
-    // });
-    // return response.json();
-    throw new Error('Starting chats requires backend API integration');
+    if (!CURRENT_USER) {
+      throw new Error('Please connect your wallet first');
+    }
+
+    // Create a new chat session
+    const chatSession: ChatSession = {
+      id: `temp_${Date.now()}`,
+      participant: {
+        address: address,
+        ens: undefined,
+        followers: 0,
+        following: 0,
+        totalPosts: 0,
+        avatarUrl: generateAvatar(address)
+      },
+      lastMessage: {
+        id: 'init',
+        sender: '',
+        recipient: '',
+        content: 'New conversation',
+        timestamp: Date.now(),
+        isRead: true
+      },
+      unreadCount: 0
+    };
+
+    return chatSession;
+  },
+
+  /**
+   * Subscribe to real-time messages
+   */
+  subscribeToMessages: (
+    senderId: string,
+    recipientId: string,
+    callback: (messages: Message[]) => void
+  ): (() => void) => {
+    return FirebaseService.subscribeToMessages(senderId, recipientId, callback);
+  },
+
+  /**
+   * Subscribe to real-time chats
+   */
+  subscribeToChats: (
+    userId: string,
+    callback: (chats: ChatSession[]) => void
+  ): (() => void) => {
+    return FirebaseService.getUserChats(userId, callback);
   }
 };

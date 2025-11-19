@@ -1,5 +1,9 @@
 import axios from 'axios';
 
+// ⚠️ SECURITY WARNING: 
+// Pinata secret keys are currently exposed in the frontend.
+// For production, move IPFS uploads to a backend API proxy to protect these credentials.
+// This is a temporary solution for development/testing purposes.
 const PINATA_API_KEY = import.meta.env.VITE_PINATA_API_KEY;
 const PINATA_SECRET_KEY = import.meta.env.VITE_PINATA_SECRET_KEY;
 const PINATA_API_URL = 'https://api.pinata.cloud';
@@ -30,7 +34,6 @@ export const IPFSService = {
         formData,
         {
           headers: {
-            'Content-Type': 'multipart/form-data',
             pinata_api_key: PINATA_API_KEY,
             pinata_secret_api_key: PINATA_SECRET_KEY,
           },
