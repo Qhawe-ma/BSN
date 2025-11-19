@@ -67,6 +67,7 @@ export const FirebaseService = {
    */
   getUserChats: (userId: string, callback: (chats: ChatSession[]) => void): (() => void) => {
     const chatsRef = ref(database, 'chats');
+    const normalizedUserId = userId.toLowerCase();
     
     const unsubscribe = onValue(chatsRef, (snapshot) => {
       const chatSessions: ChatSession[] = [];
@@ -75,29 +76,44 @@ export const FirebaseService = {
         const chatId = chatSnapshot.key;
         const chatData = chatSnapshot.val();
         
-        // Check if user is part of this chat
-        if (chatId?.includes(userId)) {
-          const [user1, user2] = chatId.split('_');
-          const otherUserId = user1 === userId ? user2 : user1;
+        // Split chat ID to get both participant addresses
+        if (chatId) {
+          const parts = chatId.split('_');
           
-          const metadata = chatData.metadata;
-          const lastMessage = metadata?.lastMessage;
+          // Validate that we have exactly 2 participants
+          if (parts.length !== 2 || !parts[0] || !parts[1]) {
+            console.warn('Invalid chat ID format:', chatId);
+            return;
+          }
           
-          if (lastMessage) {
-            const chatSession: ChatSession = {
-              id: chatId,
-              participant: {
-                address: otherUserId,
-                ens: undefined,
-                followers: 0,
-                following: 0,
-                totalPosts: 0,
-                avatarUrl: generateAvatar(otherUserId)
-              },
-              lastMessage: lastMessage,
-              unreadCount: 0 // TODO: Calculate unread count
-            };
-            chatSessions.push(chatSession);
+          const [user1, user2] = parts;
+          
+          // Check if user is exactly one of the two participants (case-insensitive)
+          const isUser1 = user1.toLowerCase() === normalizedUserId;
+          const isUser2 = user2.toLowerCase() === normalizedUserId;
+          
+          if (isUser1 || isUser2) {
+            const otherUserId = isUser1 ? user2 : user1;
+            
+            const metadata = chatData.metadata;
+            const lastMessage = metadata?.lastMessage;
+            
+            if (lastMessage) {
+              const chatSession: ChatSession = {
+                id: chatId,
+                participant: {
+                  address: otherUserId,
+                  ens: undefined,
+                  followers: 0,
+                  following: 0,
+                  totalPosts: 0,
+                  avatarUrl: generateAvatar(otherUserId)
+                },
+                lastMessage: lastMessage,
+                unreadCount: 0 // TODO: Calculate unread count
+              };
+              chatSessions.push(chatSession);
+            }
           }
         }
       });
