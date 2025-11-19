@@ -61,6 +61,15 @@ The app runs on port 5000 with Vite dev server configured for Replit's proxy env
 - HMR enabled on port 5000
 
 ## Recent Changes
+- **2024-11-19**: UI/UX Improvements for Messaging and Profiles
+  - ✅ **BETA Badge Removed**: Removed BETA badge from profile name field
+  - ✅ **Smart Name Display**: Shows shortened wallet address (0x1234...5678) when user has no custom name set
+  - ✅ **Follow Button**: Made follow button functional with toggle state (Follow/Following)
+  - ✅ **Online Status**: Added green pulsing dot and "Online" indicator in chat header
+  - ✅ **Read Receipts**: Single checkmark (✓) for sent messages, double checkmark (✓✓) for read messages
+  - ✅ **Always-Visible Timestamps**: Message timestamps now always visible (not just on hover)
+  - ✅ **Professional Look**: Clean, modern UI with proper spacing and styling
+
 - **2024-11-19**: Fixed Real-Time Messaging Functionality
   - ✅ **Message Sending**: Fixed handleSend to pass recipient address when sending messages
   - ✅ **Real-Time Updates**: Implemented live message subscriptions so messages appear instantly
