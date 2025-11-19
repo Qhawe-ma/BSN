@@ -12,17 +12,23 @@ import { ProfileView } from './views/ProfileView';
 import { DashboardView } from './views/DashboardView';
 
 // Guest Protection Component
-const ConnectWalletPrompt: React.FC<{ onConnect: () => void, title?: string, subtitle?: string }> = ({ onConnect, title = "Connect Wallet", subtitle = "You need to connect your wallet to access this feature." }) => (
+const ConnectWalletPrompt: React.FC<{ onConnect: () => void, isConnecting?: boolean, title?: string, subtitle?: string }> = ({ onConnect, isConnecting = false, title = "Connect Wallet", subtitle = "You need to connect your wallet to access this feature." }) => (
     <div className="flex flex-col items-center justify-center h-[70vh] text-center px-4">
          <div className="relative group mb-8">
              <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
              <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center shadow-2xl relative z-10">
-               <Wallet size={32} className="text-gray-400 group-hover:text-primary transition-colors duration-500" />
+               {isConnecting ? (
+                 <Loader size={32} className="text-primary animate-spin" />
+               ) : (
+                 <Wallet size={32} className="text-gray-400 group-hover:text-primary transition-colors duration-500" />
+               )}
              </div>
          </div>
          <h2 className="text-2xl font-bold text-white mb-2">{title}</h2>
          <p className="text-gray-400 max-w-sm mb-8">{subtitle}</p>
-         <Button onClick={onConnect} size="lg" className="rounded-full px-8">Connect Wallet</Button>
+         <Button onClick={onConnect} disabled={isConnecting} size="lg" className="rounded-full px-8">
+           {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+         </Button>
     </div>
 );
 
@@ -39,27 +45,71 @@ const App: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [mintingStatus, setMintingStatus] = useState<'idle' | 'uploading' | 'confirming' | 'success' | 'error'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Wallet Connection State
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // --- Wallet Connection ---
   const handleConnect = async () => {
-    const connectedUser = await BlockchainService.connectWallet();
+    if (isConnecting) return; // Prevent multiple simultaneous connection attempts
     
-    // Load user profile from Firebase to get real data
+    setIsConnecting(true);
+    setConnectionError(null); // Clear any previous errors
+    
+    // Clear any pending error timeout
+    if (errorTimeoutRef.current) {
+      clearTimeout(errorTimeoutRef.current);
+      errorTimeoutRef.current = null;
+    }
+    
     try {
-      const firebaseUser = await FirebaseService.getUserProfile(connectedUser.address);
-      if (firebaseUser) {
-        // Merge blockchain data with Firebase data
-        setUser({
-          ...connectedUser,
-          ...firebaseUser
-        });
-      } else {
-        // If no profile exists, just use the blockchain data
+      // Connect wallet (this handles MetaMask connection and network switching)
+      const connectedUser = await BlockchainService.connectWallet();
+      
+      // Try to load user profile from Firebase to get additional data
+      try {
+        const firebaseUser = await FirebaseService.getUserProfile(connectedUser.address);
+        if (firebaseUser) {
+          // Merge blockchain data with Firebase data
+          setUser({
+            ...connectedUser,
+            ...firebaseUser
+          });
+        } else {
+          // If no profile exists in Firebase, just use the blockchain data
+          setUser(connectedUser);
+        }
+      } catch (firebaseError) {
+        // Firebase errors shouldn't block wallet connection
+        console.warn('Firebase unavailable, using wallet data only:', firebaseError);
         setUser(connectedUser);
       }
-    } catch (error) {
-      console.error('Failed to load user profile from Firebase:', error);
-      setUser(connectedUser);
+      
+      console.log('✅ Wallet connected successfully!');
+    } catch (error: any) {
+      // Handle wallet connection errors with detailed logging
+      console.error('Wallet connection failed:', error);
+      
+      // Normalize error message to handle different error types
+      let errorMessage = 'Failed to connect wallet. Please try again.';
+      if (error && typeof error === 'object') {
+        errorMessage = error.message || error.toString();
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      // Show error in UI
+      setConnectionError(errorMessage);
+      
+      // Auto-dismiss error after 5 seconds (store timeout reference to prevent stacking)
+      errorTimeoutRef.current = setTimeout(() => {
+        setConnectionError(null);
+        errorTimeoutRef.current = null;
+      }, 5000);
+    } finally {
+      setIsConnecting(false);
     }
   };
 
@@ -180,7 +230,7 @@ const App: React.FC = () => {
         return <FeedView type="global" onUserClick={handleNavigateToProfile} currentUser={user || undefined} />;
       
       case ViewState.CHAT: 
-        if (!user) return <ConnectWalletPrompt onConnect={handleConnect} title="Encrypted Messaging" subtitle="Connect your wallet to access your secure, end-to-end encrypted messages." />;
+        if (!user) return <ConnectWalletPrompt onConnect={handleConnect} isConnecting={isConnecting} title="Encrypted Messaging" subtitle="Connect your wallet to access your secure, end-to-end encrypted messages." />;
         return <ChatView currentUser={user} onUserClick={handleNavigateToProfile} />;
       
       case ViewState.PROFILE: 
@@ -191,7 +241,7 @@ const App: React.FC = () => {
 
         // If neither exists, it means a guest is trying to view "My Profile". Block it.
         if (!targetUser) {
-           return <ConnectWalletPrompt onConnect={handleConnect} title="Your Profile" subtitle="Connect your wallet to view your decentralized identity." />;
+           return <ConnectWalletPrompt onConnect={handleConnect} isConnecting={isConnecting} title="Your Profile" subtitle="Connect your wallet to view your decentralized identity." />;
         }
 
         return (
@@ -201,11 +251,12 @@ const App: React.FC = () => {
             onNavigateToChat={handleNavigateToChat}
             onUpdateProfile={handleUpdateProfile} 
             onConnect={handleConnect}
+            isConnecting={isConnecting}
           />
         );
       
       case ViewState.DASHBOARD: 
-        if (!user) return <ConnectWalletPrompt onConnect={handleConnect} title="Analytics Dashboard" subtitle="Connect your wallet to view your on-chain performance metrics." />;
+        if (!user) return <ConnectWalletPrompt onConnect={handleConnect} isConnecting={isConnecting} title="Analytics Dashboard" subtitle="Connect your wallet to view your on-chain performance metrics." />;
         return <DashboardView user={user} />;
       
       default: 
@@ -290,11 +341,12 @@ const App: React.FC = () => {
           <Button 
             onClick={() => user ? setIsCreating(true) : handleConnect()} 
             size={isSidebarCollapsed ? 'sm' : 'lg'} 
+            disabled={isConnecting}
             className={`w-full mb-6 shadow-xl shadow-primary/10 transition-all duration-300 ${isSidebarCollapsed ? 'px-0 aspect-square flex items-center justify-center rounded-2xl' : ''}`}
             title="Create Post"
           >
-            {user ? <PlusSquare size={20} /> : <Wallet size={20} />}
-            <span className={`${isSidebarCollapsed ? 'hidden' : 'ml-2'}`}>{user ? 'Post' : 'Connect'}</span>
+            {user ? <PlusSquare size={20} /> : (isConnecting ? <Loader size={20} className="animate-spin" /> : <Wallet size={20} />)}
+            <span className={`${isSidebarCollapsed ? 'hidden' : 'ml-2'}`}>{user ? 'Post' : (isConnecting ? 'Connecting...' : 'Connect')}</span>
           </Button>
           
           {user ? (
@@ -311,10 +363,11 @@ const App: React.FC = () => {
           ) : (
              <button 
                 onClick={handleConnect}
-                className={`w-full flex items-center justify-center gap-2 text-gray-400 hover:text-white text-sm p-2 transition-colors ${isSidebarCollapsed ? 'hidden' : ''}`}
+                disabled={isConnecting}
+                className={`w-full flex items-center justify-center gap-2 text-gray-400 hover:text-white text-sm p-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isSidebarCollapsed ? 'hidden' : ''}`}
              >
-                <LogOut size={14} className="rotate-180" />
-                Login
+                {isConnecting ? <Loader size={14} className="animate-spin" /> : <LogOut size={14} className="rotate-180" />}
+                {isConnecting ? 'Connecting...' : 'Login'}
              </button>
           )}
         </div>
@@ -325,7 +378,7 @@ const App: React.FC = () => {
         <div className="bg-gray-900/90 backdrop-blur-2xl border border-white/10 rounded-full shadow-2xl flex justify-around items-center p-1.5 px-2">
             <button onClick={() => setView(ViewState.FEED)} className={`p-3.5 rounded-full transition-colors ${view === ViewState.FEED ? 'text-primary bg-white/10' : 'text-gray-500'}`}><Home size={24} /></button>
             <button onClick={() => setView(ViewState.CHAT)} className={`p-3.5 rounded-full transition-colors ${view === ViewState.CHAT ? 'text-primary bg-white/10' : 'text-gray-500'}`}><MessageCircle size={24} /></button>
-            <button onClick={() => user ? setIsCreating(true) : handleConnect()} className="p-3.5 rounded-full bg-primary text-black shadow-lg shadow-primary/30 transform -translate-y-6 border-4 border-[#0B0E11]">{user ? <PlusSquare size={28} /> : <Wallet size={24} />}</button>
+            <button onClick={() => user ? setIsCreating(true) : handleConnect()} disabled={isConnecting} className="p-3.5 rounded-full bg-primary text-black shadow-lg shadow-primary/30 transform -translate-y-6 border-4 border-[#0B0E11] disabled:opacity-50">{user ? <PlusSquare size={28} /> : (isConnecting ? <Loader size={24} className="animate-spin" /> : <Wallet size={24} />)}</button>
             <button onClick={() => { if (user) { handleNavigateToProfile(user); } else { setViewingProfileUser(null); setView(ViewState.PROFILE); } }} className={`p-3.5 rounded-full transition-colors ${view === ViewState.PROFILE ? 'text-primary bg-white/10' : 'text-gray-500'}`}><UserIcon size={24} /></button>
             <button onClick={() => setView(ViewState.DASHBOARD)} className={`p-3.5 rounded-full transition-colors ${view === ViewState.DASHBOARD ? 'text-primary bg-white/10' : 'text-gray-500'}`}><BarChart2 size={24} /></button>
         </div>
@@ -426,6 +479,28 @@ const App: React.FC = () => {
                 </div>
             </div>
           </GlassCard>
+        </div>
+      )}
+
+      {/* Connection Error Toast */}
+      {connectionError && (
+        <div className="fixed bottom-24 md:bottom-8 left-1/2 transform -translate-x-1/2 z-[150] animate-in slide-in-from-bottom duration-300">
+          <div className="bg-red-500/90 backdrop-blur-xl text-white px-6 py-4 rounded-2xl shadow-2xl border border-red-400/30 flex items-center gap-3 max-w-md">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            <p className="text-sm font-medium">{connectionError}</p>
+            <button 
+              onClick={() => {
+                setConnectionError(null);
+                if (errorTimeoutRef.current) {
+                  clearTimeout(errorTimeoutRef.current);
+                  errorTimeoutRef.current = null;
+                }
+              }}
+              className="ml-auto p-1 hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
       )}
     </div>

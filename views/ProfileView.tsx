@@ -9,9 +9,10 @@ interface ProfileViewProps {
     onNavigateToChat?: () => void;
     onUpdateProfile?: (updatedUser: Partial<User>) => void;
     onConnect?: () => void;
+    isConnecting?: boolean;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onNavigateToChat, onUpdateProfile, onConnect }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onNavigateToChat, onUpdateProfile, onConnect, isConnecting = false }) => {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   
@@ -91,12 +92,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
                ) : (
                   <Button 
                     onClick={onConnect}
+                    disabled={isConnecting}
                     variant="secondary" 
                     size="sm" 
                     className="gap-2 hover:border-white/30 hover:bg-white/10 transition-all"
                   >
                       <Wallet size={16} />
-                      Connect to interact
+                      {isConnecting ? 'Connecting...' : 'Connect to interact'}
                   </Button>
                )}
             </div>
