@@ -1,7 +1,19 @@
 import { Post, User, Message, ChatSession, Comment } from './types';
+import { BrowserProvider } from 'ethers';
 
 // --- Constants ---
-const MOCK_DELAY = 800;
+const BSC_MAINNET_CHAIN_ID = '0x38'; // Chain ID 56 in hex
+const BSC_MAINNET_CONFIG = {
+  chainId: BSC_MAINNET_CHAIN_ID,
+  chainName: 'BNB Smart Chain Mainnet',
+  nativeCurrency: {
+    name: 'BNB',
+    symbol: 'BNB',
+    decimals: 18
+  },
+  rpcUrls: ['https://bsc-dataseed.bnbchain.org'],
+  blockExplorerUrls: ['https://bscscan.com/']
+};
 
 // --- Helper: Avatar Generator ---
 export const generateAvatar = (address: string) => 
@@ -11,69 +23,96 @@ export const generateAvatar = (address: string) =>
 export const formatAddress = (addr: string) => 
   `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
 
-// --- Mock Data Stores ---
-const MOCK_USER: User = {
-  address: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
-  ens: "builder.eth",
-  bio: "Web3 enthusiast and digital creator. Minting moments on the Binance Smart Chain. Building the future of decentralized social media.",
-  followers: 142,
-  following: 89,
-  totalPosts: 34,
-  avatarUrl: ""
-};
-MOCK_USER.avatarUrl = generateAvatar(MOCK_USER.address);
+// --- Store for posts (empty by default, will be populated from backend/chain) ---
+let POSTS_STORE: Post[] = [];
 
-const OTHER_USERS: User[] = [
-  { address: "0x3G2...91B2", ens: "defi.bsc", bio: "Yield farming all day.", followers: 8900, following: 12, totalPosts: 450, avatarUrl: generateAvatar("0x3G2...91B2") },
-  { address: "0x99A...112C", ens: undefined, bio: "Just here for the tech.", followers: 42, following: 105, totalPosts: 5, avatarUrl: generateAvatar("0x99A...112C") },
-  { address: "0xBb4...009A", ens: "artist.eth", bio: "Digital artist. NFT collector.", followers: 1200, following: 400, totalPosts: 128, avatarUrl: generateAvatar("0xBb4...009A") }
-];
+// --- Store current connected user ---
+let CURRENT_USER: User | null = null;
 
-let POSTS_STORE: Post[] = [
-  {
-    id: 101,
-    tokenId: "4092",
-    author: OTHER_USERS[0],
-    content: "Just deployed my first smart contract on BSC! Gas fees are incredibly low compared to Mainnet. 🚀 #BSC #Dev",
-    timestamp: Date.now() - 3600000,
-    likes: 24,
-    commentsCount: 5,
-    ipfsHash: "QmXyZ...91b",
-    txHash: "0xabc...123",
-    isLiked: true
-  },
-  {
-    id: 102,
-    tokenId: "4093",
-    author: OTHER_USERS[2],
-    content: "Minted this new generative art piece visible on the new 0xSocial platform. Check the IPFS metadata.",
-    timestamp: Date.now() - 7200000,
-    likes: 156,
-    commentsCount: 12,
-    ipfsHash: "QmRq...88a",
-    txHash: "0xdef...456",
-    attachmentUrl: "https://picsum.photos/600/300"
-  }
-];
-
-// --- Service: Blockchain (Simulated) ---
+// --- Service: Blockchain (Real BSC Connection) ---
 export const BlockchainService = {
   connectWallet: async (): Promise<User> => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // In a real app, use window.ethereum.request({ method: 'eth_requestAccounts' })
-        resolve(MOCK_USER);
-      }, 600);
-    });
+    // Check if MetaMask or other wallet is installed
+    if (!window.ethereum) {
+      throw new Error('Please install MetaMask or another Web3 wallet to connect!');
+    }
+
+    try {
+      // Request account access
+      const accounts = await window.ethereum.request({ 
+        method: 'eth_requestAccounts' 
+      });
+
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No accounts found. Please unlock your wallet.');
+      }
+
+      // Switch to BSC Mainnet
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: BSC_MAINNET_CHAIN_ID }],
+        });
+      } catch (switchError: any) {
+        // If BSC network is not added, add it
+        if (switchError.code === 4902) {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [BSC_MAINNET_CONFIG]
+          });
+        } else {
+          throw switchError;
+        }
+      }
+
+      // Get provider and user address
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+      
+      // Get BNB balance
+      const balance = await provider.getBalance(address);
+
+      // Create user object
+      const user: User = {
+        address,
+        ens: undefined, // ENS is not available on BSC by default
+        bio: undefined,
+        followers: 0,
+        following: 0,
+        totalPosts: 0,
+        avatarUrl: generateAvatar(address)
+      };
+
+      CURRENT_USER = user;
+
+      console.log('✅ Connected to BSC Mainnet:', address);
+      console.log('💰 BNB Balance:', balance.toString());
+
+      return user;
+    } catch (error: any) {
+      console.error('Wallet connection error:', error);
+      throw new Error(error.message || 'Failed to connect wallet');
+    }
   },
 
   mintPost: async (content: string, attachment?: File): Promise<Post> => {
+    if (!CURRENT_USER) {
+      throw new Error('Please connect your wallet first');
+    }
+
+    // In a real implementation, this would:
+    // 1. Upload image to IPFS
+    // 2. Create post metadata
+    // 3. Mint NFT on BSC
+    // 4. Store reference in backend
+    
     return new Promise((resolve) => {
       setTimeout(() => {
         const newPost: Post = {
           id: Math.floor(Math.random() * 10000),
           tokenId: Math.floor(Math.random() * 5000).toString(),
-          author: MOCK_USER,
+          author: CURRENT_USER!,
           content,
           timestamp: Date.now(),
           likes: 0,
@@ -89,14 +128,15 @@ export const BlockchainService = {
   }
 };
 
-// --- Service: Data/Firebase (Simulated) ---
+// --- Service: Data/Firebase (Real implementation will use backend API) ---
 export const DataService = {
   getFeed: async (): Promise<Post[]> => {
-    return new Promise(resolve => setTimeout(() => resolve([...POSTS_STORE]), MOCK_DELAY));
+    // In a real app, this would fetch from your backend API or blockchain
+    return new Promise(resolve => setTimeout(() => resolve([...POSTS_STORE]), 300));
   },
 
   toggleLike: async (postId: number): Promise<void> => {
-    // Simulate optimistic UI update
+    // In a real app, this would update on backend/blockchain
     const post = POSTS_STORE.find(p => p.id === postId);
     if (post) {
       post.isLiked = !post.isLiked;
@@ -105,15 +145,14 @@ export const DataService = {
   },
 
   getComments: async (postId: number): Promise<Comment[]> => {
+    // In a real app, fetch comments from backend
     return new Promise(resolve => setTimeout(() => {
-      resolve([
-        { id: 'c1', postId, author: OTHER_USERS[1], content: "This is revolutionary!", timestamp: Date.now() - 100000 },
-        { id: 'c2', postId, author: OTHER_USERS[2], content: "Great work.", timestamp: Date.now() - 50000 }
-      ]);
-    }, MOCK_DELAY / 2));
+      resolve([]);
+    }, 300));
   },
 
   postComment: async (postId: number, content: string, author: User): Promise<Comment> => {
+    // In a real app, post to backend
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({
@@ -123,71 +162,59 @@ export const DataService = {
           content,
           timestamp: Date.now()
         });
-      }, 600);
+      }, 300);
     });
   },
 
   getChats: async (): Promise<ChatSession[]> => {
-    return [
-      {
-        id: 'chat_1',
-        participant: OTHER_USERS[0],
-        lastMessage: { id: 'm1', sender: OTHER_USERS[0].address, recipient: MOCK_USER.address, content: "Hey, saw your recent token mint.", timestamp: Date.now() - 500000, isRead: false },
-        unreadCount: 1
-      },
-      {
-        id: 'chat_2',
-        participant: OTHER_USERS[2],
-        lastMessage: { id: 'm2', sender: MOCK_USER.address, recipient: OTHER_USERS[2].address, content: "Thanks for the follow!", timestamp: Date.now() - 86400000, isRead: true },
-        unreadCount: 0
-      }
-    ];
+    // In a real app, fetch from backend
+    return [];
   },
 
   getMessages: async (chatId: string): Promise<Message[]> => {
-    // If it's a new temporary chat, return empty
-    if (chatId.startsWith('temp_')) return [];
-    
-    return [
-        { id: 'm0', sender: OTHER_USERS[0].address, recipient: MOCK_USER.address, content: "Are you planning to integrate NFTs?", timestamp: Date.now() - 600000, isRead: true },
-        { id: 'm1', sender: MOCK_USER.address, recipient: OTHER_USERS[0].address, content: "Yes, BEP-721 support is coming next week.", timestamp: Date.now() - 550000, isRead: true },
-        { id: 'm2', sender: OTHER_USERS[0].address, recipient: MOCK_USER.address, content: "That's huge. Let me know if you need beta testers.", timestamp: Date.now() - 500000, isRead: false },
-    ];
+    // In a real app, fetch messages from backend
+    return [];
   },
   
-  sendMessage: async (text: string): Promise<Message> => {
-      return {
-          id: `m_new_${Date.now()}`,
-          sender: MOCK_USER.address,
-          recipient: OTHER_USERS[0].address,
-          content: text,
-          timestamp: Date.now(),
-          isRead: false
-      }
+  sendMessage: async (text: string, recipientAddress: string): Promise<Message> => {
+    if (!CURRENT_USER) {
+      throw new Error('Please connect your wallet first');
+    }
+
+    // In a real app, send via backend with encryption
+    return {
+      id: `m_new_${Date.now()}`,
+      sender: CURRENT_USER.address,
+      recipient: recipientAddress,
+      content: text,
+      timestamp: Date.now(),
+      isRead: false
+    }
   },
 
   startNewChat: async (address: string): Promise<ChatSession> => {
+    // In a real app, create chat session in backend
     return new Promise(resolve => setTimeout(() => {
       resolve({
         id: `temp_${Date.now()}`,
         participant: {
           address: address,
-          ens: undefined, // Could resolve ENS here in real app
+          ens: undefined,
           followers: 0,
           following: 0,
           totalPosts: 0,
           avatarUrl: generateAvatar(address)
         },
         lastMessage: {
-            id: 'init',
-            sender: '',
-            recipient: '',
-            content: 'New conversation',
-            timestamp: Date.now(),
-            isRead: true
+          id: 'init',
+          sender: '',
+          recipient: '',
+          content: 'New conversation',
+          timestamp: Date.now(),
+          isRead: true
         },
         unreadCount: 0
       });
-    }, 600));
+    }, 300));
   }
 };
