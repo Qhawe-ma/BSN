@@ -324,5 +324,27 @@ export const FirebaseService = {
       console.error('Error unfollowing user:', error);
       throw new Error('Failed to unfollow user');
     }
+  },
+
+  /**
+   * Get list of addresses the user is following
+   */
+  getFollowing: async (userAddress: string): Promise<string[]> => {
+    try {
+      const followsRef = ref(database, `follows/${userAddress}`);
+      
+      return new Promise((resolve) => {
+        onValue(followsRef, (snapshot) => {
+          const following: string[] = [];
+          snapshot.forEach((childSnapshot) => {
+            following.push(childSnapshot.key as string);
+          });
+          resolve(following);
+        }, { onlyOnce: true });
+      });
+    } catch (error) {
+      console.error('Error getting following list:', error);
+      return [];
+    }
   }
 };

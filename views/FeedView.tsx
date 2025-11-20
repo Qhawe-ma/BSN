@@ -3,6 +3,7 @@ import { MessageSquare, Heart, Share2, Repeat, MoreHorizontal, ShieldCheck, Send
 import { Post, Comment, User } from '../types';
 import { DataService, formatAddress, generateAvatar } from '../services';
 import { GlassCard, Button, Avatar, Badge } from '../components/UIComponents';
+import { FirebaseService } from '../firebaseService';
 
 const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; currentUser?: User }> = ({ post, onUserClick, currentUser }) => {
   const [isLiked, setIsLiked] = useState(post.isLiked);
@@ -211,6 +212,18 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; curren
 export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (user: User) => void; currentUser?: User }> = ({ type, onUserClick, currentUser }) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [feedType, setFeedType] = useState<'forYou' | 'following'>('forYou');
+  const [followingAddresses, setFollowingAddresses] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadFollowing = async () => {
+      if (currentUser) {
+        const following = await FirebaseService.getFollowing(currentUser.address);
+        setFollowingAddresses(following);
+      }
+    };
+    loadFollowing();
+  }, [currentUser]);
 
   useEffect(() => {
     setLoading(true);
@@ -219,6 +232,10 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
       setLoading(false);
     });
   }, [type]);
+
+  const filteredPosts = feedType === 'following' && currentUser
+    ? posts.filter(post => followingAddresses.includes(post.author.address))
+    : posts;
 
   if (loading) {
     return (
@@ -269,15 +286,66 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
 
   return (
     <div className="max-w-2xl mx-auto pt-4 pb-20 md:pb-0 px-4 md:px-0">
-      <div className="mb-6 px-2">
-        <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">
-          {type === 'global' ? 'Global Feed' : 'Following'}
+      {/* Feed Header with Toggle */}
+      <div className="mb-6">
+        <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight mb-4 px-2">
+          Home
         </h2>
-        <p className="text-gray-500 text-xs md:text-sm">Live updates from the Binance Smart Chain</p>
+        
+        {/* Tab Toggle */}
+        <div className="border-b border-white/10 flex">
+          <button
+            onClick={() => setFeedType('forYou')}
+            className={`flex-1 py-3 text-sm font-bold transition-all relative ${
+              feedType === 'forYou'
+                ? 'text-white'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            For You
+            {feedType === 'forYou' && (
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full"></div>
+            )}
+          </button>
+          
+          <button
+            onClick={() => setFeedType('following')}
+            className={`flex-1 py-3 text-sm font-bold transition-all relative ${
+              feedType === 'following'
+                ? 'text-white'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            Following
+            {feedType === 'following' && (
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full"></div>
+            )}
+          </button>
+        </div>
       </div>
-      {posts.map(post => (
-        <PostItem key={post.id} post={post} onUserClick={onUserClick} currentUser={currentUser} />
-      ))}
+
+      {/* Posts */}
+      {filteredPosts.length === 0 && !loading ? (
+        <div className="flex flex-col items-center justify-center py-20 px-4">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+              <MessageSquare size={24} className="text-gray-500" />
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">
+              {feedType === 'following' ? 'No posts yet' : 'Feed is empty'}
+            </h3>
+            <p className="text-gray-400 text-sm max-w-sm">
+              {feedType === 'following'
+                ? 'Follow some users to see their posts here!'
+                : 'Be the first to mint a post on the blockchain!'}
+            </p>
+          </div>
+        </div>
+      ) : (
+        filteredPosts.map(post => (
+          <PostItem key={post.id} post={post} onUserClick={onUserClick} currentUser={currentUser} />
+        ))
+      )}
     </div>
   );
 };
