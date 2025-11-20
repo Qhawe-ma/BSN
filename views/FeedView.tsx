@@ -288,10 +288,6 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
     <div className="max-w-2xl mx-auto pt-4 pb-20 md:pb-0 px-4 md:px-0">
       {/* Feed Header with Toggle */}
       <div className="mb-6">
-        <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight mb-4 px-2">
-          Home
-        </h2>
-        
         {/* Tab Toggle */}
         <div className="border-b border-white/10 flex">
           <button
