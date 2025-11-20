@@ -98,12 +98,22 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
-    // Update online status every 2 minutes
+    // Update online status every 1 minute
     const heartbeat = setInterval(() => {
       FirebaseService.setUserOnline(user.address, true);
-    }, 2 * 60 * 1000); // 2 minutes
+    }, 60 * 1000); // 1 minute
 
-    return () => clearInterval(heartbeat);
+    // Mark offline when page closes/reloads
+    const handleBeforeUnload = () => {
+      FirebaseService.setUserOnline(user.address, false);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(heartbeat);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, [user]);
 
   // --- Check for shared profile link in URL ---

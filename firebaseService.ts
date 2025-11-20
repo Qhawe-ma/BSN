@@ -99,6 +99,15 @@ export const FirebaseService = {
             const lastMessage = metadata?.lastMessage;
             
             if (lastMessage) {
+              // Calculate unread count
+              let unreadCount = 0;
+              const messages = chatData.messages || {};
+              Object.values(messages).forEach((msg: any) => {
+                if (msg.recipient === userId && !msg.isRead) {
+                  unreadCount++;
+                }
+              });
+              
               const chatSession: ChatSession = {
                 id: chatId,
                 participant: {
@@ -110,7 +119,7 @@ export const FirebaseService = {
                   avatarUrl: generateAvatar(otherUserId)
                 },
                 lastMessage: lastMessage,
-                unreadCount: 0 // TODO: Calculate unread count
+                unreadCount: unreadCount
               };
               chatSessions.push(chatSession);
             }
@@ -135,15 +144,38 @@ export const FirebaseService = {
       const messagesRef = ref(database, `chats/${chatId}/messages`);
       
       onValue(messagesRef, (snapshot) => {
+        let lastUpdatedMessage: Message | null = null;
+        
         snapshot.forEach((childSnapshot) => {
           const message = childSnapshot.val();
           // Mark as read if: message was sent TO me (currentUserId) and not yet read
           if (message.recipient === currentUserId && !message.isRead) {
             const messageRef = ref(database, `chats/${chatId}/messages/${childSnapshot.key}`);
-            set(messageRef, { ...message, isRead: true });
+            const updatedMessage = { ...message, isRead: true };
+            set(messageRef, updatedMessage);
+            lastUpdatedMessage = updatedMessage;
             console.log('✅ Marked message as read:', childSnapshot.key);
           }
         });
+        
+        // Update chat metadata if we marked any messages as read
+        if (lastUpdatedMessage) {
+          const chatMetadataRef = ref(database, `chats/${chatId}/metadata`);
+          onValue(chatMetadataRef, (metaSnapshot) => {
+            const metadata = metaSnapshot.val();
+            if (metadata && metadata.lastMessage) {
+              // Update lastMessage isRead status in metadata
+              const updatedMetadata = {
+                ...metadata,
+                lastMessage: {
+                  ...metadata.lastMessage,
+                  isRead: metadata.lastMessage.recipient === currentUserId ? true : metadata.lastMessage.isRead
+                }
+              };
+              set(chatMetadataRef, updatedMetadata);
+            }
+          }, { onlyOnce: true });
+        }
       }, { onlyOnce: true });
     } catch (error) {
       console.error('Error marking messages as read:', error);
@@ -174,8 +206,9 @@ export const FirebaseService = {
     onValue(presenceRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        // Consider online if last seen was within 5 minutes
-        const isOnline = data.online && (Date.now() - data.lastSeen < 5 * 60 * 1000);
+        // Consider online if explicitly online AND last seen was within 3 minutes
+        const timeSinceLastSeen = Date.now() - data.lastSeen;
+        const isOnline = data.online === true && timeSinceLastSeen < 3 * 60 * 1000;
         callback(isOnline);
       } else {
         callback(false);
