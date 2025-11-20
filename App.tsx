@@ -61,6 +61,9 @@ const App: React.FC = () => {
           const connectedUser = await BlockchainService.silentReconnect();
           
           if (connectedUser && connectedUser.address.toLowerCase() === savedAddress.toLowerCase()) {
+            // Set user online status
+            await FirebaseService.setUserOnline(connectedUser.address, true);
+            
             try {
               const firebaseUser = await FirebaseService.getUserProfile(connectedUser.address);
               if (firebaseUser) {
@@ -90,6 +93,18 @@ const App: React.FC = () => {
 
     autoReconnect();
   }, []);
+
+  // --- Keep user online with heartbeat ---
+  useEffect(() => {
+    if (!user) return;
+
+    // Update online status every 2 minutes
+    const heartbeat = setInterval(() => {
+      FirebaseService.setUserOnline(user.address, true);
+    }, 2 * 60 * 1000); // 2 minutes
+
+    return () => clearInterval(heartbeat);
+  }, [user]);
 
   // --- Check for shared profile link in URL ---
   useEffect(() => {
@@ -149,6 +164,9 @@ const App: React.FC = () => {
       // Save wallet address to localStorage for auto-reconnect
       localStorage.setItem('walletAddress', connectedUser.address);
       
+      // Set user online status
+      await FirebaseService.setUserOnline(connectedUser.address, true);
+      
       // Try to load user profile from Firebase to get additional data
       try {
         const firebaseUser = await FirebaseService.getUserProfile(connectedUser.address);
@@ -195,7 +213,11 @@ const App: React.FC = () => {
   };
 
   // --- Logout Handler ---
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (user) {
+      // Set user offline before logging out
+      await FirebaseService.setUserOnline(user.address, false);
+    }
     setUser(null);
     setViewingProfileUser(null);
     localStorage.removeItem('walletAddress');

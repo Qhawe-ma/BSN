@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, ArrowLeft, MessageSquare, MoreVertical, Plus, Search, PanelLeftClose, PanelLeftOpen, X, ShieldCheck, CheckCheck, Check, Lock, UserPlus, Loader } from 'lucide-react';
 import { Message, ChatSession, User } from '../types';
 import { DataService, formatAddress } from '../services';
+import { FirebaseService } from '../firebaseService';
 import { GlassCard, Avatar, Button, Input } from '../components/UIComponents';
 
 interface ChatViewProps {
@@ -19,6 +20,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick }) 
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
   const [newChatAddress, setNewChatAddress] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [isOtherUserOnline, setIsOtherUserOnline] = useState(false);
   
   // Refs & Responsive
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -49,12 +51,14 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick }) 
   useEffect(() => {
     if (!activeSessionId || !currentUser) {
       setMessages([]);
+      setIsOtherUserOnline(false);
       return;
     }
     
     const [user1, user2] = activeSessionId.split('_');
     const otherUserId = user1 === currentUser.address ? user2 : user1;
     
+    // Subscribe to messages
     const unsubscribe = DataService.subscribeToMessages(
       currentUser.address,
       otherUserId,
@@ -63,7 +67,21 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick }) 
       }
     );
     
-    return () => unsubscribe();
+    // Mark messages as read when opening chat
+    FirebaseService.markAsRead(currentUser.address, otherUserId);
+    
+    // Subscribe to other user's online status
+    const unsubscribePresence = FirebaseService.subscribeToUserPresence(
+      otherUserId,
+      (isOnline) => {
+        setIsOtherUserOnline(isOnline);
+      }
+    );
+    
+    return () => {
+      unsubscribe();
+      unsubscribePresence();
+    };
   }, [activeSessionId, currentUser]);
 
   // Smart Auto-scrolling
@@ -236,10 +254,17 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick }) 
                             {activeSession?.participant.ens && <ShieldCheck size={14} className="text-blue-400" />}
                         </h3>
                         <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-1.5">
-                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                <span className="text-[10px] text-green-500/80 font-medium">Online</span>
-                            </div>
+                            {isOtherUserOnline ? (
+                              <div className="flex items-center gap-1.5">
+                                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                  <span className="text-[10px] text-green-500/80 font-medium">Online</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5">
+                                  <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                                  <span className="text-[10px] text-gray-500 font-medium">Offline</span>
+                              </div>
+                            )}
                             <span className="text-gray-600">•</span>
                             <div className="flex items-center gap-1.5">
                                 <Lock size={10} className="text-gray-500" />

@@ -129,23 +129,60 @@ export const FirebaseService = {
   /**
    * Mark messages as read
    */
-  markAsRead: async (senderId: string, recipientId: string): Promise<void> => {
+  markAsRead: async (currentUserId: string, otherUserId: string): Promise<void> => {
     try {
-      const chatId = [senderId, recipientId].sort().join('_');
+      const chatId = [currentUserId, otherUserId].sort().join('_');
       const messagesRef = ref(database, `chats/${chatId}/messages`);
       
       onValue(messagesRef, (snapshot) => {
         snapshot.forEach((childSnapshot) => {
           const message = childSnapshot.val();
-          if (message.recipient === senderId && !message.isRead) {
+          // Mark as read if: message was sent TO me (currentUserId) and not yet read
+          if (message.recipient === currentUserId && !message.isRead) {
             const messageRef = ref(database, `chats/${chatId}/messages/${childSnapshot.key}`);
             set(messageRef, { ...message, isRead: true });
+            console.log('✅ Marked message as read:', childSnapshot.key);
           }
         });
       }, { onlyOnce: true });
     } catch (error) {
       console.error('Error marking messages as read:', error);
     }
+  },
+
+  /**
+   * Set user online status
+   */
+  setUserOnline: async (userId: string, isOnline: boolean): Promise<void> => {
+    try {
+      const presenceRef = ref(database, `presence/${userId}`);
+      await set(presenceRef, {
+        online: isOnline,
+        lastSeen: Date.now()
+      });
+    } catch (error) {
+      console.error('Error setting user online status:', error);
+    }
+  },
+
+  /**
+   * Subscribe to user online status
+   */
+  subscribeToUserPresence: (userId: string, callback: (isOnline: boolean) => void): (() => void) => {
+    const presenceRef = ref(database, `presence/${userId}`);
+    
+    onValue(presenceRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        // Consider online if last seen was within 5 minutes
+        const isOnline = data.online && (Date.now() - data.lastSeen < 5 * 60 * 1000);
+        callback(isOnline);
+      } else {
+        callback(false);
+      }
+    });
+
+    return () => off(presenceRef);
   },
 
   /**
