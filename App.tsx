@@ -57,12 +57,10 @@ const App: React.FC = () => {
       const savedAddress = localStorage.getItem('walletAddress');
       if (savedAddress && window.ethereum) {
         try {
-          setIsConnecting(true);
-          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          // Use silent reconnect - no wallet popup
+          const connectedUser = await BlockchainService.silentReconnect();
           
-          if (accounts && accounts.length > 0 && accounts[0].toLowerCase() === savedAddress.toLowerCase()) {
-            const connectedUser = await BlockchainService.connectWallet();
-            
+          if (connectedUser && connectedUser.address.toLowerCase() === savedAddress.toLowerCase()) {
             try {
               const firebaseUser = await FirebaseService.getUserProfile(connectedUser.address);
               if (firebaseUser) {
@@ -79,12 +77,13 @@ const App: React.FC = () => {
             }
             
             console.log('✅ Auto-reconnected wallet successfully!');
+          } else {
+            // If silent reconnect failed or address mismatch, clear saved address
+            localStorage.removeItem('walletAddress');
           }
         } catch (error) {
           console.warn('Auto-reconnect failed:', error);
           localStorage.removeItem('walletAddress');
-        } finally {
-          setIsConnecting(false);
         }
       }
     };

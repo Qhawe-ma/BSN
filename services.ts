@@ -34,6 +34,53 @@ let CURRENT_USER: User | null = null;
 
 // --- Service: Blockchain (Real BSC Connection) ---
 export const BlockchainService = {
+  // Silent reconnect - doesn't prompt user, used for auto-reconnect on page load
+  silentReconnect: async (): Promise<User | null> => {
+    if (!window.ethereum) {
+      return null;
+    }
+
+    try {
+      // Check for already connected accounts WITHOUT prompting
+      const accounts = await window.ethereum.request({ 
+        method: 'eth_accounts' 
+      });
+
+      if (!accounts || accounts.length === 0) {
+        return null;
+      }
+
+      // Get provider and user address
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+      
+      // Try to load existing user from Firebase
+      let user = await FirebaseService.getUserProfile(address);
+
+      if (!user) {
+        // If no profile exists, create a basic one
+        user = {
+          address,
+          followers: 0,
+          following: 0,
+          totalPosts: 0,
+          avatarUrl: generateAvatar(address),
+          createdAt: Date.now()
+        };
+        await FirebaseService.saveUserProfile(user);
+      }
+
+      CURRENT_USER = user;
+      console.log('✅ Silent reconnect successful:', address);
+      
+      return user;
+    } catch (error) {
+      console.warn('Silent reconnect failed:', error);
+      return null;
+    }
+  },
+
   connectWallet: async (): Promise<User> => {
     // Check if MetaMask or other wallet is installed
     if (!window.ethereum) {
