@@ -370,7 +370,7 @@ const App: React.FC = () => {
             <span className={`${isSidebarCollapsed ? 'hidden' : 'ml-2'}`}>{user ? 'Post' : (isConnecting ? 'Connecting...' : 'Connect')}</span>
           </Button>
           
-          {user ? (
+          {user && (
             <div className={`flex items-center gap-3 p-2 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-pointer overflow-hidden ${isSidebarCollapsed ? 'justify-center bg-transparent border-transparent hover:bg-white/5' : ''}`}>
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-yellow-200 shrink-0 shadow-md" />
               
@@ -381,15 +381,6 @@ const App: React.FC = () => {
               
               <LogOut size={16} className={`text-gray-500 ml-auto transition-all duration-300 ${isSidebarCollapsed ? 'w-0 opacity-0 hidden' : 'opacity-100'}`} />
             </div>
-          ) : (
-             <button 
-                onClick={handleConnect}
-                disabled={isConnecting}
-                className={`w-full flex items-center justify-center gap-2 text-gray-400 hover:text-white text-sm p-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isSidebarCollapsed ? 'hidden' : ''}`}
-             >
-                {isConnecting ? <Loader size={14} className="animate-spin" /> : <LogOut size={14} className="rotate-180" />}
-                {isConnecting ? 'Connecting...' : 'Login'}
-             </button>
           )}
         </div>
       </aside>
