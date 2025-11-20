@@ -91,6 +91,44 @@ const App: React.FC = () => {
     autoReconnect();
   }, []);
 
+  // --- Check for shared profile link in URL ---
+  useEffect(() => {
+    const loadSharedProfile = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const profileAddress = urlParams.get('profile');
+      
+      if (profileAddress) {
+        console.log('🔗 Loading shared profile:', profileAddress);
+        try {
+          // Load the profile from Firebase
+          const profileUser = await FirebaseService.getUserProfile(profileAddress);
+          
+          if (profileUser) {
+            setViewingProfileUser(profileUser);
+            setView(ViewState.PROFILE);
+            console.log('✅ Shared profile loaded successfully');
+          } else {
+            // If profile doesn't exist in Firebase, create a basic one
+            const basicProfile: User = {
+              address: profileAddress,
+              followers: 0,
+              following: 0,
+              totalPosts: 0,
+              avatarUrl: `https://api.dicebear.com/7.x/identicon/svg?seed=${profileAddress}&backgroundColor=1e2329`
+            };
+            setViewingProfileUser(basicProfile);
+            setView(ViewState.PROFILE);
+            console.log('✅ Shared profile loaded (basic profile)');
+          }
+        } catch (error) {
+          console.error('Failed to load shared profile:', error);
+        }
+      }
+    };
+
+    loadSharedProfile();
+  }, []);
+
   // --- Wallet Connection ---
   const handleConnect = async () => {
     if (isConnecting) return; // Prevent multiple simultaneous connection attempts
