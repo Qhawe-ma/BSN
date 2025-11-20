@@ -16,6 +16,7 @@ interface ProfileViewProps {
 
 export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onNavigateToChat, onUpdateProfile, onConnect, isConnecting = false, onRefreshProfile }) => {
   const [copied, setCopied] = useState(false);
+  const [profileShared, setProfileShared] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
@@ -76,6 +77,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const shareProfile = () => {
+    const profileUrl = `${window.location.origin}/?profile=${user.address}`;
+    navigator.clipboard.writeText(profileUrl);
+    setProfileShared(true);
+    setTimeout(() => setProfileShared(false), 2000);
+  };
+
   const handleSaveProfile = () => {
       if (onUpdateProfile) {
           onUpdateProfile({
@@ -112,7 +120,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
                {currentUser ? (
                  isOwnProfile ? (
                    <>
-                      <Button variant="secondary" size="sm">Share Profile</Button>
+                      <Button onClick={shareProfile} variant="secondary" size="sm" className="gap-2">
+                          {profileShared ? <Check size={16} className="text-green-400" /> : <LinkIcon size={16} />}
+                          {profileShared ? 'Link Copied!' : 'Share Profile'}
+                      </Button>
                       <Button onClick={() => setIsEditing(true)} size="sm" className="gap-2">
                           <Settings size={16} />
                           Edit Profile
