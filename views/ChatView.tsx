@@ -21,6 +21,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick }) 
   const [newChatAddress, setNewChatAddress] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [isOtherUserOnline, setIsOtherUserOnline] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   
   // Refs & Responsive
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -43,6 +44,21 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick }) 
     
     const unsubscribe = DataService.subscribeToChats(currentUser.address, (chats) => {
       setSessions(chats);
+      
+      // Subscribe to online status for all chat participants
+      chats.forEach(chat => {
+        FirebaseService.subscribeToUserPresence(chat.participant.address, (isOnline) => {
+          setOnlineUsers(prev => {
+            const newSet = new Set(prev);
+            if (isOnline) {
+              newSet.add(chat.participant.address);
+            } else {
+              newSet.delete(chat.participant.address);
+            }
+            return newSet;
+          });
+        });
+      });
     });
     
     return () => unsubscribe();
@@ -194,6 +210,9 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick }) 
               >
                 <div className="relative flex-shrink-0">
                    <Avatar url={session.participant.avatarUrl} size="md" bordered={activeSessionId !== session.id} />
+                   {onlineUsers.has(session.participant.address) && (
+                     <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#131417]"></div>
+                   )}
                    {session.unreadCount > 0 && (
                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full border-2 border-[#131417] flex items-center justify-center text-[10px] font-bold text-black">
                          {session.unreadCount}
@@ -210,7 +229,13 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick }) 
                     </span>
                   </div>
                   <p className={`text-xs truncate flex items-center gap-1 ${activeSessionId === session.id ? 'text-gray-400' : 'text-gray-500 group-hover:text-gray-400'}`}>
-                    {session.lastMessage.sender === currentUser?.address && <CheckCheck size={12} className="text-primary/70" />}
+                    {session.lastMessage.sender === currentUser?.address && (
+                      session.lastMessage.isRead ? (
+                        <CheckCheck size={12} className="text-blue-400" />
+                      ) : (
+                        <Check size={12} className="text-gray-500" />
+                      )
+                    )}
                     {session.lastMessage.id === 'init' ? <span className="italic text-primary/70">Draft</span> : session.lastMessage.content}
                   </p>
                 </div>
