@@ -221,5 +221,108 @@ export const FirebaseService = {
       console.error('Error updating user profile:', error);
       throw new Error('Failed to update user profile');
     }
+  },
+
+  /**
+   * Check if a user is following another user
+   */
+  isFollowing: async (followerAddress: string, targetAddress: string): Promise<boolean> => {
+    try {
+      const followRef = ref(database, `follows/${followerAddress}/${targetAddress}`);
+      
+      return new Promise((resolve) => {
+        onValue(followRef, (snapshot) => {
+          resolve(snapshot.exists());
+        }, { onlyOnce: true });
+      });
+    } catch (error) {
+      console.error('Error checking follow status:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Follow a user
+   */
+  followUser: async (followerAddress: string, targetAddress: string): Promise<void> => {
+    try {
+      // Don't allow self-follow
+      if (followerAddress === targetAddress) {
+        throw new Error('Cannot follow yourself');
+      }
+
+      // Check if already following
+      const alreadyFollowing = await FirebaseService.isFollowing(followerAddress, targetAddress);
+      if (alreadyFollowing) {
+        console.log('Already following this user');
+        return;
+      }
+
+      // Create follow relationship
+      const followRef = ref(database, `follows/${followerAddress}/${targetAddress}`);
+      await set(followRef, {
+        followedAt: Date.now()
+      });
+
+      // Increment target user's followers count
+      const targetUser = await FirebaseService.getUserProfile(targetAddress);
+      if (targetUser) {
+        await FirebaseService.updateUserProfile(targetAddress, {
+          followers: (targetUser.followers || 0) + 1
+        });
+      }
+
+      // Increment follower's following count
+      const followerUser = await FirebaseService.getUserProfile(followerAddress);
+      if (followerUser) {
+        await FirebaseService.updateUserProfile(followerAddress, {
+          following: (followerUser.following || 0) + 1
+        });
+      }
+
+      console.log('✅ Follow successful:', followerAddress, '->', targetAddress);
+    } catch (error) {
+      console.error('Error following user:', error);
+      throw new Error('Failed to follow user');
+    }
+  },
+
+  /**
+   * Unfollow a user
+   */
+  unfollowUser: async (followerAddress: string, targetAddress: string): Promise<void> => {
+    try {
+      // Check if actually following
+      const isFollowing = await FirebaseService.isFollowing(followerAddress, targetAddress);
+      if (!isFollowing) {
+        console.log('Not following this user');
+        return;
+      }
+
+      // Remove follow relationship
+      const followRef = ref(database, `follows/${followerAddress}/${targetAddress}`);
+      await set(followRef, null);
+
+      // Decrement target user's followers count
+      const targetUser = await FirebaseService.getUserProfile(targetAddress);
+      if (targetUser) {
+        await FirebaseService.updateUserProfile(targetAddress, {
+          followers: Math.max(0, (targetUser.followers || 0) - 1)
+        });
+      }
+
+      // Decrement follower's following count
+      const followerUser = await FirebaseService.getUserProfile(followerAddress);
+      if (followerUser) {
+        await FirebaseService.updateUserProfile(followerAddress, {
+          following: Math.max(0, (followerUser.following || 0) - 1)
+        });
+      }
+
+      console.log('✅ Unfollow successful:', followerAddress, '->', targetAddress);
+    } catch (error) {
+      console.error('Error unfollowing user:', error);
+      throw new Error('Failed to unfollow user');
+    }
   }
 };

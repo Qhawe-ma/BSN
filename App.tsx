@@ -166,6 +166,26 @@ const App: React.FC = () => {
       }
   };
 
+  const handleRefreshProfile = async () => {
+    const targetUser = viewingProfileUser || user;
+    if (!targetUser) return;
+
+    try {
+      const firebaseUser = await FirebaseService.getUserProfile(targetUser.address);
+      if (firebaseUser) {
+        // Update the viewing profile user
+        setViewingProfileUser(firebaseUser);
+        
+        // If this is the current user's profile, update that too
+        if (user && user.address === targetUser.address) {
+          setUser(firebaseUser);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh profile:', error);
+    }
+  };
+
   // --- Image Handling ---
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -252,6 +272,7 @@ const App: React.FC = () => {
             onUpdateProfile={handleUpdateProfile} 
             onConnect={handleConnect}
             isConnecting={isConnecting}
+            onRefreshProfile={handleRefreshProfile}
           />
         );
       

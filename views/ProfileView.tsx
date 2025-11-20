@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Copy, Check, Link as LinkIcon, Grid, Calendar, MessageSquare, UserPlus, Settings, X, Save, Wallet, Image as ImageIcon } from 'lucide-react';
 import { User } from '../types';
 import { GlassCard, Avatar, Button, Badge, Input } from '../components/UIComponents';
+import { FirebaseService } from '../firebaseService';
 
 interface ProfileViewProps {
     user: User;
@@ -10,12 +11,14 @@ interface ProfileViewProps {
     onUpdateProfile?: (updatedUser: Partial<User>) => void;
     onConnect?: () => void;
     isConnecting?: boolean;
+    onRefreshProfile?: () => void;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onNavigateToChat, onUpdateProfile, onConnect, isConnecting = false }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onNavigateToChat, onUpdateProfile, onConnect, isConnecting = false, onRefreshProfile }) => {
   const [copied, setCopied] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
   
   // Determine if we are viewing our own profile (requires currentUser to exist)
   const isOwnProfile = currentUser?.address === user.address;
@@ -25,10 +28,41 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
   const [editBio, setEditBio] = useState(user.bio || "");
   const [editWebsite, setEditWebsite] = useState(user.website || "");
   const [editAvatar, setEditAvatar] = useState(user.avatarUrl);
+
+  // Check if current user is following this profile on mount
+  useEffect(() => {
+    const checkFollowStatus = async () => {
+      if (currentUser && !isOwnProfile) {
+        const following = await FirebaseService.isFollowing(currentUser.address, user.address);
+        setIsFollowing(following);
+      }
+    };
+    
+    checkFollowStatus();
+  }, [currentUser, user.address, isOwnProfile]);
   
-  const handleFollow = () => {
-    setIsFollowing(!isFollowing);
-    // TODO: Integrate with backend API to save follow state
+  const handleFollow = async () => {
+    if (!currentUser || isFollowLoading) return;
+
+    setIsFollowLoading(true);
+    try {
+      if (isFollowing) {
+        await FirebaseService.unfollowUser(currentUser.address, user.address);
+        setIsFollowing(false);
+      } else {
+        await FirebaseService.followUser(currentUser.address, user.address);
+        setIsFollowing(true);
+      }
+      
+      // Refresh profile to show updated counts
+      if (onRefreshProfile) {
+        onRefreshProfile();
+      }
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+    } finally {
+      setIsFollowLoading(false);
+    }
   };
 
   const copyAddress = () => {
@@ -83,12 +117,13 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
                    <>
                       <Button 
                         onClick={handleFollow}
+                        disabled={isFollowLoading}
                         variant="secondary" 
                         size="sm" 
                         className={`gap-2 group transition-all ${isFollowing ? 'border-primary/50 bg-primary/10' : 'hover:border-primary/50 hover:text-primary'}`}
                       >
                           <UserPlus size={18} className={`transition-colors ${isFollowing ? 'text-primary' : 'text-gray-400 group-hover:text-primary'}`} />
-                          {isFollowing ? 'Following' : 'Follow'}
+                          {isFollowLoading ? 'Loading...' : (isFollowing ? 'Following' : 'Follow')}
                       </Button>
                       <Button 
                           size="sm" 
