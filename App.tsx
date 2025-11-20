@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Home, MessageCircle, PlusSquare, User as UserIcon, BarChart2, LogOut, Wallet, X, Feather, Image as ImageIcon, Loader, ChevronLeft, ChevronRight } from 'lucide-react';
 import { User, ViewState } from './types';
 import { BlockchainService } from './services';
@@ -51,6 +51,47 @@ const App: React.FC = () => {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // --- Auto-reconnect on page load ---
+  useEffect(() => {
+    const autoReconnect = async () => {
+      const savedAddress = localStorage.getItem('walletAddress');
+      if (savedAddress && window.ethereum) {
+        try {
+          setIsConnecting(true);
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          
+          if (accounts && accounts.length > 0 && accounts[0].toLowerCase() === savedAddress.toLowerCase()) {
+            const connectedUser = await BlockchainService.connectWallet();
+            
+            try {
+              const firebaseUser = await FirebaseService.getUserProfile(connectedUser.address);
+              if (firebaseUser) {
+                setUser({
+                  ...connectedUser,
+                  ...firebaseUser
+                });
+              } else {
+                setUser(connectedUser);
+              }
+            } catch (firebaseError) {
+              console.warn('Firebase unavailable, using wallet data only:', firebaseError);
+              setUser(connectedUser);
+            }
+            
+            console.log('✅ Auto-reconnected wallet successfully!');
+          }
+        } catch (error) {
+          console.warn('Auto-reconnect failed:', error);
+          localStorage.removeItem('walletAddress');
+        } finally {
+          setIsConnecting(false);
+        }
+      }
+    };
+
+    autoReconnect();
+  }, []);
+
   // --- Wallet Connection ---
   const handleConnect = async () => {
     if (isConnecting) return; // Prevent multiple simultaneous connection attempts
@@ -67,6 +108,9 @@ const App: React.FC = () => {
     try {
       // Connect wallet (this handles MetaMask connection and network switching)
       const connectedUser = await BlockchainService.connectWallet();
+      
+      // Save wallet address to localStorage for auto-reconnect
+      localStorage.setItem('walletAddress', connectedUser.address);
       
       // Try to load user profile from Firebase to get additional data
       try {
@@ -111,6 +155,15 @@ const App: React.FC = () => {
     } finally {
       setIsConnecting(false);
     }
+  };
+
+  // --- Logout Handler ---
+  const handleLogout = () => {
+    setUser(null);
+    setViewingProfileUser(null);
+    localStorage.removeItem('walletAddress');
+    setView(ViewState.FEED);
+    console.log('✅ Logged out successfully');
   };
 
   // --- Navigation Handlers ---
@@ -371,7 +424,11 @@ const App: React.FC = () => {
           </Button>
           
           {user && (
-            <div className={`flex items-center gap-3 p-2 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-pointer overflow-hidden ${isSidebarCollapsed ? 'justify-center bg-transparent border-transparent hover:bg-white/5' : ''}`}>
+            <div 
+              onClick={handleLogout}
+              className={`flex items-center gap-3 p-2 rounded-2xl bg-white/5 border border-white/5 hover:bg-red-500/10 hover:border-red-500/30 transition-all cursor-pointer overflow-hidden ${isSidebarCollapsed ? 'justify-center bg-transparent border-transparent hover:bg-red-500/10' : ''}`}
+              title="Logout"
+            >
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-yellow-200 shrink-0 shadow-md" />
               
               <div className={`overflow-hidden transition-all duration-300 ${isSidebarCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
@@ -379,7 +436,7 @@ const App: React.FC = () => {
                 <p className="text-xs text-gray-500 font-mono truncate">{user.address.substring(0, 10)}...</p>
               </div>
               
-              <LogOut size={16} className={`text-gray-500 ml-auto transition-all duration-300 ${isSidebarCollapsed ? 'w-0 opacity-0 hidden' : 'opacity-100'}`} />
+              <LogOut size={16} className={`text-gray-500 hover:text-red-400 ml-auto transition-all duration-300 ${isSidebarCollapsed ? 'w-0 opacity-0 hidden' : 'opacity-100'}`} />
             </div>
           )}
         </div>
