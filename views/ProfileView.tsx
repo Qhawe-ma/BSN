@@ -31,15 +31,20 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
 
   // Check if current user is following this profile on mount
   useEffect(() => {
+    // Reset state first to avoid showing stale data
+    setIsFollowing(false);
+    
     const checkFollowStatus = async () => {
       if (currentUser && !isOwnProfile) {
+        console.log('🔍 Checking follow status:', currentUser.address, '->', user.address);
         const following = await FirebaseService.isFollowing(currentUser.address, user.address);
+        console.log('✅ Follow status result:', following);
         setIsFollowing(following);
       }
     };
     
     checkFollowStatus();
-  }, [currentUser, user.address, isOwnProfile]);
+  }, [currentUser?.address, user.address, isOwnProfile]);
   
   const handleFollow = async () => {
     if (!currentUser || isFollowLoading) return;
