@@ -1,6 +1,6 @@
 import { database } from './firebaseConfig';
 import { ref, push, set, onValue, query, orderByChild, limitToLast, off } from 'firebase/database';
-import { Message, ChatSession, User } from './types';
+import { Message, ChatSession, User, Comment } from './types';
 import { generateAvatar } from './services';
 
 export const FirebaseService = {
@@ -415,6 +415,147 @@ export const FirebaseService = {
     } catch (error) {
       console.error('Error getting following list:', error);
       return [];
+    }
+  },
+
+  // ============ LIKES SYSTEM ============
+
+  /**
+   * Toggle like on a post
+   */
+  toggleLike: async (postId: string, userAddress: string): Promise<{ liked: boolean; likes: number }> => {
+    try {
+      const normalizedAddress = userAddress.toLowerCase();
+      const likeRef = ref(database, `likes/${postId}/${normalizedAddress}`);
+      const statsRef = ref(database, `postStats/${postId}`);
+
+      // Check if already liked
+      const isLiked = await FirebaseService.isPostLiked(postId, userAddress);
+
+      if (isLiked) {
+        // Unlike: remove the like
+        await set(likeRef, null);
+        
+        // Decrement count
+        const stats = await FirebaseService.getPostStats(postId);
+        const newLikes = Math.max(0, stats.likes - 1);
+        await set(statsRef, { ...stats, likes: newLikes });
+        
+        return { liked: false, likes: newLikes };
+      } else {
+        // Like: add the like
+        await set(likeRef, { timestamp: Date.now() });
+        
+        // Increment count
+        const stats = await FirebaseService.getPostStats(postId);
+        const newLikes = stats.likes + 1;
+        await set(statsRef, { ...stats, likes: newLikes });
+        
+        return { liked: true, likes: newLikes };
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      throw new Error('Failed to toggle like');
+    }
+  },
+
+  /**
+   * Check if user has liked a post
+   */
+  isPostLiked: async (postId: string, userAddress: string): Promise<boolean> => {
+    try {
+      const normalizedAddress = userAddress.toLowerCase();
+      const likeRef = ref(database, `likes/${postId}/${normalizedAddress}`);
+      
+      return new Promise((resolve) => {
+        onValue(likeRef, (snapshot) => {
+          resolve(snapshot.exists());
+        }, { onlyOnce: true });
+      });
+    } catch (error) {
+      console.error('Error checking like status:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Get post stats (likes count, comments count)
+   */
+  getPostStats: async (postId: string): Promise<{ likes: number; comments: number }> => {
+    try {
+      const statsRef = ref(database, `postStats/${postId}`);
+      
+      return new Promise((resolve) => {
+        onValue(statsRef, (snapshot) => {
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            resolve({
+              likes: data.likes || 0,
+              comments: data.comments || 0
+            });
+          } else {
+            resolve({ likes: 0, comments: 0 });
+          }
+        }, { onlyOnce: true });
+      });
+    } catch (error) {
+      console.error('Error getting post stats:', error);
+      return { likes: 0, comments: 0 };
+    }
+  },
+
+  // ============ COMMENTS SYSTEM ============
+
+  /**
+   * Get comments for a post
+   */
+  getComments: async (postId: string): Promise<Comment[]> => {
+    try {
+      const commentsRef = ref(database, `comments/${postId}`);
+      const commentsQuery = query(commentsRef, orderByChild('timestamp'));
+      
+      return new Promise((resolve) => {
+        onValue(commentsQuery, (snapshot) => {
+          const comments: Comment[] = [];
+          snapshot.forEach((childSnapshot) => {
+            comments.push(childSnapshot.val());
+          });
+          resolve(comments);
+        }, { onlyOnce: true });
+      });
+    } catch (error) {
+      console.error('Error getting comments:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Post a comment
+   */
+  postComment: async (postId: string, content: string, author: User): Promise<Comment> => {
+    try {
+      const commentsRef = ref(database, `comments/${postId}`);
+      const newCommentRef = push(commentsRef);
+      
+      const comment: Comment = {
+        id: newCommentRef.key || `comment_${Date.now()}`,
+        postId: parseInt(postId),
+        author,
+        content,
+        timestamp: Date.now()
+      };
+
+      await set(newCommentRef, comment);
+      
+      // Update comment count in stats
+      const stats = await FirebaseService.getPostStats(postId);
+      const statsRef = ref(database, `postStats/${postId}`);
+      await set(statsRef, { ...stats, comments: stats.comments + 1 });
+      
+      return comment;
+    } catch (error) {
+      console.error('Error posting comment:', error);
+      throw new Error('Failed to post comment');
     }
   }
 };

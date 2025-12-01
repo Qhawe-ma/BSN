@@ -1,5 +1,5 @@
 import { Post, User, Message, ChatSession, Comment } from './types';
-import { BrowserProvider, Contract } from 'ethers';
+import { BrowserProvider, Contract, JsonRpcProvider } from 'ethers';
 import { IPFSService } from './ipfsService';
 import { FirebaseService } from './firebaseService';
 import { POST_MINTING_ABI } from './contractABI';
@@ -18,8 +18,36 @@ const BSC_MAINNET_CONFIG = {
   blockExplorerUrls: ['https://bscscan.com/']
 };
 
+// Public RPC endpoints for read-only access (no wallet needed)
+const PUBLIC_RPC_URLS = [
+  'https://bsc-dataseed.bnbchain.org',
+  'https://bsc-dataseed1.bnbchain.org',
+  'https://bsc-dataseed2.bnbchain.org'
+];
+
 // Get contract address from environment
 const CONTRACT_ADDRESS = import.meta.env.VITE_BSC_CONTRACT_ADDRESS;
+
+// --- Post Cache ---
+interface PostCache {
+  posts: Post[];
+  timestamp: number;
+  ttl: number; // Time to live in ms
+}
+let feedCache: PostCache | null = null;
+const CACHE_TTL = 60000; // 1 minute cache
+
+// --- Helper: Get Provider (works without wallet) ---
+const getReadOnlyProvider = () => {
+  return new JsonRpcProvider(PUBLIC_RPC_URLS[0]);
+};
+
+const getProvider = () => {
+  if (window.ethereum) {
+    return new BrowserProvider(window.ethereum);
+  }
+  return getReadOnlyProvider();
+};
 
 // --- Helper: Avatar Generator ---
 export const generateAvatar = (address: string) => 
@@ -294,21 +322,93 @@ export const BlockchainService = {
   }
 };
 
-// --- Service: Data/Firebase (Real implementation will use backend API) ---
+// --- Helper: Fetch single post data ---
+const fetchPostData = async (
+  contract: Contract, 
+  tokenId: number
+): Promise<Post | null> => {
+  try {
+    // Get owner and metadata URI from contract in parallel
+    const [owner, metadataURI] = await Promise.all([
+      contract.ownerOf(tokenId),
+      contract.tokenURI(tokenId)
+    ]);
+    
+    // Handle both "ipfs://hash" and just "hash" formats
+    const cleanHash = metadataURI.replace('ipfs://', '').trim();
+
+    // Fetch metadata from IPFS
+    const metadataUrl = IPFSService.getIPFSUrl(cleanHash);
+    const metadataResponse = await fetch(metadataUrl);
+    
+    if (!metadataResponse.ok) {
+      throw new Error(`Failed to fetch from IPFS: ${metadataResponse.status}`);
+    }
+    
+    const contentType = metadataResponse.headers.get('content-type');
+    if (!contentType?.includes('application/json')) {
+      throw new Error(`Invalid content type: ${contentType}, expected JSON`);
+    }
+    
+    const metadata = await metadataResponse.json();
+
+    // Validate metadata has required fields
+    if (!metadata.content) {
+      throw new Error('Metadata missing content field');
+    }
+
+    // Get user profile and post stats in parallel
+    const [author, stats] = await Promise.all([
+      FirebaseService.getUserProfile(owner),
+      FirebaseService.getPostStats(tokenId.toString())
+    ]);
+    
+    const finalAuthor = author || {
+      address: owner,
+      followers: 0,
+      following: 0,
+      totalPosts: 0,
+      avatarUrl: generateAvatar(owner),
+      createdAt: Date.now()
+    };
+
+    return {
+      id: tokenId,
+      tokenId: tokenId.toString(),
+      author: finalAuthor,
+      content: metadata.content || '',
+      timestamp: metadata.timestamp || Date.now(),
+      likes: stats.likes,
+      commentsCount: stats.comments,
+      ipfsHash: cleanHash,
+      txHash: '',
+      attachmentUrl: metadata.imageUrl
+    };
+  } catch (error) {
+    console.warn(`Skipping post ${tokenId}:`, error instanceof Error ? error.message : String(error));
+    return null;
+  }
+};
+
+// --- Service: Data/Firebase ---
 export const DataService = {
-  getFeed: async (): Promise<Post[]> => {
+  getFeed: async (forceRefresh = false): Promise<Post[]> => {
     try {
       if (!CONTRACT_ADDRESS) {
         console.error('Contract address not configured');
         return [];
       }
 
-      if (!window.ethereum) {
-        console.warn('Wallet not connected yet');
-        return [];
+      // Check cache first
+      if (!forceRefresh && feedCache && (Date.now() - feedCache.timestamp < feedCache.ttl)) {
+        console.log('📦 Returning cached feed');
+        return feedCache.posts;
       }
 
-      const provider = new BrowserProvider(window.ethereum);
+      console.log('🔄 Fetching fresh feed from blockchain...');
+      
+      // Use public RPC - works without wallet connection
+      const provider = getReadOnlyProvider();
       const contract = new Contract(CONTRACT_ADDRESS, POST_MINTING_ABI, provider);
 
       // Get total number of posts
@@ -319,69 +419,76 @@ export const DataService = {
         return [];
       }
 
+      // Fetch all posts in parallel (batch of 10 at a time to avoid rate limits)
+      const batchSize = 10;
       const posts: Post[] = [];
+      
+      for (let i = 0; i < totalPosts; i += batchSize) {
+        const batch = [];
+        for (let j = i; j < Math.min(i + batchSize, totalPosts); j++) {
+          batch.push(fetchPostData(contract, j));
+        }
+        
+        const results = await Promise.all(batch);
+        posts.push(...results.filter((p): p is Post => p !== null));
+      }
 
-      // Fetch each post
-      for (let tokenId = 0; tokenId < totalPosts; tokenId++) {
-        try {
-          // Get owner and metadata URI from contract
-          const owner = await contract.ownerOf(tokenId);
-          const metadataURI = await contract.tokenURI(tokenId);
-          
-          // Handle both "ipfs://hash" and just "hash" formats
-          const cleanHash = metadataURI.replace('ipfs://', '').trim();
+      // Sort by timestamp (newest first)
+      posts.sort((a, b) => b.timestamp - a.timestamp);
 
-          // Fetch metadata from IPFS
-          const metadataUrl = IPFSService.getIPFSUrl(cleanHash);
-          const metadataResponse = await fetch(metadataUrl);
-          
-          if (!metadataResponse.ok) {
-            throw new Error(`Failed to fetch from IPFS: ${metadataResponse.status}`);
+      // Update cache
+      feedCache = {
+        posts,
+        timestamp: Date.now(),
+        ttl: CACHE_TTL
+      };
+
+      console.log(`✅ Loaded ${posts.length} posts`);
+      return posts;
+    } catch (error) {
+      console.error('Error fetching feed:', error);
+      return [];
+    }
+  },
+
+  // Get posts by specific owner address
+  getPostsByOwner: async (ownerAddress: string): Promise<Post[]> => {
+    try {
+      if (!CONTRACT_ADDRESS) {
+        return [];
+      }
+
+      const provider = getReadOnlyProvider();
+      const contract = new Contract(CONTRACT_ADDRESS, POST_MINTING_ABI, provider);
+
+      // Get total number of posts
+      const totalSupply = await contract.totalSupply();
+      const totalPosts = Number(totalSupply);
+
+      if (totalPosts === 0) {
+        return [];
+      }
+
+      // Fetch all posts and filter by owner (could be optimized with events later)
+      const posts: Post[] = [];
+      const normalizedOwner = ownerAddress.toLowerCase();
+      
+      // Fetch in parallel batches
+      const batchSize = 10;
+      for (let i = 0; i < totalPosts; i += batchSize) {
+        const batch = [];
+        for (let j = i; j < Math.min(i + batchSize, totalPosts); j++) {
+          batch.push(fetchPostData(contract, j));
+        }
+        
+        const results = await Promise.all(batch);
+        const validPosts = results.filter((p): p is Post => p !== null);
+        
+        // Filter by owner
+        for (const post of validPosts) {
+          if (post.author.address.toLowerCase() === normalizedOwner) {
+            posts.push(post);
           }
-          
-          const contentType = metadataResponse.headers.get('content-type');
-          if (!contentType?.includes('application/json')) {
-            throw new Error(`Invalid content type: ${contentType}, expected JSON`);
-          }
-          
-          const metadata = await metadataResponse.json();
-
-          // Validate metadata has required fields
-          if (!metadata.content) {
-            throw new Error('Metadata missing content field');
-          }
-
-          // Get user profile
-          let author = await FirebaseService.getUserProfile(owner);
-          if (!author) {
-            author = {
-              address: owner,
-              followers: 0,
-              following: 0,
-              totalPosts: 0,
-              avatarUrl: generateAvatar(owner),
-              createdAt: Date.now()
-            };
-          }
-
-          const post: Post = {
-            id: tokenId,
-            tokenId: tokenId.toString(),
-            author,
-            content: metadata.content || '',
-            timestamp: metadata.timestamp || Date.now(),
-            likes: 0,
-            commentsCount: 0,
-            ipfsHash: cleanHash,
-            txHash: '',
-            attachmentUrl: metadata.imageUrl
-          };
-
-          posts.push(post);
-        } catch (error) {
-          console.warn(`Skipping post ${tokenId}:`, error instanceof Error ? error.message : String(error));
-          // Continue to next post
-          continue;
         }
       }
 
@@ -390,32 +497,38 @@ export const DataService = {
 
       return posts;
     } catch (error) {
-      console.error('Error fetching feed:', error);
+      console.error('Error fetching posts by owner:', error);
       return [];
     }
   },
 
-  toggleLike: async (postId: number): Promise<void> => {
-    // TODO: Update like status via backend API
-    // Example: await fetch(`/api/posts/${postId}/like`, { method: 'POST' });
-    throw new Error('Toggling likes requires backend API integration');
+  // Invalidate cache (call after minting new post)
+  invalidateCache: () => {
+    feedCache = null;
+    console.log('🗑️ Feed cache invalidated');
   },
 
-  getComments: async (postId: number): Promise<Comment[]> => {
-    // TODO: Fetch comments from backend API
-    // Example: const response = await fetch(`/api/posts/${postId}/comments`);
-    // return response.json();
-    return [];
+  toggleLike: async (postId: string, userAddress: string): Promise<{ liked: boolean; likes: number }> => {
+    if (!userAddress) {
+      throw new Error('Please connect your wallet first');
+    }
+    return await FirebaseService.toggleLike(postId, userAddress);
   },
 
-  postComment: async (postId: number, content: string, author: User): Promise<Comment> => {
-    // TODO: Post comment to backend API
-    // Example: const response = await fetch(`/api/posts/${postId}/comments`, {
-    //   method: 'POST',
-    //   body: JSON.stringify({ content, author })
-    // });
-    // return response.json();
-    throw new Error('Posting comments requires backend API integration');
+  isPostLiked: async (postId: string, userAddress: string): Promise<boolean> => {
+    if (!userAddress) return false;
+    return await FirebaseService.isPostLiked(postId, userAddress);
+  },
+
+  getComments: async (postId: string): Promise<Comment[]> => {
+    return await FirebaseService.getComments(postId);
+  },
+
+  postComment: async (postId: string, content: string, author: User): Promise<Comment> => {
+    if (!author) {
+      throw new Error('Please connect your wallet first');
+    }
+    return await FirebaseService.postComment(postId, content, author);
   },
 
   getChats: async (): Promise<ChatSession[]> => {

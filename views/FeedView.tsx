@@ -6,27 +6,44 @@ import { GlassCard, Button, Avatar, Badge } from '../components/UIComponents';
 import { FirebaseService } from '../firebaseService';
 
 const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; currentUser?: User }> = ({ post, onUserClick, currentUser }) => {
-  const [isLiked, setIsLiked] = useState(post.isLiked);
+  const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(post.likes);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentsCount, setCommentsCount] = useState(post.commentsCount);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [isLiking, setIsLiking] = useState(false);
   
   // Comment Input State
   const [newComment, setNewComment] = useState("");
   const [isPostingComment, setIsPostingComment] = useState(false);
 
-  const handleLike = () => {
-    setIsLiked(!isLiked);
-    setLikesCount(prev => isLiked ? prev - 1 : prev + 1);
-    DataService.toggleLike(post.id);
+  // Check if current user has liked this post
+  useEffect(() => {
+    if (currentUser) {
+      DataService.isPostLiked(post.tokenId, currentUser.address).then(setIsLiked);
+    }
+  }, [currentUser, post.tokenId]);
+
+  const handleLike = async () => {
+    if (!currentUser || isLiking) return;
+    
+    setIsLiking(true);
+    try {
+      const result = await DataService.toggleLike(post.tokenId, currentUser.address);
+      setIsLiked(result.liked);
+      setLikesCount(result.likes);
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    } finally {
+      setIsLiking(false);
+    }
   };
 
   const toggleComments = async () => {
     if (!showComments && comments.length === 0) {
       setIsLoadingComments(true);
-      const fetched = await DataService.getComments(post.id);
+      const fetched = await DataService.getComments(post.tokenId);
       setComments(fetched);
       setIsLoadingComments(false);
     }
@@ -37,11 +54,16 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; curren
     if (!newComment.trim() || !currentUser) return;
     
     setIsPostingComment(true);
-    const comment = await DataService.postComment(post.id, newComment, currentUser);
-    setComments(prev => [...prev, comment]);
-    setNewComment("");
-    setCommentsCount(prev => prev + 1);
-    setIsPostingComment(false);
+    try {
+      const comment = await DataService.postComment(post.tokenId, newComment, currentUser);
+      setComments(prev => [...prev, comment]);
+      setNewComment("");
+      setCommentsCount(prev => prev + 1);
+    } catch (error) {
+      console.error('Error posting comment:', error);
+    } finally {
+      setIsPostingComment(false);
+    }
   };
 
   // Format time nicely
