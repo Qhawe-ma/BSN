@@ -297,10 +297,102 @@ export const BlockchainService = {
 // --- Service: Data/Firebase (Real implementation will use backend API) ---
 export const DataService = {
   getFeed: async (): Promise<Post[]> => {
-    // TODO: Fetch posts from backend API
-    // Example: const response = await fetch('/api/feed');
-    // return response.json();
-    return [];
+    try {
+      if (!CONTRACT_ADDRESS) {
+        console.error('Contract address not configured');
+        return [];
+      }
+
+      if (!window.ethereum) {
+        console.warn('Wallet not connected yet');
+        return [];
+      }
+
+      const provider = new BrowserProvider(window.ethereum);
+      const contract = new Contract(CONTRACT_ADDRESS, POST_MINTING_ABI, provider);
+
+      // Get total number of posts
+      const totalSupply = await contract.totalSupply();
+      const totalPosts = Number(totalSupply);
+
+      if (totalPosts === 0) {
+        return [];
+      }
+
+      const posts: Post[] = [];
+
+      // Fetch each post
+      for (let tokenId = 0; tokenId < totalPosts; tokenId++) {
+        try {
+          // Get owner and metadata URI from contract
+          const owner = await contract.ownerOf(tokenId);
+          const metadataURI = await contract.tokenURI(tokenId);
+          
+          // Handle both "ipfs://hash" and just "hash" formats
+          const cleanHash = metadataURI.replace('ipfs://', '').trim();
+
+          // Fetch metadata from IPFS
+          const metadataUrl = IPFSService.getIPFSUrl(cleanHash);
+          const metadataResponse = await fetch(metadataUrl);
+          
+          if (!metadataResponse.ok) {
+            throw new Error(`Failed to fetch from IPFS: ${metadataResponse.status}`);
+          }
+          
+          const contentType = metadataResponse.headers.get('content-type');
+          if (!contentType?.includes('application/json')) {
+            throw new Error(`Invalid content type: ${contentType}, expected JSON`);
+          }
+          
+          const metadata = await metadataResponse.json();
+
+          // Validate metadata has required fields
+          if (!metadata.content) {
+            throw new Error('Metadata missing content field');
+          }
+
+          // Get user profile
+          let author = await FirebaseService.getUserProfile(owner);
+          if (!author) {
+            author = {
+              address: owner,
+              followers: 0,
+              following: 0,
+              totalPosts: 0,
+              avatarUrl: generateAvatar(owner),
+              createdAt: Date.now()
+            };
+          }
+
+          const post: Post = {
+            id: tokenId,
+            tokenId: tokenId.toString(),
+            author,
+            content: metadata.content || '',
+            timestamp: metadata.timestamp || Date.now(),
+            likes: 0,
+            commentsCount: 0,
+            ipfsHash: cleanHash,
+            txHash: '',
+            attachmentUrl: metadata.imageUrl
+          };
+
+          posts.push(post);
+        } catch (error) {
+          console.warn(`Skipping post ${tokenId}:`, error instanceof Error ? error.message : String(error));
+          // Continue to next post
+          continue;
+        }
+      }
+
+      // Sort by timestamp (newest first)
+      posts.sort((a, b) => b.timestamp - a.timestamp);
+
+      return posts;
+    } catch (error) {
+      console.error('Error fetching feed:', error);
+      return [];
+    }
   },
 
   toggleLike: async (postId: number): Promise<void> => {
