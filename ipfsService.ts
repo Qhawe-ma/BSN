@@ -77,9 +77,10 @@ export const IPFSService = {
   },
 
   /**
-   * Get IPFS URL for a hash
+   * Get IPFS URL for a hash using CORS-friendly gateways
    */
   getIPFSUrl: (hash: string): string => {
-    return `https://gateway.pinata.cloud/ipfs/${hash}`;
+    // Use w3s.link gateway (CORS-friendly and reliable from web3.storage)
+    return `https://w3s.link/ipfs/${hash}`;
   },
 };
