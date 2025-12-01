@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Check, Link as LinkIcon, Grid, Calendar, MessageSquare, UserPlus, Settings, X, Save, Wallet, Image as ImageIcon } from 'lucide-react';
-import { User } from '../types';
+import { Copy, Check, Link as LinkIcon, Grid, Calendar, MessageSquare, UserPlus, Settings, X, Save, Wallet, Image as ImageIcon, Heart, Loader } from 'lucide-react';
+import { User, Post } from '../types';
 import { GlassCard, Avatar, Button, Badge, Input } from '../components/UIComponents';
 import { FirebaseService } from '../firebaseService';
+import { DataService, formatAddress } from '../services';
 
 interface ProfileViewProps {
     user: User;
@@ -20,6 +21,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
   const [isEditing, setIsEditing] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+  
+  // Posts state
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   
   // Determine if we are viewing our own profile (requires currentUser to exist)
   const isOwnProfile = currentUser?.address === user.address;
@@ -46,6 +51,24 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
     
     checkFollowStatus();
   }, [currentUser?.address, user.address, isOwnProfile]);
+
+  // Load posts for this user's profile
+  useEffect(() => {
+    const loadPosts = async () => {
+      setIsLoadingPosts(true);
+      try {
+        const userPosts = await DataService.getPostsByOwner(user.address);
+        setPosts(userPosts);
+      } catch (error) {
+        console.error('Error loading profile posts:', error);
+        setPosts([]);
+      } finally {
+        setIsLoadingPosts(false);
+      }
+    };
+    
+    loadPosts();
+  }, [user.address]);
   
   const handleFollow = async () => {
     if (!currentUser || isFollowLoading) return;
@@ -234,20 +257,65 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
       </div>
 
       {/* Content Grid */}
-      <div className="flex flex-col items-center justify-center py-20">
-        <div className="text-center">
-          <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
-            <ImageIcon size={24} className="text-gray-500" />
-          </div>
-          <h3 className="text-lg font-semibold text-white mb-2">No Posts Yet</h3>
-          <p className="text-gray-400 text-sm max-w-sm">
-            {isOwnProfile ? 
-              "Start minting your first post to see it here as an NFT!" : 
-              "This user hasn't minted any posts yet."
-            }
-          </p>
+      {isLoadingPosts ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <Loader size={32} className="text-primary animate-spin mb-4" />
+          <p className="text-gray-400">Loading posts...</p>
         </div>
-      </div>
+      ) : posts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
+              <ImageIcon size={24} className="text-gray-500" />
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">No Posts Yet</h3>
+            <p className="text-gray-400 text-sm max-w-sm">
+              {isOwnProfile ? 
+                "Start minting your first post to see it here as an NFT!" : 
+                "This user hasn't minted any posts yet."
+              }
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {posts.map((post) => (
+            <GlassCard key={post.tokenId} className="p-4 hover:border-white/10 transition-all">
+              <div className="flex gap-3">
+                <Avatar url={post.author.avatarUrl} size="sm" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-bold text-white text-sm">
+                      {post.author.ens || formatAddress(post.author.address)}
+                    </span>
+                    <span className="text-gray-500 text-xs">
+                      {new Date(post.timestamp).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="text-gray-300 text-sm mb-3">{post.content}</p>
+                  {post.attachmentUrl && (
+                    <img 
+                      src={post.attachmentUrl} 
+                      alt="Post attachment" 
+                      className="rounded-xl max-h-64 object-cover mb-3"
+                    />
+                  )}
+                  <div className="flex items-center gap-4 text-gray-500 text-xs">
+                    <div className="flex items-center gap-1">
+                      <Heart size={14} />
+                      <span>{post.likes}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <MessageSquare size={14} />
+                      <span>{post.commentsCount}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+          ))}
+        </div>
+      )}
 
       {/* EDIT PROFILE MODAL */}
       {isEditing && (

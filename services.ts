@@ -304,6 +304,9 @@ export const BlockchainService = {
       console.log('Transaction Hash:', receipt.hash);
       console.log('View on BSCScan:', `https://bscscan.com/tx/${receipt.hash}`);
       
+      // Invalidate feed cache so the new post shows up
+      DataService.invalidateCache();
+      
       return post;
     } catch (error: any) {
       console.error('Error minting post:', error);
