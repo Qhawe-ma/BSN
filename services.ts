@@ -519,6 +519,19 @@ export const DataService = {
     }
   },
 
+  // Get cached feed without fetching (for instant display)
+  getCachedFeed: (): Post[] | null => {
+    if (feedCache && (Date.now() - feedCache.timestamp < feedCache.ttl)) {
+      return feedCache.posts;
+    }
+    return null;
+  },
+
+  // Check if cache is valid
+  isCacheValid: (): boolean => {
+    return feedCache !== null && (Date.now() - feedCache.timestamp < feedCache.ttl);
+  },
+
   // Invalidate cache (call after minting new post)
   invalidateCache: () => {
     feedCache = null;

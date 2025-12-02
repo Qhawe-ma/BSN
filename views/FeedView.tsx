@@ -256,22 +256,40 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
     loadFollowing();
   }, [currentUser]);
 
-  const loadFeed = async (showLoading = true) => {
-    if (showLoading) setLoading(true);
-    const data = await DataService.getFeed(true); // Force refresh
+  const loadFeed = async (forceRefresh = false) => {
+    // Try to show cached posts immediately (no loading skeleton)
+    const cached = DataService.getCachedFeed();
+    if (cached && cached.length > 0) {
+      setPosts(cached);
+      setLoading(false);
+      
+      // If not forcing refresh and cache is valid, we're done
+      if (!forceRefresh && DataService.isCacheValid()) {
+        console.log('📦 Using cached feed');
+        return;
+      }
+    }
+    
+    // If no cache, show loading skeleton
+    if (!cached || cached.length === 0) {
+      setLoading(true);
+    }
+    
+    // Fetch fresh data (in background if we have cached posts)
+    const data = await DataService.getFeed(forceRefresh);
     setPosts(data);
     setLoading(false);
   };
 
   useEffect(() => {
-    loadFeed();
+    loadFeed(false); // Use cache on navigation
   }, [type]);
 
   // Subscribe to feed updates (e.g., after minting a new post)
   useEffect(() => {
     const unsubscribe = FeedEvents.subscribe(() => {
       console.log('📡 Feed update received, refreshing...');
-      loadFeed(false); // Refresh without showing loading spinner
+      loadFeed(true); // Force refresh after minting
     });
     return unsubscribe;
   }, []);
