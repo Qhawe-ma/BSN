@@ -3,6 +3,7 @@ import { BrowserProvider, Contract, JsonRpcProvider } from 'ethers';
 import { IPFSService } from './ipfsService';
 import { FirebaseService } from './firebaseService';
 import { POST_MINTING_ABI } from './contractABI';
+import { EncryptionService } from './encryptionService';
 
 // --- Constants ---
 const BSC_MAINNET_CHAIN_ID = '0x38'; // Chain ID 56 in hex
@@ -588,7 +589,8 @@ export const DataService = {
       throw new Error('Please connect your wallet first');
     }
 
-    return await FirebaseService.sendMessage(CURRENT_USER.address, recipientAddress, text);
+    const encryptedText = await EncryptionService.encrypt(text, CURRENT_USER.address, recipientAddress);
+    return await FirebaseService.sendMessage(CURRENT_USER.address, recipientAddress, encryptedText);
   },
 
   startNewChat: async (address: string): Promise<ChatSession> => {
@@ -625,23 +627,56 @@ export const DataService = {
   },
 
   /**
-   * Subscribe to real-time messages
+   * Subscribe to real-time messages (with automatic decryption)
    */
   subscribeToMessages: (
     senderId: string,
     recipientId: string,
     callback: (messages: Message[]) => void
   ): (() => void) => {
-    return FirebaseService.subscribeToMessages(senderId, recipientId, callback);
+    return FirebaseService.subscribeToMessages(senderId, recipientId, async (encryptedMessages) => {
+      const decryptedMessages = await Promise.all(
+        encryptedMessages.map(async (msg) => {
+          if (EncryptionService.isEncrypted(msg.content)) {
+            const decryptedContent = await EncryptionService.decrypt(
+              msg.content,
+              msg.sender,
+              msg.recipient
+            );
+            return { ...msg, content: decryptedContent };
+          }
+          return msg;
+        })
+      );
+      callback(decryptedMessages);
+    });
   },
 
   /**
-   * Subscribe to real-time chats
+   * Subscribe to real-time chats (with automatic decryption of last message)
    */
   subscribeToChats: (
     userId: string,
     callback: (chats: ChatSession[]) => void
   ): (() => void) => {
-    return FirebaseService.getUserChats(userId, callback);
+    return FirebaseService.getUserChats(userId, async (chats) => {
+      const decryptedChats = await Promise.all(
+        chats.map(async (chat) => {
+          if (chat.lastMessage && EncryptionService.isEncrypted(chat.lastMessage.content)) {
+            const decryptedContent = await EncryptionService.decrypt(
+              chat.lastMessage.content,
+              chat.lastMessage.sender,
+              chat.lastMessage.recipient
+            );
+            return {
+              ...chat,
+              lastMessage: { ...chat.lastMessage, content: decryptedContent }
+            };
+          }
+          return chat;
+        })
+      );
+      callback(decryptedChats);
+    });
   }
 };
