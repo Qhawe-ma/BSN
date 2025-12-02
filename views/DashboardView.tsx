@@ -28,6 +28,26 @@ const StatCard: React.FC<{ title: string; value: string | number; trend?: string
   </GlassCard>
 );
 
+const formatAccountAge = (createdAt: number | undefined): string => {
+  if (!createdAt) return 'New';
+  
+  const now = Date.now();
+  const ageMs = now - createdAt;
+  
+  const hours = Math.floor(ageMs / (1000 * 60 * 60));
+  const days = Math.floor(ageMs / (1000 * 60 * 60 * 24));
+  const weeks = Math.floor(days / 7);
+  const months = Math.floor(days / 30);
+  const years = Math.floor(days / 365);
+  
+  if (years >= 1) return `${years}y`;
+  if (months >= 1) return `${months}mo`;
+  if (weeks >= 1) return `${weeks}w`;
+  if (days >= 1) return `${days}d`;
+  if (hours >= 1) return `${hours}h`;
+  return '< 1h';
+};
+
 export const DashboardView: React.FC<{ user: User }> = ({ user }) => {
   const [timeRange, setTimeRange] = useState<'7' | '30'>('7');
   const [loading, setLoading] = useState(true);
@@ -116,7 +136,7 @@ export const DashboardView: React.FC<{ user: User }> = ({ user }) => {
         />
         <StatCard 
           title="Account Age" 
-          value={user.createdAt ? `${Math.floor((Date.now() - user.createdAt) / (1000 * 60 * 60 * 24))}d` : 'New'} 
+          value={formatAccountAge(user.createdAt)} 
         />
       </div>
 
