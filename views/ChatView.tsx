@@ -8,9 +8,11 @@ import { GlassCard, Avatar, Button, Input } from '../components/UIComponents';
 interface ChatViewProps {
   currentUser?: User;
   onUserClick: (user: User) => void;
+  initialChatTarget?: string;
+  onClearChatTarget?: () => void;
 }
 
-export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick }) => {
+export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, initialChatTarget, onClearChatTarget }) => {
   // State
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -106,6 +108,34 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick }) 
         messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, activeSessionId]);
+
+  // Handle initial chat target (from profile Message button)
+  useEffect(() => {
+    if (!initialChatTarget || !currentUser) return;
+    
+    const openOrCreateChat = async () => {
+      const existingSession = sessions.find(s => 
+        s.participant.address.toLowerCase() === initialChatTarget.toLowerCase()
+      );
+
+      if (existingSession) {
+        setActiveSessionId(existingSession.id);
+        if (isMobileView) setIsSidebarOpen(false);
+      } else {
+        const newSession = await DataService.startNewChat(initialChatTarget);
+        setSessions(prev => {
+          const exists = prev.some(s => s.id === newSession.id);
+          return exists ? prev : [newSession, ...prev];
+        });
+        setActiveSessionId(newSession.id);
+        if (isMobileView) setIsSidebarOpen(false);
+      }
+      
+      onClearChatTarget?.();
+    };
+    
+    openOrCreateChat();
+  }, [initialChatTarget, currentUser, sessions.length > 0]);
 
   // Handlers
   const handleSend = async () => {

@@ -50,6 +50,9 @@ const App: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Chat target for navigating from profile Message button
+  const [chatTarget, setChatTarget] = useState<string | null>(null);
 
   // --- Auto-reconnect on page load ---
   useEffect(() => {
@@ -258,7 +261,10 @@ const App: React.FC = () => {
     setView(ViewState.PROFILE);
   };
 
-  const handleNavigateToChat = () => {
+  const handleNavigateToChat = (targetAddress?: string) => {
+    if (targetAddress) {
+      setChatTarget(targetAddress);
+    }
     setView(ViewState.CHAT);
   };
 
@@ -373,7 +379,12 @@ const App: React.FC = () => {
       
       case ViewState.CHAT: 
         if (!user) return <ConnectWalletPrompt onConnect={handleConnect} isConnecting={isConnecting} title="Encrypted Messaging" subtitle="Connect your wallet to access your secure, end-to-end encrypted messages." />;
-        return <ChatView currentUser={user} onUserClick={handleNavigateToProfile} />;
+        return <ChatView 
+          currentUser={user} 
+          onUserClick={handleNavigateToProfile} 
+          initialChatTarget={chatTarget || undefined}
+          onClearChatTarget={() => setChatTarget(null)}
+        />;
       
       case ViewState.PROFILE: 
         // Determine which profile to show:

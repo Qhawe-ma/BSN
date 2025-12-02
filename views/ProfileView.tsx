@@ -8,7 +8,7 @@ import { DataService, formatAddress } from '../services';
 interface ProfileViewProps {
     user: User;
     currentUser?: User;
-    onNavigateToChat?: () => void;
+    onNavigateToChat?: (targetAddress: string) => void;
     onUpdateProfile?: (updatedUser: Partial<User>) => void;
     onConnect?: () => void;
     isConnecting?: boolean;
@@ -167,7 +167,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
                       <Button 
                           size="sm" 
                           className="gap-2"
-                          onClick={onNavigateToChat}
+                          onClick={() => onNavigateToChat?.(user.address)}
                       >
                           <MessageSquare size={16} />
                           Message
