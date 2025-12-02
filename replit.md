@@ -61,6 +61,23 @@ The app runs on port 5000 with Vite dev server configured for Replit's proxy env
 - HMR enabled on port 5000
 
 ## Recent Changes
+- **2024-12-02**: Added End-to-End Encryption for Messages
+  - ✅ **AES-GCM Encryption**: Messages encrypted with 256-bit AES-GCM before sending
+  - ✅ **PBKDF2 Key Derivation**: Secure key derivation with 100,000 iterations
+  - ✅ **Automatic Encryption**: All new messages are automatically encrypted
+  - ✅ **Transparent Decryption**: Messages decrypted on receipt without user action
+  - ✅ **Backward Compatible**: Old plain-text messages remain readable
+  - ✅ **Encrypted Prefix**: Encrypted messages prefixed with "E2E:" in Firebase
+  - 📁 **New File**: `encryptionService.ts` - Encryption/decryption service
+  - ⚠️ **Note**: Current implementation uses app-level key derivation. For production, implement wallet-based ECDH key exchange for true per-user E2E encryption.
+
+- **2024-12-02**: Analytics Dashboard Improvements
+  - ✅ **Real Blockchain Data**: Analytics now fetches actual posts from blockchain
+  - ✅ **Total Posts**: Shows real count of user's minted posts
+  - ✅ **Total Likes**: Aggregates likes across all user posts
+  - ✅ **Activity Charts**: Charts display real posting activity over time
+  - ✅ **Loading States**: Added loading spinners while fetching data
+
 - **2024-11-19**: UI/UX Improvements for Messaging and Profiles
   - ✅ **BETA Badge Removed**: Removed BETA badge from profile name field
   - ✅ **Smart Name Display**: Shows shortened wallet address (0x1234...5678) when user has no custom name set
