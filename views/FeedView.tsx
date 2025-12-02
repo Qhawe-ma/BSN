@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { MessageSquare, Heart, Share2, Repeat, MoreHorizontal, ShieldCheck, Send, Loader } from 'lucide-react';
 import { Post, Comment, User } from '../types';
-import { DataService, formatAddress, generateAvatar } from '../services';
+import { DataService, FeedEvents, formatAddress, generateAvatar } from '../services';
 import { GlassCard, Button, Avatar, Badge } from '../components/UIComponents';
 import { FirebaseService } from '../firebaseService';
 
@@ -256,13 +256,25 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
     loadFollowing();
   }, [currentUser]);
 
+  const loadFeed = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    const data = await DataService.getFeed(true); // Force refresh
+    setPosts(data);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    setLoading(true);
-    DataService.getFeed().then(data => {
-      setPosts(data);
-      setLoading(false);
-    });
+    loadFeed();
   }, [type]);
+
+  // Subscribe to feed updates (e.g., after minting a new post)
+  useEffect(() => {
+    const unsubscribe = FeedEvents.subscribe(() => {
+      console.log('📡 Feed update received, refreshing...');
+      loadFeed(false); // Refresh without showing loading spinner
+    });
+    return unsubscribe;
+  }, []);
 
   const filteredPosts = feedType === 'following' && currentUser
     ? posts.filter(post => followingAddresses.includes(post.author.address))

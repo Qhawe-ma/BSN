@@ -37,6 +37,20 @@ interface PostCache {
 let feedCache: PostCache | null = null;
 const CACHE_TTL = 60000; // 1 minute cache
 
+// --- Feed Update Events ---
+type FeedUpdateCallback = () => void;
+const feedUpdateListeners: Set<FeedUpdateCallback> = new Set();
+
+export const FeedEvents = {
+  subscribe: (callback: FeedUpdateCallback): (() => void) => {
+    feedUpdateListeners.add(callback);
+    return () => feedUpdateListeners.delete(callback);
+  },
+  emit: () => {
+    feedUpdateListeners.forEach(callback => callback());
+  }
+};
+
 // --- Helper: Get Provider (works without wallet) ---
 const getReadOnlyProvider = () => {
   return new JsonRpcProvider(PUBLIC_RPC_URLS[0]);
@@ -509,6 +523,8 @@ export const DataService = {
   invalidateCache: () => {
     feedCache = null;
     console.log('🗑️ Feed cache invalidated');
+    // Notify all subscribers to refresh their feed
+    FeedEvents.emit();
   },
 
   toggleLike: async (postId: string, userAddress: string): Promise<{ liked: boolean; likes: number }> => {
