@@ -55,6 +55,18 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [selectedBadgeType, setSelectedBadgeType] = useState<BadgeType>('blue');
 
+  // Badge password gate state
+  const [showBadgePasswordModal, setShowBadgePasswordModal] = useState(false);
+  const [badgePassword, setBadgePassword] = useState('');
+  const [showBadgePassword, setShowBadgePassword] = useState(false);
+  const [badgePasswordError, setBadgePasswordError] = useState('');
+  const [verifyingBadgePassword, setVerifyingBadgePassword] = useState(false);
+  const [pendingBadgeAction, setPendingBadgeAction] = useState<{
+    type: 'assign' | 'revoke';
+    badgeId?: string;
+    userAddress?: string;
+  } | null>(null);
+
   // Handle login
   const handleLogin = async () => {
     if (!password.trim()) {
@@ -195,10 +207,75 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Revoke badge
+  // Verify badge password
+  const verifyBadgePassword = async (): Promise<boolean> => {
+    if (!badgePassword.trim()) {
+      setBadgePasswordError('Please enter the badge password');
+      return false;
+    }
+    
+    setVerifyingBadgePassword(true);
+    setBadgePasswordError('');
+    
+    try {
+      const response = await fetch('/api/admin/verify-badge-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: badgePassword })
+      });
+      
+      if (response.ok) {
+        return true;
+      } else {
+        const data = await response.json();
+        setBadgePasswordError(data.error || 'Invalid badge password');
+        return false;
+      }
+    } catch (err) {
+      console.error('Badge password verification error:', err);
+      setBadgePasswordError('Failed to verify password. Please try again.');
+      return false;
+    } finally {
+      setVerifyingBadgePassword(false);
+    }
+  };
+
+  // Handle badge password submit
+  const handleBadgePasswordSubmit = async () => {
+    const isValid = await verifyBadgePassword();
+    if (!isValid) return;
+    
+    setShowBadgePasswordModal(false);
+    setBadgePassword('');
+    setBadgePasswordError('');
+    
+    if (pendingBadgeAction?.type === 'assign') {
+      await executeAssignBadge();
+    } else if (pendingBadgeAction?.type === 'revoke' && pendingBadgeAction.badgeId && pendingBadgeAction.userAddress) {
+      await executeRevokeBadge(pendingBadgeAction.badgeId, pendingBadgeAction.userAddress);
+    }
+    
+    setPendingBadgeAction(null);
+  };
+
+  // Close badge password modal
+  const closeBadgePasswordModal = () => {
+    setShowBadgePasswordModal(false);
+    setBadgePassword('');
+    setBadgePasswordError('');
+    setPendingBadgeAction(null);
+  };
+
+  // Revoke badge - now with password gate
   const handleRevokeBadge = async (badgeId: string, userAddress: string) => {
     if (!confirm('Are you sure you want to revoke this badge?')) return;
     
+    setPendingBadgeAction({ type: 'revoke', badgeId, userAddress });
+    setShowBadgePasswordModal(true);
+  };
+
+  // Execute revoke badge after password verification
+  const executeRevokeBadge = async (badgeId: string, userAddress: string) => {
     try {
       await FirebaseService.revokeBadge(userAddress, badgeId, 'admin');
       DataService.invalidateCache();
@@ -210,8 +287,16 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Assign badge to user
+  // Assign badge to user - now with password gate
   const handleAssignBadge = async () => {
+    if (!selectedUser) return;
+    
+    setPendingBadgeAction({ type: 'assign' });
+    setShowBadgePasswordModal(true);
+  };
+
+  // Execute assign badge after password verification
+  const executeAssignBadge = async () => {
     if (!selectedUser) return;
     
     setAssigningBadge(true);
@@ -1269,6 +1354,82 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Badge Password Modal */}
+      {showBadgePasswordModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <GlassCard className="w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center">
+                  <Lock size={20} className="text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">Badge Password Required</h2>
+                  <p className="text-gray-400 text-sm">
+                    {pendingBadgeAction?.type === 'assign' ? 'Enter password to assign badge' : 'Enter password to remove badge'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={closeBadgePasswordModal}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {badgePasswordError && (
+              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400 text-sm text-center">
+                {badgePasswordError}
+              </div>
+            )}
+
+            <div className="relative mb-6">
+              <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type={showBadgePassword ? 'text' : 'password'}
+                value={badgePassword}
+                onChange={(e) => setBadgePassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleBadgePasswordSubmit()}
+                placeholder="Enter badge password"
+                className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-12 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50"
+                autoFocus
+              />
+              <button
+                onClick={() => setShowBadgePassword(!showBadgePassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+              >
+                {showBadgePassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={closeBadgePasswordModal}
+                className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <Button
+                onClick={handleBadgePasswordSubmit}
+                disabled={verifyingBadgePassword}
+                className="flex-1"
+                size="lg"
+              >
+                {verifyingBadgePassword ? (
+                  <>
+                    <Loader size={18} className="animate-spin mr-2" />
+                    Verifying...
+                  </>
+                ) : (
+                  'Confirm'
+                )}
+              </Button>
+            </div>
+          </GlassCard>
         </div>
       )}
     </div>

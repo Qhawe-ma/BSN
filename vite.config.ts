@@ -59,6 +59,45 @@ export default defineConfig(({ mode }) => {
                 res.end('Method not allowed');
               }
             }) as Connect.NextHandleFunction);
+
+            server.middlewares.use('/api/admin/verify-badge-password', ((req, res) => {
+              if (req.method === 'POST') {
+                let body = '';
+                req.on('data', (chunk: Buffer) => {
+                  body += chunk.toString();
+                });
+                req.on('end', () => {
+                  try {
+                    const { password } = JSON.parse(body);
+                    const badgePassword = process.env.BADGE_PASSWORD;
+                    
+                    if (!badgePassword) {
+                      res.statusCode = 500;
+                      res.setHeader('Content-Type', 'application/json');
+                      res.end(JSON.stringify({ error: 'Badge password not configured' }));
+                      return;
+                    }
+                    
+                    if (password === badgePassword) {
+                      res.statusCode = 200;
+                      res.setHeader('Content-Type', 'application/json');
+                      res.end(JSON.stringify({ success: true }));
+                    } else {
+                      res.statusCode = 401;
+                      res.setHeader('Content-Type', 'application/json');
+                      res.end(JSON.stringify({ error: 'Invalid badge password' }));
+                    }
+                  } catch (e) {
+                    res.statusCode = 400;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ error: 'Invalid request' }));
+                  }
+                });
+              } else {
+                res.statusCode = 405;
+                res.end('Method not allowed');
+              }
+            }) as Connect.NextHandleFunction);
           }
         }
       ],
