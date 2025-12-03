@@ -6,7 +6,7 @@ import { GlassCard, Button, Avatar, Badge } from '../components/UIComponents';
 import { FirebaseService } from '../firebaseService';
 import { Portal } from '../components/Portal';
 
-const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; currentUser?: User }> = ({ post, onUserClick, currentUser }) => {
+const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPostClick: (postId: string) => void; currentUser?: User }> = ({ post, onUserClick, onPostClick, currentUser }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(post.likes);
   const [showComments, setShowComments] = useState(false);
@@ -196,17 +196,22 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; curren
           </button>
         </div>
 
-        {/* Content */}
+        {/* Content - Clickable to view post details */}
         <div className="pl-0 md:pl-[3.5rem]">
-          <p className="text-gray-100 leading-relaxed text-sm md:text-[15px] mb-4 whitespace-pre-wrap break-words">
-            {post.content}
-          </p>
+          <div 
+            onClick={() => onPostClick(post.tokenId)}
+            className="cursor-pointer"
+          >
+            <p className="text-gray-100 leading-relaxed text-sm md:text-[15px] mb-4 whitespace-pre-wrap break-words hover:text-white transition-colors">
+              {post.content}
+            </p>
 
-          {post.attachmentUrl && (
-            <div className="mb-4 rounded-2xl overflow-hidden border border-white/5 shadow-lg">
-              <img src={post.attachmentUrl} alt="Attachment" className="w-full h-auto max-h-80 md:max-h-96 object-cover" />
-            </div>
-          )}
+            {post.attachmentUrl && (
+              <div className="mb-4 rounded-2xl overflow-hidden border border-white/5 shadow-lg hover:border-white/10 transition-colors">
+                <img src={post.attachmentUrl} alt="Attachment" className="w-full h-auto max-h-80 md:max-h-96 object-cover" />
+              </div>
+            )}
+          </div>
 
           {/* Token Metadata (Subtle) */}
           <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 text-[10px] font-mono text-gray-600">
@@ -415,7 +420,7 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; curren
   );
 };
 
-export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (user: User) => void; currentUser?: User }> = ({ type, onUserClick, currentUser }) => {
+export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (user: User) => void; onPostClick: (postId: string) => void; currentUser?: User }> = ({ type, onUserClick, onPostClick, currentUser }) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [feedType, setFeedType] = useState<'forYou' | 'following'>('forYou');
@@ -575,7 +580,7 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
         </div>
       ) : (
         filteredPosts.map(post => (
-          <PostItem key={post.id} post={post} onUserClick={onUserClick} currentUser={currentUser} />
+          <PostItem key={post.id} post={post} onUserClick={onUserClick} onPostClick={onPostClick} currentUser={currentUser} />
         ))
       )}
     </div>

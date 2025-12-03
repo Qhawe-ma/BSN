@@ -178,6 +178,26 @@ const App: React.FC = () => {
     loadSharedPost();
   }, []);
 
+  // --- Handle browser back/forward button ---
+  useEffect(() => {
+    const handlePopState = () => {
+      const pathname = window.location.pathname;
+      const postMatch = pathname.match(/^\/post\/([^/]+)$/);
+      
+      if (postMatch) {
+        const postId = postMatch[1];
+        setViewingPostId(postId);
+        setView(ViewState.POST_DETAIL);
+      } else if (pathname === '/' || pathname === '') {
+        setViewingPostId(null);
+        setView(ViewState.FEED);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   // --- Wallet Connection ---
   const handleConnect = async () => {
     if (isConnecting) return; // Prevent multiple simultaneous connection attempts
@@ -289,6 +309,12 @@ const App: React.FC = () => {
     setView(ViewState.CHAT);
   };
 
+  const handleNavigateToPost = (postId: string) => {
+    setViewingPostId(postId);
+    setView(ViewState.POST_DETAIL);
+    window.history.pushState({}, '', `/post/${postId}`);
+  };
+
   const handleUpdateProfile = async (updatedFields: Partial<User>) => {
       if (user) {
           // Save to Firebase
@@ -396,7 +422,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (view) {
       case ViewState.FEED: 
-        return <FeedView type="global" onUserClick={handleNavigateToProfile} currentUser={user || undefined} />;
+        return <FeedView type="global" onUserClick={handleNavigateToProfile} onPostClick={handleNavigateToPost} currentUser={user || undefined} />;
       
       case ViewState.CHAT: 
         if (!user) return <ConnectWalletPrompt onConnect={handleConnect} isConnecting={isConnecting} title="Encrypted Messaging" subtitle="Connect your wallet to access your secure, end-to-end encrypted messages." />;
@@ -436,7 +462,7 @@ const App: React.FC = () => {
       
       case ViewState.POST_DETAIL:
         if (!viewingPostId) {
-          return <FeedView type="global" onUserClick={handleNavigateToProfile} currentUser={user || undefined} />;
+          return <FeedView type="global" onUserClick={handleNavigateToProfile} onPostClick={handleNavigateToPost} currentUser={user || undefined} />;
         }
         return (
           <PostDetailView 
@@ -452,7 +478,7 @@ const App: React.FC = () => {
         );
       
       default: 
-        return <FeedView type="global" onUserClick={handleNavigateToProfile} currentUser={user || undefined} />;
+        return <FeedView type="global" onUserClick={handleNavigateToProfile} onPostClick={handleNavigateToPost} currentUser={user || undefined} />;
     }
   };
 
