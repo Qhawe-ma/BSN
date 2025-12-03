@@ -394,8 +394,8 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
 
       {showRepostConfirm && (
         <Portal>
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-            <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+            <div className="bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-white">Confirm Repost</h3>
                 <button 
@@ -411,7 +411,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                   Reposting will mint a new post on the blockchain. This action requires a wallet transaction and gas fees.
                 </p>
                 
-                <div className="bg-black/30 rounded-xl p-4 border border-white/5">
+                <div className="bg-black/40 rounded-xl p-4 border border-white/5">
                   <div className="flex items-center gap-3 mb-2">
                     <Avatar url={post.author.avatarUrl} size="sm" />
                     <span className="text-sm font-semibold text-white">
@@ -425,14 +425,14 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowRepostConfirm(false)}
-                  className="flex-1 px-4 py-3 rounded-xl border border-white/10 text-gray-300 hover:bg-white/5 transition-colors font-medium"
+                  className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition-colors font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirmRepost}
                   disabled={isReposting}
-                  className="flex-1 px-4 py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-primary to-yellow-400 text-black font-bold transition-all hover:shadow-lg hover:shadow-primary/25 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isReposting ? (
                     <>
