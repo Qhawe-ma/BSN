@@ -742,17 +742,37 @@ export const DataService = {
     // Create chat ID using the same format as Firebase (sorted addresses)
     const chatId = [CURRENT_USER.address, address].sort().join('_');
 
+    // Fetch the user's profile to get their badge and other info
+    let participantData: User = {
+      address: address,
+      ens: undefined,
+      followers: 0,
+      following: 0,
+      totalPosts: 0,
+      avatarUrl: generateAvatar(address)
+    };
+
+    try {
+      const profile = await FirebaseService.getUserProfile(address);
+      if (profile) {
+        participantData = {
+          ...participantData,
+          ens: profile.ens,
+          avatarUrl: profile.avatarUrl || participantData.avatarUrl,
+          activeBadge: profile.activeBadge,
+          followers: profile.followers || 0,
+          following: profile.following || 0,
+          totalPosts: profile.totalPosts || 0
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching participant profile:', error);
+    }
+
     // Create a new chat session
     const chatSession: ChatSession = {
       id: chatId,
-      participant: {
-        address: address,
-        ens: undefined,
-        followers: 0,
-        following: 0,
-        totalPosts: 0,
-        avatarUrl: generateAvatar(address)
-      },
+      participant: participantData,
       lastMessage: {
         id: 'init',
         sender: '',

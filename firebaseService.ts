@@ -70,8 +70,9 @@ export const FirebaseService = {
     const chatsRef = ref(database, 'chats');
     const normalizedUserId = userId.toLowerCase();
     
-    const unsubscribe = onValue(chatsRef, (snapshot) => {
+    const unsubscribe = onValue(chatsRef, async (snapshot) => {
       const chatSessions: ChatSession[] = [];
+      const participantAddresses: string[] = [];
       
       snapshot.forEach((chatSnapshot) => {
         const chatId = chatSnapshot.key;
@@ -123,10 +124,37 @@ export const FirebaseService = {
                 unreadCount: unreadCount
               };
               chatSessions.push(chatSession);
+              participantAddresses.push(otherUserId);
             }
           }
         }
       });
+      
+      // Fetch full user profiles (including badges) for all participants
+      try {
+        const profilePromises = participantAddresses.map(address => 
+          FirebaseService.getUserProfile(address)
+        );
+        const profiles = await Promise.all(profilePromises);
+        
+        // Merge profile data (including badges) into chat sessions
+        chatSessions.forEach((session, index) => {
+          const profile = profiles[index];
+          if (profile) {
+            session.participant = {
+              ...session.participant,
+              ens: profile.ens,
+              avatarUrl: profile.avatarUrl || session.participant.avatarUrl,
+              activeBadge: profile.activeBadge,
+              followers: profile.followers || 0,
+              following: profile.following || 0,
+              totalPosts: profile.totalPosts || 0
+            };
+          }
+        });
+      } catch (error) {
+        console.error('Error fetching participant profiles:', error);
+      }
       
       // Sort by last message timestamp
       chatSessions.sort((a, b) => b.lastMessage.timestamp - a.lastMessage.timestamp);
