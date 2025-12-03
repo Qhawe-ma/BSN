@@ -193,6 +193,20 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
+  // Revoke badge
+  const handleRevokeBadge = async (badgeId: string, userAddress: string) => {
+    if (!confirm('Are you sure you want to revoke this badge?')) return;
+    
+    try {
+      await FirebaseService.revokeBadge(userAddress, badgeId, 'admin');
+      loadBadges();
+      loadUsers();
+    } catch (err) {
+      console.error('Error revoking badge:', err);
+      alert('Failed to revoke badge');
+    }
+  };
+
   // Assign badge to user
   const handleAssignBadge = async () => {
     if (!selectedUser) return;
@@ -893,9 +907,18 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
                     )}
                     
                     {badge.status === 'active' && (
-                      <div className="text-right">
-                        <p className="text-gray-500 text-xs">Expires</p>
-                        <p className="text-gray-300 text-sm">{new Date(badge.expiryDate).toLocaleDateString()}</p>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-gray-500 text-xs">Expires</p>
+                          <p className="text-gray-300 text-sm">{new Date(badge.expiryDate).toLocaleDateString()}</p>
+                        </div>
+                        <button
+                          onClick={() => handleRevokeBadge(badge.id, badge.userAddress)}
+                          className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors"
+                          title="Revoke Badge"
+                        >
+                          <XCircle size={18} />
+                        </button>
                       </div>
                     )}
                   </div>

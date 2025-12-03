@@ -1084,12 +1084,19 @@ export const FirebaseService = {
     rejectionNote?: string
   ): Promise<void> => {
     try {
+      const badgeRef = ref(database, `premiumBadges/${badgeId}`);
+      const badgeSnapshot = await get(badgeRef);
+      
+      if (!badgeSnapshot.exists()) {
+        throw new Error('Badge not found');
+      }
+      
+      const badgeData = badgeSnapshot.val();
       const updates: any = { status };
       
       if (status === 'active' && adminAddress) {
         updates.approvedBy = adminAddress;
         updates.approvedAt = Date.now();
-        // Reset expiry to 30 days from approval
         updates.expiryDate = Date.now() + (30 * 24 * 60 * 60 * 1000);
       }
       
@@ -1097,7 +1104,19 @@ export const FirebaseService = {
         updates.rejectionNote = rejectionNote;
       }
 
-      await update(ref(database, `premiumBadges/${badgeId}`), updates);
+      await update(badgeRef, updates);
+      
+      if (status === 'active') {
+        const updatedBadge = { ...badgeData, ...updates, id: badgeId };
+        await update(ref(database, `users/${badgeData.userAddress.toLowerCase()}`), {
+          activeBadge: updatedBadge
+        });
+      } else if (status === 'rejected' || status === 'expired') {
+        await update(ref(database, `users/${badgeData.userAddress.toLowerCase()}`), {
+          activeBadge: null
+        });
+      }
+      
       console.log('Badge status updated:', badgeId, status);
     } catch (error) {
       console.error('Error updating badge status:', error);
@@ -1131,11 +1150,39 @@ export const FirebaseService = {
       };
 
       await set(ref(database, `premiumBadges/${purchaseId}`), badgeData);
+      
+      await update(ref(database, `users/${userAddress.toLowerCase()}`), {
+        activeBadge: badgeData
+      });
+      
       console.log('Badge assigned by admin:', purchaseId);
       return purchaseId;
     } catch (error) {
       console.error('Error assigning badge:', error);
       throw new Error('Failed to assign badge');
+    }
+  },
+
+  revokeBadge: async (
+    userAddress: string,
+    badgeId: string,
+    adminAddress: string
+  ): Promise<void> => {
+    try {
+      await update(ref(database, `premiumBadges/${badgeId}`), {
+        status: 'revoked',
+        revokedBy: adminAddress,
+        revokedAt: Date.now()
+      });
+      
+      await update(ref(database, `users/${userAddress.toLowerCase()}`), {
+        activeBadge: null
+      });
+      
+      console.log('Badge revoked by admin:', badgeId);
+    } catch (error) {
+      console.error('Error revoking badge:', error);
+      throw new Error('Failed to revoke badge');
     }
   },
 
