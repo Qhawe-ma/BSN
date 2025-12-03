@@ -5,6 +5,7 @@ import { DataService, BlockchainService, FeedEvents, formatAddress, generateAvat
 import { GlassCard, Button, Avatar, Badge } from '../components/UIComponents';
 import { FirebaseService } from '../firebaseService';
 import { Portal } from '../components/Portal';
+import { BadgeIcon } from '../components/BadgeIcon';
 
 const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPostClick: (postId: string) => void; currentUser?: User }> = ({ post, onUserClick, onPostClick, currentUser }) => {
   const [isLiked, setIsLiked] = useState(false);
@@ -204,19 +205,25 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
       {post.isRepost && post.originalAuthor && (
         <div className="px-4 md:px-6 pt-3 flex items-center gap-2 text-gray-500 text-xs">
           <Repeat size={12} />
-          <span>
+          <span className="flex items-center gap-1 flex-wrap">
             <span 
               onClick={() => onUserClick(post.author)} 
-              className="font-semibold hover:underline cursor-pointer"
+              className="font-semibold hover:underline cursor-pointer inline-flex items-center gap-1"
             >
               {post.author.ens || formatAddress(post.author.address)}
+              {post.author.activeBadge && post.author.activeBadge.status === 'active' && (
+                <BadgeIcon badgeType={post.author.activeBadge.badgeType} size="sm" />
+              )}
             </span>
             {' '}reposted from{' '}
             <span 
               onClick={() => onUserClick(post.originalAuthor!)} 
-              className="font-semibold hover:underline cursor-pointer"
+              className="font-semibold hover:underline cursor-pointer inline-flex items-center gap-1"
             >
               {post.originalAuthor.ens || formatAddress(post.originalAuthor.address)}
+              {post.originalAuthor.activeBadge && post.originalAuthor.activeBadge.status === 'active' && (
+                <BadgeIcon badgeType={post.originalAuthor.activeBadge.badgeType} size="sm" />
+              )}
             </span>
           </span>
         </div>
@@ -237,6 +244,9 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
                 >
                   {post.author.ens || formatAddress(post.author.address)}
                 </span>
+                {post.author.activeBadge && post.author.activeBadge.status === 'active' && (
+                  <BadgeIcon badgeType={post.author.activeBadge.badgeType} size="sm" />
+                )}
                 {post.author.ens && <ShieldCheck size={14} className="text-blue-400" />}
                 <span className="text-gray-500 text-xs md:text-sm">· {timeAgo(post.timestamp)}</span>
               </div>
@@ -542,12 +552,17 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
                   </div>
                   <div className="flex-1">
                       <div className="flex justify-between items-baseline mb-1">
-                         <span 
-                          onClick={() => onUserClick(comment.author)}
-                          className="text-sm font-bold text-gray-200 cursor-pointer hover:text-primary hover:underline"
-                         >
-                            {comment.author.ens || formatAddress(comment.author.address)}
-                         </span>
+                         <div className="flex items-center gap-1.5">
+                           <span 
+                            onClick={() => onUserClick(comment.author)}
+                            className="text-sm font-bold text-gray-200 cursor-pointer hover:text-primary hover:underline"
+                           >
+                              {comment.author.ens || formatAddress(comment.author.address)}
+                           </span>
+                           {comment.author.activeBadge && comment.author.activeBadge.status === 'active' && (
+                             <BadgeIcon badgeType={comment.author.activeBadge.badgeType} size="sm" />
+                           )}
+                         </div>
                          <span className="text-[10px] text-gray-600">{timeAgo(comment.timestamp)}</span>
                       </div>
                       <p className="text-sm text-gray-400">{comment.content}</p>

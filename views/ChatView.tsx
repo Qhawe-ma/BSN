@@ -4,6 +4,7 @@ import { Message, ChatSession, User } from '../types';
 import { DataService, formatAddress } from '../services';
 import { FirebaseService } from '../firebaseService';
 import { GlassCard, Avatar, Button, Input } from '../components/UIComponents';
+import { BadgeIcon } from '../components/BadgeIcon';
 
 interface ChatViewProps {
   currentUser?: User;
@@ -251,9 +252,14 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                 </div>
                 <div className="flex-1 text-left overflow-hidden min-w-0">
                   <div className="flex justify-between items-center mb-0.5">
-                    <span className={`font-semibold truncate text-sm ${activeSessionId === session.id ? 'text-white' : 'text-gray-300'}`}>
-                      {session.participant.ens || formatAddress(session.participant.address)}
-                    </span>
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className={`font-semibold truncate text-sm ${activeSessionId === session.id ? 'text-white' : 'text-gray-300'}`}>
+                        {session.participant.ens || formatAddress(session.participant.address)}
+                      </span>
+                      {session.participant.activeBadge && session.participant.activeBadge.status === 'active' && (
+                        <BadgeIcon badgeType={session.participant.activeBadge.badgeType} size="sm" />
+                      )}
+                    </div>
                     <span className="text-[10px] text-gray-500 flex-shrink-0 font-mono ml-2">
                         {session.lastMessage.id !== 'init' ? new Date(session.lastMessage.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
                     </span>
@@ -306,6 +312,9 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                             className="font-bold text-white text-base flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"
                         >
                             {activeSession?.participant.ens || (activeSession && formatAddress(activeSession.participant.address))}
+                            {activeSession?.participant.activeBadge && activeSession.participant.activeBadge.status === 'active' && (
+                              <BadgeIcon badgeType={activeSession.participant.activeBadge.badgeType} size="sm" />
+                            )}
                             {activeSession?.participant.ens && <ShieldCheck size={14} className="text-blue-400" />}
                         </h3>
                         <div className="flex items-center gap-2">

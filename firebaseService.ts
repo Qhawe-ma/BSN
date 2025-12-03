@@ -1028,15 +1028,13 @@ export const FirebaseService = {
       const data = snapshot.val();
       
       Object.keys(data).forEach(key => {
-        const badge = data[key];
-        // Check if expired and update status
+        const badge = { ...data[key], id: key };
         if (badge.status === 'active' && badge.expiryDate < Date.now()) {
           badge.status = 'expired';
         }
         badges.push(badge);
       });
 
-      // Sort by purchase date (newest first)
       badges.sort((a, b) => b.purchaseDate - a.purchaseDate);
       return badges;
     } catch (error) {
@@ -1058,7 +1056,6 @@ export const FirebaseService = {
       const data = snapshot.val();
       const now = Date.now();
       
-      // Find active badge for this user
       for (const key of Object.keys(data)) {
         const badge = data[key];
         if (
@@ -1066,7 +1063,7 @@ export const FirebaseService = {
           badge.status === 'active' &&
           badge.expiryDate > now
         ) {
-          return badge;
+          return { ...badge, id: key };
         }
       }
       
@@ -1165,7 +1162,6 @@ export const FirebaseService = {
         Object.keys(usersData).forEach(address => {
           const user = usersData[address];
           
-          // Find active badge for this user
           let activeBadge = null;
           for (const key of Object.keys(badges)) {
             const badge = badges[key];
@@ -1174,7 +1170,7 @@ export const FirebaseService = {
               badge.status === 'active' &&
               badge.expiryDate > now
             ) {
-              activeBadge = badge;
+              activeBadge = { ...badge, id: key };
               break;
             }
           }

@@ -4,6 +4,7 @@ import { User, Post } from '../types';
 import { GlassCard, Avatar, Button, Badge, Input } from '../components/UIComponents';
 import { FirebaseService } from '../firebaseService';
 import { DataService, formatAddress } from '../services';
+import { BadgeIcon } from '../components/BadgeIcon';
 
 interface ProfileViewProps {
     user: User;
@@ -193,6 +194,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-white flex items-center gap-3 mb-2 tracking-tight">
                 {user.ens || `${user.address.substring(0, 6)}...${user.address.substring(user.address.length - 4)}`}
+                {user.activeBadge && user.activeBadge.status === 'active' && (
+                  <BadgeIcon badgeType={user.activeBadge.badgeType} size="lg" />
+                )}
               </h1>
               
               <button 
