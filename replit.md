@@ -9,6 +9,13 @@ The user wants the agent to focus on high-level features and architectural decis
 ## System Architecture
 BSN is a React application built with Vite and TypeScript. It uses Tailwind CSS for styling, Lucide React for icons, and Recharts for data visualization. Key architectural patterns include wallet-based authentication, IPFS integration for content, and blockchain interaction via Ethers.js for features like post minting. Firebase Realtime Database is used for dynamic content such as user profiles and real-time messaging. The application is structured with distinct components for UI, views, and services for modularity. It connects to the BSC Mainnet (Chain ID 56) and supports automatic network switching and addition for Web3 wallets. Smart contract interaction is handled via `PostToken.sol` for NFT minting, supporting both custom `PostMinted` and standard `Transfer` events.
 
+## Admin Panel Security
+The admin panel uses two separate passwords:
+- **ADMIN_PASSWORD**: For logging into the admin panel
+- **BADGE_PASSWORD**: For assigning or removing user badges (separate from login password)
+
+Both are stored as secrets in the Replit environment.
+
 ## External Dependencies
 - **Blockchain Integration**: Ethers.js (for BSC mainnet)
 - **Decentralized Storage**: Pinata (for IPFS metadata and images)
