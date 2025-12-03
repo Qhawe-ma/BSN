@@ -976,5 +976,221 @@ export const FirebaseService = {
       reader.onerror = () => reject(new Error('Failed to read image'));
       reader.readAsDataURL(file);
     });
+  },
+
+  // ============ PREMIUM BADGES ============
+
+  /**
+   * Create a new badge purchase request (pending admin review)
+   */
+  createBadgePurchase: async (
+    userAddress: string,
+    badgeType: 'blue' | 'gold',
+    txHash: string,
+    amountPaid: string
+  ): Promise<string> => {
+    try {
+      const purchaseId = `${userAddress}_${Date.now()}`;
+      const purchaseDate = Date.now();
+      const expiryDate = purchaseDate + (30 * 24 * 60 * 60 * 1000); // 30 days
+      
+      const badgeData = {
+        id: purchaseId,
+        userAddress: userAddress.toLowerCase(),
+        badgeType,
+        txHash,
+        purchaseDate,
+        expiryDate,
+        status: 'pending',
+        amountPaid
+      };
+
+      await dbSet(dbRef(database, `premiumBadges/${purchaseId}`), badgeData);
+      console.log('Badge purchase created:', purchaseId);
+      return purchaseId;
+    } catch (error) {
+      console.error('Error creating badge purchase:', error);
+      throw new Error('Failed to create badge purchase');
+    }
+  },
+
+  /**
+   * Get all badge records (for admin)
+   */
+  getAllBadges: async (): Promise<any[]> => {
+    try {
+      const badgesRef = dbRef(database, 'premiumBadges');
+      const snapshot = await dbGet(badgesRef);
+      
+      if (!snapshot.exists()) return [];
+      
+      const badges: any[] = [];
+      const data = snapshot.val();
+      
+      Object.keys(data).forEach(key => {
+        const badge = data[key];
+        // Check if expired and update status
+        if (badge.status === 'active' && badge.expiryDate < Date.now()) {
+          badge.status = 'expired';
+        }
+        badges.push(badge);
+      });
+
+      // Sort by purchase date (newest first)
+      badges.sort((a, b) => b.purchaseDate - a.purchaseDate);
+      return badges;
+    } catch (error) {
+      console.error('Error fetching badges:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Get active badge for a user
+   */
+  getActiveBadge: async (userAddress: string): Promise<any | null> => {
+    try {
+      const badgesRef = dbRef(database, 'premiumBadges');
+      const snapshot = await dbGet(badgesRef);
+      
+      if (!snapshot.exists()) return null;
+      
+      const data = snapshot.val();
+      const now = Date.now();
+      
+      // Find active badge for this user
+      for (const key of Object.keys(data)) {
+        const badge = data[key];
+        if (
+          badge.userAddress.toLowerCase() === userAddress.toLowerCase() &&
+          badge.status === 'active' &&
+          badge.expiryDate > now
+        ) {
+          return badge;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error fetching active badge:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Update badge status (admin action)
+   */
+  updateBadgeStatus: async (
+    badgeId: string,
+    status: 'pending' | 'active' | 'expired' | 'rejected',
+    adminAddress?: string,
+    rejectionNote?: string
+  ): Promise<void> => {
+    try {
+      const updates: any = { status };
+      
+      if (status === 'active' && adminAddress) {
+        updates.approvedBy = adminAddress;
+        updates.approvedAt = Date.now();
+        // Reset expiry to 30 days from approval
+        updates.expiryDate = Date.now() + (30 * 24 * 60 * 60 * 1000);
+      }
+      
+      if (status === 'rejected' && rejectionNote) {
+        updates.rejectionNote = rejectionNote;
+      }
+
+      await dbUpdate(dbRef(database, `premiumBadges/${badgeId}`), updates);
+      console.log('Badge status updated:', badgeId, status);
+    } catch (error) {
+      console.error('Error updating badge status:', error);
+      throw new Error('Failed to update badge status');
+    }
+  },
+
+  /**
+   * Admin manually assign a badge to a user
+   */
+  assignBadge: async (
+    userAddress: string,
+    badgeType: 'blue' | 'gold',
+    adminAddress: string
+  ): Promise<string> => {
+    try {
+      const purchaseId = `admin_${userAddress}_${Date.now()}`;
+      const now = Date.now();
+      
+      const badgeData = {
+        id: purchaseId,
+        userAddress: userAddress.toLowerCase(),
+        badgeType,
+        txHash: 'ADMIN_ASSIGNED',
+        purchaseDate: now,
+        expiryDate: now + (30 * 24 * 60 * 60 * 1000),
+        status: 'active',
+        amountPaid: '0',
+        approvedBy: adminAddress,
+        approvedAt: now
+      };
+
+      await dbSet(dbRef(database, `premiumBadges/${purchaseId}`), badgeData);
+      console.log('Badge assigned by admin:', purchaseId);
+      return purchaseId;
+    } catch (error) {
+      console.error('Error assigning badge:', error);
+      throw new Error('Failed to assign badge');
+    }
+  },
+
+  /**
+   * Get all users with their badge status
+   */
+  getAllUsersWithBadges: async (): Promise<any[]> => {
+    try {
+      // Get all users
+      const usersRef = dbRef(database, 'users');
+      const usersSnapshot = await dbGet(usersRef);
+      
+      // Get all badges
+      const badgesRef = dbRef(database, 'premiumBadges');
+      const badgesSnapshot = await dbGet(badgesRef);
+      
+      const users: any[] = [];
+      const badges = badgesSnapshot.exists() ? badgesSnapshot.val() : {};
+      const now = Date.now();
+      
+      if (usersSnapshot.exists()) {
+        const usersData = usersSnapshot.val();
+        
+        Object.keys(usersData).forEach(address => {
+          const user = usersData[address];
+          
+          // Find active badge for this user
+          let activeBadge = null;
+          for (const key of Object.keys(badges)) {
+            const badge = badges[key];
+            if (
+              badge.userAddress.toLowerCase() === address.toLowerCase() &&
+              badge.status === 'active' &&
+              badge.expiryDate > now
+            ) {
+              activeBadge = badge;
+              break;
+            }
+          }
+          
+          users.push({
+            address,
+            ...user,
+            activeBadge
+          });
+        });
+      }
+
+      return users;
+    } catch (error) {
+      console.error('Error fetching users with badges:', error);
+      return [];
+    }
   }
 };

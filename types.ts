@@ -1,3 +1,20 @@
+export type BadgeType = 'blue' | 'gold';
+export type BadgeStatus = 'pending' | 'active' | 'expired' | 'rejected';
+
+export interface PremiumBadge {
+  id: string;
+  userAddress: string;
+  badgeType: BadgeType;
+  txHash: string;
+  purchaseDate: number;
+  expiryDate: number;
+  status: BadgeStatus;
+  approvedBy?: string;
+  approvedAt?: number;
+  rejectionNote?: string;
+  amountPaid: string;
+}
+
 export interface User {
   address: string;
   ens?: string;
@@ -7,7 +24,8 @@ export interface User {
   following: number;
   totalPosts: number;
   avatarUrl: string;
-  createdAt?: number; // Timestamp when user first connected wallet
+  createdAt?: number;
+  activeBadge?: PremiumBadge | null;
 }
 
 export interface Post {
