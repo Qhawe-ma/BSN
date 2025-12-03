@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { MessageSquare, Heart, Share2, Repeat, MoreHorizontal, ShieldCheck, Send, Loader, X, Check } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { MessageSquare, Heart, Share2, Repeat, MoreHorizontal, ShieldCheck, Send, Loader, X, Check, Flag, AlertTriangle } from 'lucide-react';
 import { Post, Comment, User } from '../types';
 import { DataService, BlockchainService, FeedEvents, formatAddress, generateAvatar } from '../services';
 import { GlassCard, Button, Avatar, Badge } from '../components/UIComponents';
@@ -23,6 +23,14 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
   // Comment Input State
   const [newComment, setNewComment] = useState("");
   const [isPostingComment, setIsPostingComment] = useState(false);
+  
+  // Menu and Report State
+  const [showMenu, setShowMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [isReporting, setIsReporting] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Check if current user has liked this post and has reposted
   useEffect(() => {
@@ -135,6 +143,50 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
     }
   };
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
+
+  // Handle report submission
+  const handleReport = async () => {
+    if (!reportReason.trim()) return;
+    
+    setIsReporting(true);
+    try {
+      await FirebaseService.reportPost(
+        post.tokenId,
+        currentUser?.address || 'anonymous',
+        reportReason,
+        post.content,
+        post.author.ens || post.author.address
+      );
+      setReportSuccess(true);
+      setTimeout(() => {
+        setShowReportModal(false);
+        setReportReason('');
+        setReportSuccess(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Error reporting post:', error);
+      alert('Failed to report post. Please try again.');
+    } finally {
+      setIsReporting(false);
+    }
+  };
+
   // Format time nicely
   const timeAgo = (timestamp: number) => {
     const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -191,9 +243,29 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
               <span className="text-gray-500 text-xs font-mono">{formatAddress(post.author.address)}</span>
             </div>
           </div>
-          <button className="text-gray-500 hover:text-white transition-colors">
-            <MoreHorizontal size={20} />
-          </button>
+          <div className="relative" ref={menuRef}>
+            <button 
+              onClick={() => setShowMenu(!showMenu)}
+              className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5"
+            >
+              <MoreHorizontal size={20} />
+            </button>
+            
+            {showMenu && (
+              <div className="absolute right-0 top-8 w-48 bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+                <button
+                  onClick={() => {
+                    setShowMenu(false);
+                    setShowReportModal(true);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition-colors text-sm"
+                >
+                  <Flag size={16} />
+                  Report Post
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Content - Clickable to view post details */}
@@ -350,6 +422,105 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </Portal>
+      )}
+
+      {/* Report Modal */}
+      {showReportModal && (
+        <Portal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+            <div className="bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+              {reportSuccess ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Check size={32} className="text-green-500" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-2">Report Submitted</h3>
+                  <p className="text-gray-400 text-sm">Thank you for helping keep our community safe.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center">
+                        <AlertTriangle size={20} className="text-red-400" />
+                      </div>
+                      <h3 className="text-lg font-bold text-white">Report Post</h3>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setShowReportModal(false);
+                        setReportReason('');
+                      }}
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <p className="text-gray-400 text-sm mb-4">
+                      Why are you reporting this post? Your report will be reviewed by our moderation team.
+                    </p>
+                    
+                    <div className="space-y-2 mb-4">
+                      {['Spam or misleading', 'Harassment or hate speech', 'Inappropriate content', 'Scam or fraud', 'Other'].map((reason) => (
+                        <button
+                          key={reason}
+                          onClick={() => setReportReason(reason)}
+                          className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${
+                            reportReason === reason 
+                              ? 'bg-red-500/20 border-red-500/50 text-white' 
+                              : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                          }`}
+                        >
+                          {reason}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    {reportReason === 'Other' && (
+                      <textarea
+                        value={reportReason === 'Other' ? '' : reportReason}
+                        onChange={(e) => setReportReason(e.target.value || 'Other')}
+                        placeholder="Please describe the issue..."
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 resize-none h-24"
+                      />
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setShowReportModal(false);
+                        setReportReason('');
+                      }}
+                      className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition-colors font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleReport}
+                      disabled={!reportReason.trim() || isReporting}
+                      className="flex-1 px-4 py-3 rounded-xl bg-red-500 text-white font-bold transition-all hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {isReporting ? (
+                        <>
+                          <Loader size={16} className="animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <Flag size={16} />
+                          Submit Report
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </Portal>
