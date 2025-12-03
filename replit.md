@@ -61,7 +61,7 @@ The app runs on port 5000 with Vite dev server configured for Replit's proxy env
 - HMR enabled on port 5000
 
 ## Recent Changes
-- **2024-12-03**: Share and Repost Functionality
+- **2024-12-03**: Share, Repost, and Post Detail View
   - ✅ **Share Button**: Uses Web Share API on mobile or copies post link to clipboard on desktop
   - ✅ **Visual Feedback**: Share button shows checkmark and "Copied!" when link is copied
   - ✅ **Repost Button**: Opens confirmation modal before minting repost on blockchain
@@ -69,8 +69,12 @@ The app runs on port 5000 with Vite dev server configured for Replit's proxy env
   - ✅ **Repost Tracking**: Reposts stored in Firebase with count displayed on posts
   - ✅ **Repost Indicator**: Posts that are reposts show "X reposted from Y" header
   - ✅ **Duplicate Prevention**: Users cannot repost the same post twice
-  - ✅ **Self-Repost Prevention**: Users cannot repost their own posts
-  - 📁 **Updated Files**: `types.ts`, `services.ts`, `firebaseService.ts`, `views/FeedView.tsx`
+  - ✅ **Self-Repost Allowed**: Users can now repost their own posts
+  - ✅ **Portal Modal**: Repost confirmation modal renders as full-screen overlay (not clipped by post container)
+  - ✅ **Post Detail View**: Shared links (`/post/:id`) now navigate to individual post detail page
+  - ✅ **Back Navigation**: Post detail view has back button that returns to feed and clears URL
+  - 📁 **New Files**: `components/Portal.tsx`, `views/PostDetailView.tsx`
+  - 📁 **Updated Files**: `types.ts`, `services.ts`, `firebaseService.ts`, `views/FeedView.tsx`, `App.tsx`
 
 - **2024-12-02**: Added End-to-End Encryption for Messages
   - ✅ **AES-GCM Encryption**: Messages encrypted with 256-bit AES-GCM before sending
