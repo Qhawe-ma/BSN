@@ -518,6 +518,7 @@ const App: React.FC = () => {
               setView(ViewState.FEED);
               window.history.pushState({}, '', '/');
             }}
+            userAddress={user?.address}
           />
         );
       

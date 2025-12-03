@@ -1,7 +1,7 @@
 import { database, storage } from './firebaseConfig';
-import { ref, push, set, onValue, query, orderByChild, limitToLast, off } from 'firebase/database';
+import { ref, push, set, get, update, onValue, query, orderByChild, limitToLast, off } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Message, ChatSession, User, Comment } from './types';
+import { Message, ChatSession, User, Comment, PremiumBadge, BadgeType, BadgeStatus } from './types';
 import { generateAvatar } from './services';
 
 export const FirebaseService = {
@@ -1005,7 +1005,7 @@ export const FirebaseService = {
         amountPaid
       };
 
-      await dbSet(dbRef(database, `premiumBadges/${purchaseId}`), badgeData);
+      await set(ref(database, `premiumBadges/${purchaseId}`), badgeData);
       console.log('Badge purchase created:', purchaseId);
       return purchaseId;
     } catch (error) {
@@ -1019,8 +1019,8 @@ export const FirebaseService = {
    */
   getAllBadges: async (): Promise<any[]> => {
     try {
-      const badgesRef = dbRef(database, 'premiumBadges');
-      const snapshot = await dbGet(badgesRef);
+      const badgesRef = ref(database, 'premiumBadges');
+      const snapshot = await get(badgesRef);
       
       if (!snapshot.exists()) return [];
       
@@ -1050,8 +1050,8 @@ export const FirebaseService = {
    */
   getActiveBadge: async (userAddress: string): Promise<any | null> => {
     try {
-      const badgesRef = dbRef(database, 'premiumBadges');
-      const snapshot = await dbGet(badgesRef);
+      const badgesRef = ref(database, 'premiumBadges');
+      const snapshot = await get(badgesRef);
       
       if (!snapshot.exists()) return null;
       
@@ -1100,7 +1100,7 @@ export const FirebaseService = {
         updates.rejectionNote = rejectionNote;
       }
 
-      await dbUpdate(dbRef(database, `premiumBadges/${badgeId}`), updates);
+      await update(ref(database, `premiumBadges/${badgeId}`), updates);
       console.log('Badge status updated:', badgeId, status);
     } catch (error) {
       console.error('Error updating badge status:', error);
@@ -1133,7 +1133,7 @@ export const FirebaseService = {
         approvedAt: now
       };
 
-      await dbSet(dbRef(database, `premiumBadges/${purchaseId}`), badgeData);
+      await set(ref(database, `premiumBadges/${purchaseId}`), badgeData);
       console.log('Badge assigned by admin:', purchaseId);
       return purchaseId;
     } catch (error) {
@@ -1148,12 +1148,12 @@ export const FirebaseService = {
   getAllUsersWithBadges: async (): Promise<any[]> => {
     try {
       // Get all users
-      const usersRef = dbRef(database, 'users');
-      const usersSnapshot = await dbGet(usersRef);
+      const usersRef = ref(database, 'users');
+      const usersSnapshot = await get(usersRef);
       
       // Get all badges
-      const badgesRef = dbRef(database, 'premiumBadges');
-      const badgesSnapshot = await dbGet(badgesRef);
+      const badgesRef = ref(database, 'premiumBadges');
+      const badgesSnapshot = await get(badgesRef);
       
       const users: any[] = [];
       const badges = badgesSnapshot.exists() ? badgesSnapshot.val() : {};

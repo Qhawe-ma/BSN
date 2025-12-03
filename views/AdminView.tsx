@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Shield, Lock, AlertTriangle, Trash2, Eye, EyeOff, FileText, Plus, Edit, X, Check, Loader, ArrowLeft, Flag, RefreshCw, Upload, Image } from 'lucide-react';
+import { Shield, Lock, AlertTriangle, Trash2, Eye, EyeOff, FileText, Plus, Edit, X, Check, Loader, ArrowLeft, Flag, RefreshCw, Upload, Image, Crown, Users, Search, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { GlassCard, Button } from '../components/UIComponents';
 import { FirebaseService } from '../firebaseService';
 import { formatAddress } from '../services';
+import { BadgeType } from '../types';
 
 interface AdminViewProps {
   onBack: () => void;
@@ -14,7 +15,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'reports' | 'hidden' | 'blogs'>('reports');
+  const [activeTab, setActiveTab] = useState<'reports' | 'hidden' | 'blogs' | 'badges' | 'users'>('reports');
   
   // Reports state
   const [reports, setReports] = useState<any[]>([]);
@@ -39,6 +40,20 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
   const [savingBlog, setSavingBlog] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Badge state
+  const [badges, setBadges] = useState<any[]>([]);
+  const [loadingBadges, setLoadingBadges] = useState(false);
+  const [badgeFilter, setBadgeFilter] = useState<'all' | 'pending' | 'active' | 'expired'>('pending');
+
+  // Users state
+  const [users, setUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [showAssignBadge, setShowAssignBadge] = useState(false);
+  const [assigningBadge, setAssigningBadge] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedBadgeType, setSelectedBadgeType] = useState<BadgeType>('blue');
 
   // Handle login
   const handleLogin = async () => {
@@ -87,6 +102,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     loadReports();
     loadHiddenPosts();
     loadBlogs();
+    loadBadges();
+    loadUsers();
   };
 
   // Load reports
@@ -127,6 +144,87 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
       setLoadingBlogs(false);
     }
   };
+
+  // Load badges
+  const loadBadges = async () => {
+    setLoadingBadges(true);
+    try {
+      const data = await FirebaseService.getAllBadges();
+      setBadges(data);
+    } catch (err) {
+      console.error('Error loading badges:', err);
+    } finally {
+      setLoadingBadges(false);
+    }
+  };
+
+  // Load users
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const data = await FirebaseService.getAllUsersWithBadges();
+      setUsers(data);
+    } catch (err) {
+      console.error('Error loading users:', err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // Approve badge
+  const handleApproveBadge = async (badgeId: string) => {
+    try {
+      await FirebaseService.updateBadgeStatus(badgeId, 'active', 'admin');
+      loadBadges();
+    } catch (err) {
+      console.error('Error approving badge:', err);
+      alert('Failed to approve badge');
+    }
+  };
+
+  // Reject badge
+  const handleRejectBadge = async (badgeId: string) => {
+    try {
+      await FirebaseService.updateBadgeStatus(badgeId, 'rejected', undefined, 'Rejected by admin');
+      loadBadges();
+    } catch (err) {
+      console.error('Error rejecting badge:', err);
+      alert('Failed to reject badge');
+    }
+  };
+
+  // Assign badge to user
+  const handleAssignBadge = async () => {
+    if (!selectedUser) return;
+    
+    setAssigningBadge(true);
+    try {
+      await FirebaseService.assignBadge(selectedUser.address, selectedBadgeType, 'admin');
+      setShowAssignBadge(false);
+      setSelectedUser(null);
+      loadBadges();
+      loadUsers();
+    } catch (err) {
+      console.error('Error assigning badge:', err);
+      alert('Failed to assign badge');
+    } finally {
+      setAssigningBadge(false);
+    }
+  };
+
+  // Filter badges
+  const filteredBadges = badges.filter(badge => {
+    if (badgeFilter === 'all') return true;
+    return badge.status === badgeFilter;
+  });
+
+  // Filter users by search
+  const filteredUsers = users.filter(user => {
+    if (!userSearch.trim()) return true;
+    const search = userSearch.toLowerCase();
+    return user.address.toLowerCase().includes(search) ||
+           (user.ens && user.ens.toLowerCase().includes(search));
+  });
 
   // Handle hide post
   const handleHidePost = async (postId: string, reportId?: string) => {
@@ -451,7 +549,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
         {[
           { id: 'reports', label: 'Reports', icon: Flag, count: reports.filter(r => r.status === 'pending').length },
           { id: 'hidden', label: 'Hidden Posts', icon: EyeOff, count: hiddenPosts.length },
-          { id: 'blogs', label: 'Blog Posts', icon: FileText, count: blogs.length }
+          { id: 'blogs', label: 'Blog Posts', icon: FileText, count: blogs.length },
+          { id: 'badges', label: 'Badges', icon: Crown, count: badges.filter(b => b.status === 'pending').length },
+          { id: 'users', label: 'Users', icon: Users, count: users.length }
         ].map((tab) => (
           <button
             key={tab.id}
@@ -695,6 +795,296 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
             </div>
           )}
         </GlassCard>
+      )}
+
+      {/* Badges Tab */}
+      {activeTab === 'badges' && (
+        <GlassCard className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-white">Badge Requests</h2>
+            <div className="flex items-center gap-2">
+              <select
+                value={badgeFilter}
+                onChange={(e) => setBadgeFilter(e.target.value as any)}
+                className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-primary/50"
+              >
+                <option value="pending">Pending</option>
+                <option value="active">Active</option>
+                <option value="expired">Expired</option>
+                <option value="all">All</option>
+              </select>
+              <button
+                onClick={loadBadges}
+                disabled={loadingBadges}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <RefreshCw size={18} className={loadingBadges ? 'animate-spin' : ''} />
+              </button>
+            </div>
+          </div>
+          
+          {loadingBadges ? (
+            <div className="flex justify-center py-12">
+              <Loader size={24} className="text-primary animate-spin" />
+            </div>
+          ) : filteredBadges.length === 0 ? (
+            <div className="text-center py-12">
+              <Crown size={48} className="text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-500">No {badgeFilter !== 'all' ? badgeFilter : ''} badge requests</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredBadges.map((badge) => (
+                <div
+                  key={badge.id}
+                  className={`p-4 rounded-xl border ${
+                    badge.status === 'pending'
+                      ? 'bg-yellow-500/10 border-yellow-500/20'
+                      : badge.status === 'active'
+                      ? 'bg-green-500/10 border-green-500/20'
+                      : 'bg-white/5 border-white/10'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                        badge.badgeType === 'gold' 
+                          ? 'bg-gradient-to-br from-yellow-400 to-amber-600' 
+                          : 'bg-gradient-to-br from-blue-400 to-blue-600'
+                      }`}>
+                        <Crown size={20} className="text-white" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-white font-medium capitalize">{badge.badgeType} Badge</span>
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                            badge.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                            badge.status === 'active' ? 'bg-green-500/20 text-green-400' :
+                            badge.status === 'rejected' ? 'bg-red-500/20 text-red-400' :
+                            'bg-gray-500/20 text-gray-400'
+                          }`}>
+                            {badge.status}
+                          </span>
+                        </div>
+                        <p className="text-gray-400 text-sm font-mono">{formatAddress(badge.userAddress)}</p>
+                        <p className="text-gray-500 text-xs mt-1">
+                          {new Date(badge.purchaseDate).toLocaleDateString()} • {badge.amountPaid} ETH
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {badge.status === 'pending' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleApproveBadge(badge.id)}
+                          className="p-2 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-lg transition-colors"
+                          title="Approve"
+                        >
+                          <CheckCircle size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleRejectBadge(badge.id)}
+                          className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors"
+                          title="Reject"
+                        >
+                          <XCircle size={18} />
+                        </button>
+                      </div>
+                    )}
+                    
+                    {badge.status === 'active' && (
+                      <div className="text-right">
+                        <p className="text-gray-500 text-xs">Expires</p>
+                        <p className="text-gray-300 text-sm">{new Date(badge.expiryDate).toLocaleDateString()}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </GlassCard>
+      )}
+
+      {/* Users Tab */}
+      {activeTab === 'users' && (
+        <GlassCard className="p-6">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <h2 className="text-lg font-bold text-white">All Users</h2>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input
+                  type="text"
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  placeholder="Search by address..."
+                  className="bg-white/5 border border-white/10 rounded-lg pl-9 pr-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 w-48"
+                />
+              </div>
+              <button
+                onClick={loadUsers}
+                disabled={loadingUsers}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <RefreshCw size={18} className={loadingUsers ? 'animate-spin' : ''} />
+              </button>
+            </div>
+          </div>
+          
+          {loadingUsers ? (
+            <div className="flex justify-center py-12">
+              <Loader size={24} className="text-primary animate-spin" />
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="text-center py-12">
+              <Users size={48} className="text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-500">No users found</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredUsers.map((user) => (
+                <div
+                  key={user.address}
+                  className="p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={user.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${user.address}`}
+                        alt=""
+                        className="w-10 h-10 rounded-full bg-gray-800"
+                      />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-white font-medium">{user.ens || formatAddress(user.address)}</span>
+                          {user.activeBadge && (
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                              user.activeBadge.badgeType === 'gold' 
+                                ? 'bg-gradient-to-br from-yellow-400 to-amber-600' 
+                                : 'bg-gradient-to-br from-blue-400 to-blue-600'
+                            }`}>
+                              <Crown size={12} className="text-white" />
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-gray-500 text-sm font-mono">{user.address}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {user.activeBadge ? (
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          user.activeBadge.badgeType === 'gold' 
+                            ? 'bg-yellow-500/20 text-yellow-400' 
+                            : 'bg-blue-500/20 text-blue-400'
+                        }`}>
+                          {user.activeBadge.badgeType} badge
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setShowAssignBadge(true);
+                          }}
+                          className="px-3 py-1.5 bg-primary/20 text-primary hover:bg-primary/30 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+                        >
+                          <Crown size={14} />
+                          Assign Badge
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </GlassCard>
+      )}
+
+      {/* Assign Badge Modal */}
+      {showAssignBadge && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <GlassCard className="w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white">Assign Badge</h2>
+              <button
+                onClick={() => {
+                  setShowAssignBadge(false);
+                  setSelectedUser(null);
+                }}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-400 mb-2">User:</p>
+              <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl">
+                <img
+                  src={selectedUser.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${selectedUser.address}`}
+                  alt=""
+                  className="w-10 h-10 rounded-full bg-gray-800"
+                />
+                <div>
+                  <p className="text-white font-medium">{selectedUser.ens || formatAddress(selectedUser.address)}</p>
+                  <p className="text-gray-500 text-sm font-mono">{selectedUser.address.substring(0, 20)}...</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-gray-400 mb-3">Select Badge Type:</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setSelectedBadgeType('blue')}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    selectedBadgeType === 'blue'
+                      ? 'border-blue-500 bg-blue-500/20'
+                      : 'border-white/10 bg-white/5 hover:border-white/20'
+                  }`}
+                >
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-2">
+                    <Crown size={24} className="text-white" />
+                  </div>
+                  <p className="text-white font-medium">Blue Badge</p>
+                  <p className="text-gray-500 text-sm">$9/month</p>
+                </button>
+                <button
+                  onClick={() => setSelectedBadgeType('gold')}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    selectedBadgeType === 'gold'
+                      ? 'border-yellow-500 bg-yellow-500/20'
+                      : 'border-white/10 bg-white/5 hover:border-white/20'
+                  }`}
+                >
+                  <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-amber-600 rounded-xl flex items-center justify-center mx-auto mb-2">
+                    <Crown size={24} className="text-white" />
+                  </div>
+                  <p className="text-white font-medium">Gold Badge</p>
+                  <p className="text-gray-500 text-sm">$35/month</p>
+                </button>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleAssignBadge}
+              disabled={assigningBadge}
+              className="w-full"
+              size="lg"
+            >
+              {assigningBadge ? (
+                <>
+                  <Loader size={18} className="animate-spin mr-2" />
+                  Assigning...
+                </>
+              ) : (
+                'Assign Badge'
+              )}
+            </Button>
+          </GlassCard>
+        </div>
       )}
 
       {/* Blog Editor Modal */}
