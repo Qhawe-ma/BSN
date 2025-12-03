@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Shield, Lock, AlertTriangle, Trash2, Eye, EyeOff, FileText, Plus, Edit, X, Check, Loader, ArrowLeft, Flag, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Shield, Lock, AlertTriangle, Trash2, Eye, EyeOff, FileText, Plus, Edit, X, Check, Loader, ArrowLeft, Flag, RefreshCw, Upload, Image } from 'lucide-react';
 import { GlassCard, Button } from '../components/UIComponents';
 import { FirebaseService } from '../firebaseService';
 import { formatAddress } from '../services';
@@ -37,6 +37,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     tags: ''
   });
   const [savingBlog, setSavingBlog] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle login
   const handleLogin = async () => {
@@ -242,6 +244,41 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     } catch (err) {
       console.error('Error deleting blog:', err);
       alert('Failed to delete blog');
+    }
+  };
+
+  // Handle image upload
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const imageUrl = await FirebaseService.uploadImage(file, 'blog-covers');
+      setBlogForm({ ...blogForm, coverImage: imageUrl });
+    } catch (err) {
+      console.error('Error uploading image:', err);
+      alert('Failed to upload image. Please try again.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // Remove cover image
+  const handleRemoveImage = () => {
+    setBlogForm({ ...blogForm, coverImage: '' });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -646,13 +683,62 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Cover Image URL</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Cover Image</label>
+                
+                {blogForm.coverImage ? (
+                  <div className="relative rounded-xl overflow-hidden border border-white/10">
+                    <img
+                      src={blogForm.coverImage}
+                      alt="Cover preview"
+                      className="w-full h-48 object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-4 py-2 bg-white/20 backdrop-blur-sm rounded-lg text-white text-sm hover:bg-white/30 transition-colors flex items-center gap-2"
+                      >
+                        <Upload size={16} />
+                        Change
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="px-4 py-2 bg-red-500/20 backdrop-blur-sm rounded-lg text-red-400 text-sm hover:bg-red-500/30 transition-colors flex items-center gap-2"
+                      >
+                        <Trash2 size={16} />
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => !uploadingImage && fileInputRef.current?.click()}
+                    className={`border-2 border-dashed border-white/20 rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all ${uploadingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {uploadingImage ? (
+                      <div className="flex flex-col items-center">
+                        <Loader size={32} className="text-primary animate-spin mb-3" />
+                        <p className="text-gray-400 text-sm">Uploading image...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                          <Image size={28} className="text-gray-500" />
+                        </div>
+                        <p className="text-white font-medium mb-1">Click to upload cover image</p>
+                        <p className="text-gray-500 text-sm">PNG, JPG or WEBP (max 5MB)</p>
+                      </>
+                    )}
+                  </div>
+                )}
+                
                 <input
-                  type="url"
-                  value={blogForm.coverImage}
-                  onChange={(e) => setBlogForm({ ...blogForm, coverImage: e.target.value })}
-                  placeholder="https://example.com/image.jpg"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
                 />
               </div>
               

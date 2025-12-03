@@ -1,5 +1,6 @@
-import { database } from './firebaseConfig';
+import { database, storage } from './firebaseConfig';
 import { ref, push, set, onValue, query, orderByChild, limitToLast, off } from 'firebase/database';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Message, ChatSession, User, Comment } from './types';
 import { generateAvatar } from './services';
 
@@ -921,6 +922,29 @@ export const FirebaseService = {
     } catch (error) {
       console.error('Error getting blog by ID:', error);
       return null;
+    }
+  },
+
+  // ============ IMAGE UPLOAD ============
+
+  /**
+   * Upload an image to Firebase Storage
+   */
+  uploadImage: async (file: File, folder: string = 'blog-images'): Promise<string> => {
+    try {
+      const timestamp = Date.now();
+      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const fileName = `${folder}/${timestamp}_${cleanFileName}`;
+      const imageRef = storageRef(storage, fileName);
+      
+      const snapshot = await uploadBytes(imageRef, file);
+      const downloadUrl = await getDownloadURL(snapshot.ref);
+      
+      console.log('Image uploaded successfully:', downloadUrl);
+      return downloadUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw new Error('Failed to upload image');
     }
   }
 };
