@@ -602,5 +602,325 @@ export const FirebaseService = {
       console.error('Error posting comment:', error);
       throw new Error('Failed to post comment');
     }
+  },
+
+  // ============ REPORT SYSTEM ============
+
+  /**
+   * Report a post
+   */
+  reportPost: async (postId: string, reporterAddress: string, reason: string, postContent?: string, postAuthor?: string): Promise<void> => {
+    try {
+      const reportsRef = ref(database, `reports`);
+      const newReportRef = push(reportsRef);
+      
+      const report = {
+        id: newReportRef.key,
+        postId,
+        reporterAddress,
+        reason,
+        postContent: postContent || '',
+        postAuthor: postAuthor || '',
+        timestamp: Date.now(),
+        status: 'pending'
+      };
+
+      await set(newReportRef, report);
+      console.log('✅ Post reported successfully');
+    } catch (error) {
+      console.error('Error reporting post:', error);
+      throw new Error('Failed to report post');
+    }
+  },
+
+  /**
+   * Get all reports (admin only)
+   */
+  getReports: async (): Promise<any[]> => {
+    try {
+      const reportsRef = ref(database, 'reports');
+      const reportsQuery = query(reportsRef, orderByChild('timestamp'));
+      
+      return new Promise((resolve) => {
+        onValue(reportsQuery, (snapshot) => {
+          const reports: any[] = [];
+          snapshot.forEach((childSnapshot) => {
+            reports.push({ id: childSnapshot.key, ...childSnapshot.val() });
+          });
+          resolve(reports.reverse());
+        }, { onlyOnce: true });
+      });
+    } catch (error) {
+      console.error('Error getting reports:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Update report status
+   */
+  updateReportStatus: async (reportId: string, status: string): Promise<void> => {
+    try {
+      const reportRef = ref(database, `reports/${reportId}/status`);
+      await set(reportRef, status);
+    } catch (error) {
+      console.error('Error updating report status:', error);
+      throw new Error('Failed to update report status');
+    }
+  },
+
+  /**
+   * Delete a report
+   */
+  deleteReport: async (reportId: string): Promise<void> => {
+    try {
+      const reportRef = ref(database, `reports/${reportId}`);
+      await set(reportRef, null);
+    } catch (error) {
+      console.error('Error deleting report:', error);
+      throw new Error('Failed to delete report');
+    }
+  },
+
+  // ============ HIDDEN POSTS (ADMIN MODERATION) ============
+
+  /**
+   * Hide a post (soft delete - admin moderation)
+   */
+  hidePost: async (postId: string, reason?: string): Promise<void> => {
+    try {
+      const hiddenRef = ref(database, `hiddenPosts/${postId}`);
+      await set(hiddenRef, {
+        hiddenAt: Date.now(),
+        reason: reason || 'Violated community guidelines'
+      });
+      console.log('✅ Post hidden successfully:', postId);
+    } catch (error) {
+      console.error('Error hiding post:', error);
+      throw new Error('Failed to hide post');
+    }
+  },
+
+  /**
+   * Unhide a post
+   */
+  unhidePost: async (postId: string): Promise<void> => {
+    try {
+      const hiddenRef = ref(database, `hiddenPosts/${postId}`);
+      await set(hiddenRef, null);
+      console.log('✅ Post unhidden successfully:', postId);
+    } catch (error) {
+      console.error('Error unhiding post:', error);
+      throw new Error('Failed to unhide post');
+    }
+  },
+
+  /**
+   * Check if a post is hidden
+   */
+  isPostHidden: async (postId: string): Promise<boolean> => {
+    try {
+      const hiddenRef = ref(database, `hiddenPosts/${postId}`);
+      
+      return new Promise((resolve) => {
+        onValue(hiddenRef, (snapshot) => {
+          resolve(snapshot.exists());
+        }, { onlyOnce: true });
+      });
+    } catch (error) {
+      console.error('Error checking hidden status:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Get all hidden posts
+   */
+  getHiddenPosts: async (): Promise<string[]> => {
+    try {
+      const hiddenRef = ref(database, 'hiddenPosts');
+      
+      return new Promise((resolve) => {
+        onValue(hiddenRef, (snapshot) => {
+          const hiddenIds: string[] = [];
+          snapshot.forEach((childSnapshot) => {
+            hiddenIds.push(childSnapshot.key as string);
+          });
+          resolve(hiddenIds);
+        }, { onlyOnce: true });
+      });
+    } catch (error) {
+      console.error('Error getting hidden posts:', error);
+      return [];
+    }
+  },
+
+  // ============ BLOG SYSTEM ============
+
+  /**
+   * Create a blog post
+   */
+  createBlogPost: async (blog: {
+    title: string;
+    excerpt: string;
+    content: string;
+    coverImage?: string;
+    author: string;
+    tags?: string[];
+  }): Promise<string> => {
+    try {
+      const blogsRef = ref(database, 'blogs');
+      const newBlogRef = push(blogsRef);
+      
+      const slug = blog.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      
+      const blogPost = {
+        id: newBlogRef.key,
+        slug: `${slug}-${Date.now().toString(36)}`,
+        title: blog.title,
+        excerpt: blog.excerpt,
+        content: blog.content,
+        coverImage: blog.coverImage || '',
+        author: blog.author,
+        tags: blog.tags || [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        published: true
+      };
+
+      await set(newBlogRef, blogPost);
+      console.log('✅ Blog post created successfully');
+      return newBlogRef.key || '';
+    } catch (error) {
+      console.error('Error creating blog post:', error);
+      throw new Error('Failed to create blog post');
+    }
+  },
+
+  /**
+   * Update a blog post
+   */
+  updateBlogPost: async (blogId: string, updates: Partial<{
+    title: string;
+    excerpt: string;
+    content: string;
+    coverImage: string;
+    tags: string[];
+    published: boolean;
+  }>): Promise<void> => {
+    try {
+      const blogRef = ref(database, `blogs/${blogId}`);
+      
+      return new Promise((resolve, reject) => {
+        onValue(blogRef, async (snapshot) => {
+          const currentBlog = snapshot.val();
+          if (currentBlog) {
+            const updatedBlog = {
+              ...currentBlog,
+              ...updates,
+              updatedAt: Date.now()
+            };
+            await set(blogRef, updatedBlog);
+            console.log('✅ Blog post updated successfully');
+            resolve();
+          } else {
+            reject(new Error('Blog post not found'));
+          }
+        }, { onlyOnce: true });
+      });
+    } catch (error) {
+      console.error('Error updating blog post:', error);
+      throw new Error('Failed to update blog post');
+    }
+  },
+
+  /**
+   * Delete a blog post
+   */
+  deleteBlogPost: async (blogId: string): Promise<void> => {
+    try {
+      const blogRef = ref(database, `blogs/${blogId}`);
+      await set(blogRef, null);
+      console.log('✅ Blog post deleted successfully');
+    } catch (error) {
+      console.error('Error deleting blog post:', error);
+      throw new Error('Failed to delete blog post');
+    }
+  },
+
+  /**
+   * Get all blog posts
+   */
+  getBlogPosts: async (publishedOnly: boolean = true): Promise<any[]> => {
+    try {
+      const blogsRef = ref(database, 'blogs');
+      const blogsQuery = query(blogsRef, orderByChild('createdAt'));
+      
+      return new Promise((resolve) => {
+        onValue(blogsQuery, (snapshot) => {
+          const blogs: any[] = [];
+          snapshot.forEach((childSnapshot) => {
+            const blog = childSnapshot.val();
+            if (!publishedOnly || blog.published) {
+              blogs.push({ id: childSnapshot.key, ...blog });
+            }
+          });
+          resolve(blogs.reverse());
+        }, { onlyOnce: true });
+      });
+    } catch (error) {
+      console.error('Error getting blog posts:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Get a single blog post by slug
+   */
+  getBlogBySlug: async (slug: string): Promise<any | null> => {
+    try {
+      const blogsRef = ref(database, 'blogs');
+      
+      return new Promise((resolve) => {
+        onValue(blogsRef, (snapshot) => {
+          let foundBlog = null;
+          snapshot.forEach((childSnapshot) => {
+            const blog = childSnapshot.val();
+            if (blog.slug === slug) {
+              foundBlog = { id: childSnapshot.key, ...blog };
+            }
+          });
+          resolve(foundBlog);
+        }, { onlyOnce: true });
+      });
+    } catch (error) {
+      console.error('Error getting blog by slug:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Get a single blog post by ID
+   */
+  getBlogById: async (blogId: string): Promise<any | null> => {
+    try {
+      const blogRef = ref(database, `blogs/${blogId}`);
+      
+      return new Promise((resolve) => {
+        onValue(blogRef, (snapshot) => {
+          if (snapshot.exists()) {
+            resolve({ id: snapshot.key, ...snapshot.val() });
+          } else {
+            resolve(null);
+          }
+        }, { onlyOnce: true });
+      });
+    } catch (error) {
+      console.error('Error getting blog by ID:', error);
+      return null;
+    }
   }
 };
