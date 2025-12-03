@@ -566,7 +566,7 @@ const App: React.FC = () => {
               <img 
                 src="/check/logoo.svg" 
                 alt="BSN" 
-                className={`transition-all duration-300 ${isSidebarCollapsed ? 'h-8 w-8' : 'h-10'}`}
+                className={`transition-all duration-300 ${isSidebarCollapsed ? 'h-10 w-10' : 'h-14'}`}
               />
           </div>
 
