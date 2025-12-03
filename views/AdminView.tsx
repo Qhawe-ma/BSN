@@ -849,7 +849,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 flex items-center justify-center">
                         <img 
-                          src={badge.badgeType === 'gold' ? '/check/gold.png' : '/check/blue.png'}
+                          src={badge.badgeType === 'gold' ? '/check/gold.svg' : '/check/blue.svg'}
                           alt={`${badge.badgeType} Badge`}
                           className="w-8 h-8 object-contain"
                         />
@@ -960,7 +960,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
                           <span className="text-white font-medium">{user.ens || formatAddress(user.address)}</span>
                           {user.activeBadge && (
                             <img 
-                              src={user.activeBadge.badgeType === 'gold' ? '/check/gold.png' : '/check/blue.png'}
+                              src={user.activeBadge.badgeType === 'gold' ? '/check/gold.svg' : '/check/blue.svg'}
                               alt={`${user.activeBadge.badgeType} Badge`}
                               className="w-5 h-5 object-contain"
                             />
@@ -1044,7 +1044,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
                   }`}
                 >
                   <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2">
-                    <img src="/check/blue.png" alt="Blue Badge" className="w-10 h-10 object-contain" />
+                    <img src="/check/blue.svg" alt="Blue Badge" className="w-10 h-10 object-contain" />
                   </div>
                   <p className="text-white font-medium">Blue Badge</p>
                   <p className="text-gray-500 text-sm">$9/month</p>
@@ -1058,7 +1058,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
                   }`}
                 >
                   <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2">
-                    <img src="/check/gold.png" alt="Gold Badge" className="w-10 h-10 object-contain" />
+                    <img src="/check/gold.svg" alt="Gold Badge" className="w-10 h-10 object-contain" />
                   </div>
                   <p className="text-white font-medium">Gold Badge</p>
                   <p className="text-gray-500 text-sm">$35/month</p>

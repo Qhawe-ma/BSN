@@ -141,7 +141,7 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-24 h-24 mb-6">
               <img 
-                src={existingBadge.badgeType === 'gold' ? '/check/gold.png' : '/check/blue.png'}
+                src={existingBadge.badgeType === 'gold' ? '/check/gold.svg' : '/check/blue.svg'}
                 alt={`${existingBadge.badgeType} Badge`}
                 className="w-20 h-20 object-contain"
               />
@@ -275,7 +275,7 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-16 h-16 flex items-center justify-center">
                   <img 
-                    src="/check/blue.png"
+                    src="/check/blue.svg"
                     alt="Blue Badge"
                     className="w-14 h-14 object-contain"
                   />
@@ -331,7 +331,7 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-16 h-16 flex items-center justify-center">
                   <img 
-                    src="/check/gold.png"
+                    src="/check/gold.svg"
                     alt="Gold Badge"
                     className="w-14 h-14 object-contain"
                   />

@@ -19,8 +19,8 @@ export const BadgeIcon: React.FC<BadgeIconProps> = ({
   };
   
   const imageSrc = badgeType === 'gold' 
-    ? '/check/gold.png'
-    : '/check/blue.png';
+    ? '/check/gold.svg'
+    : '/check/blue.svg';
   
   return (
     <img 
