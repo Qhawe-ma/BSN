@@ -10,6 +10,7 @@ import { FeedView } from './views/FeedView';
 import { ChatView } from './views/ChatView';
 import { ProfileView } from './views/ProfileView';
 import { DashboardView } from './views/DashboardView';
+import { PostDetailView } from './views/PostDetailView';
 
 // Guest Protection Component
 const ConnectWalletPrompt: React.FC<{ onConnect: () => void, isConnecting?: boolean, title?: string, subtitle?: string }> = ({ onConnect, isConnecting = false, title = "Connect Wallet", subtitle = "You need to connect your wallet to access this feature." }) => (
@@ -53,6 +54,9 @@ const App: React.FC = () => {
   
   // Chat target for navigating from profile Message button
   const [chatTarget, setChatTarget] = useState<string | null>(null);
+  
+  // Post detail view
+  const [viewingPostId, setViewingPostId] = useState<string | null>(null);
 
   // --- Auto-reconnect on page load ---
   useEffect(() => {
@@ -155,6 +159,23 @@ const App: React.FC = () => {
     };
 
     loadSharedProfile();
+  }, []);
+
+  // --- Check for shared post link in URL ---
+  useEffect(() => {
+    const loadSharedPost = () => {
+      const pathname = window.location.pathname;
+      const postMatch = pathname.match(/^\/post\/([^/]+)$/);
+      
+      if (postMatch) {
+        const postId = postMatch[1];
+        console.log('🔗 Loading shared post:', postId);
+        setViewingPostId(postId);
+        setView(ViewState.POST_DETAIL);
+      }
+    };
+
+    loadSharedPost();
   }, []);
 
   // --- Wallet Connection ---
@@ -412,6 +433,23 @@ const App: React.FC = () => {
       case ViewState.DASHBOARD: 
         if (!user) return <ConnectWalletPrompt onConnect={handleConnect} isConnecting={isConnecting} title="Analytics Dashboard" subtitle="Connect your wallet to view your on-chain performance metrics." />;
         return <DashboardView user={user} />;
+      
+      case ViewState.POST_DETAIL:
+        if (!viewingPostId) {
+          return <FeedView type="global" onUserClick={handleNavigateToProfile} currentUser={user || undefined} />;
+        }
+        return (
+          <PostDetailView 
+            postId={viewingPostId}
+            currentUser={user || undefined}
+            onBack={() => {
+              setViewingPostId(null);
+              setView(ViewState.FEED);
+              window.history.pushState({}, '', '/');
+            }}
+            onUserClick={handleNavigateToProfile}
+          />
+        );
       
       default: 
         return <FeedView type="global" onUserClick={handleNavigateToProfile} currentUser={user || undefined} />;

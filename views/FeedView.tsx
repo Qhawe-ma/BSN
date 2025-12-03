@@ -4,6 +4,7 @@ import { Post, Comment, User } from '../types';
 import { DataService, BlockchainService, FeedEvents, formatAddress, generateAvatar } from '../services';
 import { GlassCard, Button, Avatar, Badge } from '../components/UIComponents';
 import { FirebaseService } from '../firebaseService';
+import { Portal } from '../components/Portal';
 
 const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; currentUser?: User }> = ({ post, onUserClick, currentUser }) => {
   const [isLiked, setIsLiked] = useState(false);
@@ -111,11 +112,6 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; curren
     
     if (hasReposted) {
       alert('You have already reposted this post');
-      return;
-    }
-    
-    if (post.author.address.toLowerCase() === currentUser.address.toLowerCase()) {
-      alert('You cannot repost your own post');
       return;
     }
     
@@ -291,65 +287,67 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; curren
         </div>
       </div>
 
-      {/* Repost Confirmation Modal */}
+      {/* Repost Confirmation Modal - Using Portal to render outside post container */}
       {showRepostConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-white">Confirm Repost</h3>
-              <button 
-                onClick={() => setShowRepostConfirm(false)}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            
-            <div className="mb-6">
-              <p className="text-gray-300 mb-4">
-                Reposting will mint a new post on the blockchain. This action requires a wallet transaction and gas fees.
-              </p>
+        <Portal>
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-white">Confirm Repost</h3>
+                <button 
+                  onClick={() => setShowRepostConfirm(false)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
               
-              <div className="bg-black/30 rounded-xl p-4 border border-white/5">
-                <div className="flex items-center gap-3 mb-2">
-                  <Avatar url={post.author.avatarUrl} size="sm" />
-                  <div>
-                    <span className="text-sm font-semibold text-white">
-                      {post.author.ens || formatAddress(post.author.address)}
-                    </span>
+              <div className="mb-6">
+                <p className="text-gray-300 mb-4">
+                  Reposting will mint a new post on the blockchain. This action requires a wallet transaction and gas fees.
+                </p>
+                
+                <div className="bg-black/30 rounded-xl p-4 border border-white/5">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Avatar url={post.author.avatarUrl} size="sm" />
+                    <div>
+                      <span className="text-sm font-semibold text-white">
+                        {post.author.ens || formatAddress(post.author.address)}
+                      </span>
+                    </div>
                   </div>
+                  <p className="text-sm text-gray-400 line-clamp-3">{post.content}</p>
                 </div>
-                <p className="text-sm text-gray-400 line-clamp-3">{post.content}</p>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRepostConfirm(false)}
+                  className="flex-1 px-4 py-3 rounded-xl border border-white/10 text-gray-300 hover:bg-white/5 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmRepost}
+                  disabled={isReposting}
+                  className="flex-1 px-4 py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isReposting ? (
+                    <>
+                      <Loader size={16} className="animate-spin" />
+                      Confirming...
+                    </>
+                  ) : (
+                    <>
+                      <Repeat size={16} />
+                      Repost
+                    </>
+                  )}
+                </button>
               </div>
             </div>
-            
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowRepostConfirm(false)}
-                className="flex-1 px-4 py-3 rounded-xl border border-white/10 text-gray-300 hover:bg-white/5 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmRepost}
-                disabled={isReposting}
-                className="flex-1 px-4 py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isReposting ? (
-                  <>
-                    <Loader size={16} className="animate-spin" />
-                    Confirming...
-                  </>
-                ) : (
-                  <>
-                    <Repeat size={16} />
-                    Repost
-                  </>
-                )}
-              </button>
-            </div>
           </div>
-        </div>
+        </Portal>
       )}
 
       {/* Comments Section */}

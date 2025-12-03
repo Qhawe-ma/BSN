@@ -58,5 +58,6 @@ export enum ViewState {
   CHAT = 'CHAT',
   PROFILE = 'PROFILE',
   DASHBOARD = 'DASHBOARD',
-  CREATE = 'CREATE' // Mobile only mostly
+  CREATE = 'CREATE', // Mobile only mostly
+  POST_DETAIL = 'POST_DETAIL' // Single post view
 }
