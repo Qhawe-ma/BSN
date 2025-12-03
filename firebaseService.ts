@@ -1019,6 +1019,48 @@ export const FirebaseService = {
   },
 
   /**
+   * Purchase and immediately activate a badge
+   */
+  purchaseAndActivateBadge: async (
+    userAddress: string,
+    badgeType: 'blue' | 'gold',
+    txHash: string,
+    amountPaid: string
+  ): Promise<string> => {
+    try {
+      const purchaseId = `${userAddress}_${Date.now()}`;
+      const purchaseDate = Date.now();
+      const expiryDate = purchaseDate + (30 * 24 * 60 * 60 * 1000); // 30 days
+      
+      const badgeData = {
+        id: purchaseId,
+        userAddress: userAddress.toLowerCase(),
+        badgeType,
+        txHash,
+        purchaseDate,
+        expiryDate,
+        status: 'active',
+        amountPaid,
+        approvedAt: purchaseDate,
+        approvedBy: 'auto'
+      };
+
+      await set(ref(database, `premiumBadges/${purchaseId}`), badgeData);
+      
+      // Also update user's active badge
+      await update(ref(database, `users/${userAddress.toLowerCase()}`), {
+        activeBadge: badgeData
+      });
+      
+      console.log('Badge purchased and activated:', purchaseId);
+      return purchaseId;
+    } catch (error) {
+      console.error('Error purchasing badge:', error);
+      throw new Error('Failed to purchase badge');
+    }
+  },
+
+  /**
    * Get all badge records (for admin)
    */
   getAllBadges: async (): Promise<any[]> => {

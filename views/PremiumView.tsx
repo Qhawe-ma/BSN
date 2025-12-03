@@ -13,23 +13,21 @@ const PAYMENT_ADDRESS = '0xef1a6c326460c04bb02037725a5e818bbcfff3e3';
 
 const BADGE_PRICES = {
   blue: {
-    usd: 9,
-    eth: '0.003', // ~$9 in ETH (approximate)
-    wei: ethers.parseEther('0.003').toString()
+    bnb: '0.01',
+    wei: ethers.parseEther('0.01').toString()
   },
   gold: {
-    usd: 35,
-    eth: '0.012', // ~$35 in ETH (approximate)
-    wei: ethers.parseEther('0.012').toString()
+    bnb: '0.029',
+    wei: ethers.parseEther('0.029').toString()
   }
 };
 
 export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress }) => {
-  const [purchaseStatus, setPurchaseStatus] = useState<'idle' | 'connecting' | 'confirming' | 'pending_review' | 'error'>('idle');
+  const [purchaseStatus, setPurchaseStatus] = useState<'idle' | 'connecting' | 'confirming' | 'success' | 'error'>('idle');
   const [selectedBadge, setSelectedBadge] = useState<'blue' | 'gold' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [existingBadge, setExistingBadge] = useState<any>(null);
-  const [pendingPurchase, setPendingPurchase] = useState<any>(null);
+  const [purchasedBadge, setPurchasedBadge] = useState<any>(null);
 
   useEffect(() => {
     if (userAddress) {
@@ -44,15 +42,6 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
       const badge = await FirebaseService.getActiveBadge(userAddress);
       if (badge) {
         setExistingBadge(badge);
-      }
-      
-      // Also check for pending purchases
-      const allBadges = await FirebaseService.getAllBadges();
-      const pending = allBadges.find(
-        b => b.userAddress.toLowerCase() === userAddress.toLowerCase() && b.status === 'pending'
-      );
-      if (pending) {
-        setPendingPurchase(pending);
       }
     } catch (error) {
       console.error('Error checking badge:', error);
@@ -79,7 +68,6 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
     try {
       const price = BADGE_PRICES[badgeType];
       
-      // Request transaction
       setPurchaseStatus('confirming');
       
       const txHash = await window.ethereum.request({
@@ -93,19 +81,18 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
 
       console.log('Transaction sent:', txHash);
 
-      // Create badge purchase record (pending admin review)
-      await FirebaseService.createBadgePurchase(
+      // Create badge and activate immediately
+      await FirebaseService.purchaseAndActivateBadge(
         userAddress,
         badgeType,
         txHash,
-        price.eth
+        price.bnb
       );
 
-      setPurchaseStatus('pending_review');
-      setPendingPurchase({
+      setPurchaseStatus('success');
+      setPurchasedBadge({
         badgeType,
-        txHash,
-        status: 'pending'
+        txHash
       });
 
     } catch (error: any) {
@@ -189,49 +176,61 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
     );
   }
 
-  // Show pending purchase status
-  if (pendingPurchase || purchaseStatus === 'pending_review') {
+  // Show success after purchase
+  if (purchasedBadge || purchaseStatus === 'success') {
     return (
       <div className="min-h-screen pb-32 md:pb-8">
         <div className="max-w-2xl mx-auto px-4 py-8">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-yellow-500/20 rounded-3xl mb-6">
-              <Clock size={40} className="text-yellow-400" />
+            <div className="inline-flex items-center justify-center w-24 h-24 mb-6">
+              <img 
+                src={purchasedBadge?.badgeType === 'gold' ? '/check/gold.svg' : '/check/blue.svg'}
+                alt="Badge"
+                className="w-20 h-20 object-contain"
+              />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Payment Received!</h1>
-            <p className="text-gray-400">Your badge purchase is pending admin review</p>
+            <h1 className="text-3xl font-bold text-white mb-2">Badge Activated!</h1>
+            <p className="text-gray-400">Your {purchasedBadge?.badgeType || selectedBadge} badge is now active</p>
           </div>
 
           <GlassCard className="p-6">
-            <div className="flex items-center gap-3 mb-6 p-4 bg-yellow-500/10 rounded-2xl border border-yellow-500/20">
-              <Loader size={20} className="text-yellow-400 animate-spin" />
-              <span className="text-yellow-400 font-medium">Awaiting Admin Approval</span>
+            <div className="flex items-center gap-3 mb-6 p-4 bg-green-500/10 rounded-2xl border border-green-500/20">
+              <CheckCircle size={20} className="text-green-400" />
+              <span className="text-green-400 font-medium">Badge Active</span>
             </div>
 
             <div className="space-y-4 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Badge Type:</span>
                 <span className="text-white font-medium capitalize">
-                  {pendingPurchase?.badgeType || selectedBadge} Badge
+                  {purchasedBadge?.badgeType || selectedBadge} Badge
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Status:</span>
-                <span className="text-yellow-400 font-medium">Pending Review</span>
+                <span className="text-gray-500">Duration:</span>
+                <span className="text-white font-medium">30 days</span>
               </div>
-              {pendingPurchase?.txHash && (
+              {purchasedBadge?.txHash && (
                 <div className="flex justify-between">
                   <span className="text-gray-500">Transaction:</span>
                   <span className="text-gray-300 font-mono text-xs">
-                    {pendingPurchase.txHash.substring(0, 10)}...
+                    {purchasedBadge.txHash.substring(0, 10)}...
                   </span>
                 </div>
               )}
             </div>
 
             <p className="text-gray-500 text-sm mt-6 text-center">
-              Once approved, your badge will appear next to your username throughout the platform.
+              Your badge is now visible next to your username throughout the platform.
             </p>
+            
+            <Button 
+              onClick={onBack}
+              className="w-full mt-6"
+              size="lg"
+            >
+              Back to Home
+            </Button>
           </GlassCard>
         </div>
       </div>
@@ -288,10 +287,9 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
 
               <div className="mb-6">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-white">${BADGE_PRICES.blue.usd}</span>
-                  <span className="text-gray-400">/month</span>
+                  <span className="text-4xl font-bold text-white">{BADGE_PRICES.blue.bnb}</span>
+                  <span className="text-gray-400">BNB</span>
                 </div>
-                <p className="text-gray-500 text-sm mt-1">≈ {BADGE_PRICES.blue.eth} ETH</p>
               </div>
 
               <ul className="space-y-3 mb-6">
@@ -344,10 +342,9 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
 
               <div className="mb-6">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-white">${BADGE_PRICES.gold.usd}</span>
-                  <span className="text-gray-400">/month</span>
+                  <span className="text-4xl font-bold text-white">{BADGE_PRICES.gold.bnb}</span>
+                  <span className="text-gray-400">BNB</span>
                 </div>
-                <p className="text-gray-500 text-sm mt-1">≈ {BADGE_PRICES.gold.eth} ETH</p>
               </div>
 
               <ul className="space-y-3 mb-6">
@@ -387,8 +384,8 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
 
         {/* Info */}
         <div className="text-center text-gray-500 text-sm">
-          <p>Payment is processed via your connected wallet.</p>
-          <p className="mt-1">Badge will be activated after admin review (usually within 24 hours).</p>
+          <p>Payment is processed via your connected wallet on BSC network.</p>
+          <p className="mt-1">Badge is activated immediately after payment confirmation.</p>
         </div>
       </div>
     </div>

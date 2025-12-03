@@ -1168,7 +1168,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
                     <img src="/check/blue.svg" alt="Blue Badge" className="w-10 h-10 object-contain" />
                   </div>
                   <p className="text-white font-medium">Blue Badge</p>
-                  <p className="text-gray-500 text-sm">$9/month</p>
+                  <p className="text-gray-500 text-sm">0.01 BNB</p>
                 </button>
                 <button
                   onClick={() => setSelectedBadgeType('gold')}
@@ -1182,7 +1182,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
                     <img src="/check/gold.svg" alt="Gold Badge" className="w-10 h-10 object-contain" />
                   </div>
                   <p className="text-white font-medium">Gold Badge</p>
-                  <p className="text-gray-500 text-sm">$35/month</p>
+                  <p className="text-gray-500 text-sm">0.029 BNB</p>
                 </button>
               </div>
             </div>
