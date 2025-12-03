@@ -847,12 +847,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        badge.badgeType === 'gold' 
-                          ? 'bg-gradient-to-br from-yellow-400 to-amber-600' 
-                          : 'bg-gradient-to-br from-blue-400 to-blue-600'
-                      }`}>
-                        <Crown size={20} className="text-white" />
+                      <div className="w-10 h-10 flex items-center justify-center">
+                        <img 
+                          src={badge.badgeType === 'gold' ? '/check/gold.png' : '/check/blue.png'}
+                          alt={`${badge.badgeType} Badge`}
+                          className="w-8 h-8 object-contain"
+                        />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
@@ -959,13 +959,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
                         <div className="flex items-center gap-2">
                           <span className="text-white font-medium">{user.ens || formatAddress(user.address)}</span>
                           {user.activeBadge && (
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                              user.activeBadge.badgeType === 'gold' 
-                                ? 'bg-gradient-to-br from-yellow-400 to-amber-600' 
-                                : 'bg-gradient-to-br from-blue-400 to-blue-600'
-                            }`}>
-                              <Crown size={12} className="text-white" />
-                            </div>
+                            <img 
+                              src={user.activeBadge.badgeType === 'gold' ? '/check/gold.png' : '/check/blue.png'}
+                              alt={`${user.activeBadge.badgeType} Badge`}
+                              className="w-5 h-5 object-contain"
+                            />
                           )}
                         </div>
                         <p className="text-gray-500 text-sm font-mono">{user.address}</p>
@@ -1045,8 +1043,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
                       : 'border-white/10 bg-white/5 hover:border-white/20'
                   }`}
                 >
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-2">
-                    <Crown size={24} className="text-white" />
+                  <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2">
+                    <img src="/check/blue.png" alt="Blue Badge" className="w-10 h-10 object-contain" />
                   </div>
                   <p className="text-white font-medium">Blue Badge</p>
                   <p className="text-gray-500 text-sm">$9/month</p>
@@ -1059,8 +1057,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
                       : 'border-white/10 bg-white/5 hover:border-white/20'
                   }`}
                 >
-                  <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-amber-600 rounded-xl flex items-center justify-center mx-auto mb-2">
-                    <Crown size={24} className="text-white" />
+                  <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2">
+                    <img src="/check/gold.png" alt="Gold Badge" className="w-10 h-10 object-contain" />
                   </div>
                   <p className="text-white font-medium">Gold Badge</p>
                   <p className="text-gray-500 text-sm">$35/month</p>

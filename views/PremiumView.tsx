@@ -139,12 +139,12 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
       <div className="min-h-screen pb-32 md:pb-8">
         <div className="max-w-2xl mx-auto px-4 py-8">
           <div className="text-center mb-8">
-            <div className={`inline-flex items-center justify-center w-24 h-24 rounded-3xl mb-6 shadow-2xl ${
-              existingBadge.badgeType === 'gold' 
-                ? 'bg-gradient-to-br from-yellow-400 to-amber-600 shadow-yellow-500/30' 
-                : 'bg-gradient-to-br from-blue-400 to-blue-600 shadow-blue-500/30'
-            }`}>
-              <Crown size={48} className="text-white" />
+            <div className="inline-flex items-center justify-center w-24 h-24 mb-6">
+              <img 
+                src={existingBadge.badgeType === 'gold' ? '/check/gold.png' : '/check/blue.png'}
+                alt={`${existingBadge.badgeType} Badge`}
+                className="w-20 h-20 object-contain"
+              />
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">
               You have a {existingBadge.badgeType === 'gold' ? 'Gold' : 'Blue'} Badge!
@@ -273,8 +273,12 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
             
             <div className="relative">
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30">
-                  <Crown size={32} className="text-white" />
+                <div className="w-16 h-16 flex items-center justify-center">
+                  <img 
+                    src="/check/blue.png"
+                    alt="Blue Badge"
+                    className="w-14 h-14 object-contain"
+                  />
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-white">Blue Badge</h3>
@@ -325,8 +329,12 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
             
             <div className="relative">
               <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg shadow-yellow-500/30">
-                  <Crown size={32} className="text-white" />
+                <div className="w-16 h-16 flex items-center justify-center">
+                  <img 
+                    src="/check/gold.png"
+                    alt="Gold Badge"
+                    className="w-14 h-14 object-contain"
+                  />
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-white">Gold Badge</h3>
