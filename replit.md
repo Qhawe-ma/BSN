@@ -61,6 +61,13 @@ The app runs on port 5000 with Vite dev server configured for Replit's proxy env
 - HMR enabled on port 5000
 
 ## Recent Changes
+- **2024-12-03**: Badge System Improvements
+  - ✅ **Remove Badge Button**: Admin can now remove badges from users in the Users tab
+  - ✅ **Fixed Badge Display**: Badges now properly show on user posts in feed (like X.com)
+  - ✅ **Address Normalization**: Fixed address case-sensitivity issues that prevented badges from displaying
+  - ✅ **Author Fallback**: Posts now always have valid author data even with incomplete profiles
+  - 📁 **Updated Files**: `views/AdminView.tsx`, `firebaseService.ts`, `services.ts`
+
 - **2024-12-03**: Premium Badge System
   - ✅ **Two Badge Tiers**: Blue Badge ($9/month) and Gold Badge ($35/month)
   - ✅ **MetaMask Payment**: Cryptocurrency payments via wallet transactions
