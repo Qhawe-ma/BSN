@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Home, MessageCircle, PlusSquare, User as UserIcon, BarChart2, LogOut, Wallet, X, Feather, Image as ImageIcon, Loader, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, MessageCircle, PlusSquare, User as UserIcon, BarChart2, LogOut, Wallet, X, Feather, Image as ImageIcon, Loader, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import { User, ViewState } from './types';
 import { BlockchainService } from './services';
 import { FirebaseService } from './firebaseService';
@@ -586,6 +586,16 @@ const App: React.FC = () => {
             }}
           />
           <NavItem icon={<BarChart2 size={20} />} label="Analytics" target={ViewState.DASHBOARD} active={view === ViewState.DASHBOARD} />
+          <NavItem 
+            icon={<BookOpen size={20} />} 
+            label="Blog" 
+            target={ViewState.BLOGS} 
+            active={view === ViewState.BLOGS}
+            onClick={() => {
+              setView(ViewState.BLOGS);
+              window.history.pushState({}, '', '/blog');
+            }}
+          />
         </nav>
 
         <div className="p-4 mt-auto">
