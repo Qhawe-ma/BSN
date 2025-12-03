@@ -928,10 +928,12 @@ export const FirebaseService = {
   // ============ IMAGE UPLOAD ============
 
   /**
-   * Upload an image to Firebase Storage
+   * Upload an image to Firebase Storage with timeout
    */
   uploadImage: async (file: File, folder: string = 'blog-images'): Promise<string> => {
-    try {
+    const timeoutMs = 30000;
+    
+    const uploadPromise = async (): Promise<string> => {
       const timestamp = Date.now();
       const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const fileName = `${folder}/${timestamp}_${cleanFileName}`;
@@ -942,9 +944,37 @@ export const FirebaseService = {
       
       console.log('Image uploaded successfully:', downloadUrl);
       return downloadUrl;
-    } catch (error) {
+    };
+
+    const timeoutPromise = new Promise<string>((_, reject) => {
+      setTimeout(() => reject(new Error('Upload timed out. Please check your Firebase Storage configuration.')), timeoutMs);
+    });
+
+    try {
+      return await Promise.race([uploadPromise(), timeoutPromise]);
+    } catch (error: any) {
       console.error('Error uploading image:', error);
-      throw new Error('Failed to upload image');
+      if (error.code === 'storage/unauthorized') {
+        throw new Error('Upload not authorized. Please configure Firebase Storage rules.');
+      } else if (error.code === 'storage/canceled') {
+        throw new Error('Upload was cancelled.');
+      } else if (error.message?.includes('timed out')) {
+        throw error;
+      } else {
+        throw new Error(error.message || 'Failed to upload image. Please try again.');
+      }
     }
+  },
+
+  /**
+   * Convert image to base64 data URL (fallback for when Firebase Storage isn't configured)
+   */
+  imageToBase64: (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('Failed to read image'));
+      reader.readAsDataURL(file);
+    });
   }
 };

@@ -247,6 +247,57 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
+  // Compress image before upload
+  const compressImage = (file: File, maxWidth: number = 1200, quality: number = 0.8): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = document.createElement('img');
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = (height * maxWidth) / width;
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Could not get canvas context'));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              } else {
+                reject(new Error('Could not compress image'));
+              }
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        img.onerror = () => reject(new Error('Could not load image'));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('Could not read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Handle image upload
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -257,18 +308,28 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image must be less than 5MB');
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image must be less than 10MB');
       return;
     }
 
     setUploadingImage(true);
     try {
-      const imageUrl = await FirebaseService.uploadImage(file, 'blog-covers');
+      const compressedFile = await compressImage(file);
+      console.log(`Compressed image from ${(file.size / 1024).toFixed(1)}KB to ${(compressedFile.size / 1024).toFixed(1)}KB`);
+      
+      let imageUrl: string;
+      try {
+        imageUrl = await FirebaseService.uploadImage(compressedFile, 'blog-covers');
+      } catch (uploadErr) {
+        console.warn('Firebase Storage upload failed, using base64 fallback:', uploadErr);
+        imageUrl = await FirebaseService.imageToBase64(compressedFile);
+      }
+      
       setBlogForm({ ...blogForm, coverImage: imageUrl });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error uploading image:', err);
-      alert('Failed to upload image. Please try again.');
+      alert(err.message || 'Failed to upload image. Please try again.');
     } finally {
       setUploadingImage(false);
     }
