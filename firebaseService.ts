@@ -479,9 +479,9 @@ export const FirebaseService = {
   },
 
   /**
-   * Get post stats (likes count, comments count)
+   * Get post stats (likes count, comments count, reposts count)
    */
-  getPostStats: async (postId: string): Promise<{ likes: number; comments: number }> => {
+  getPostStats: async (postId: string): Promise<{ likes: number; comments: number; reposts: number }> => {
     try {
       const statsRef = ref(database, `postStats/${postId}`);
       
@@ -491,16 +491,61 @@ export const FirebaseService = {
             const data = snapshot.val();
             resolve({
               likes: data.likes || 0,
-              comments: data.comments || 0
+              comments: data.comments || 0,
+              reposts: data.reposts || 0
             });
           } else {
-            resolve({ likes: 0, comments: 0 });
+            resolve({ likes: 0, comments: 0, reposts: 0 });
           }
         }, { onlyOnce: true });
       });
     } catch (error) {
       console.error('Error getting post stats:', error);
-      return { likes: 0, comments: 0 };
+      return { likes: 0, comments: 0, reposts: 0 };
+    }
+  },
+
+  /**
+   * Check if user has reposted a post
+   */
+  hasReposted: async (postId: string, userAddress: string): Promise<boolean> => {
+    try {
+      const normalizedAddress = userAddress.toLowerCase();
+      const repostRef = ref(database, `reposts/${postId}/${normalizedAddress}`);
+      
+      return new Promise((resolve) => {
+        onValue(repostRef, (snapshot) => {
+          resolve(snapshot.exists());
+        }, { onlyOnce: true });
+      });
+    } catch (error) {
+      console.error('Error checking repost status:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Record a repost and increment count
+   */
+  recordRepost: async (postId: string, userAddress: string, repostTokenId: string): Promise<number> => {
+    try {
+      const normalizedAddress = userAddress.toLowerCase();
+      const repostRef = ref(database, `reposts/${postId}/${normalizedAddress}`);
+      const statsRef = ref(database, `postStats/${postId}`);
+
+      await set(repostRef, { 
+        timestamp: Date.now(),
+        repostTokenId 
+      });
+      
+      const stats = await FirebaseService.getPostStats(postId);
+      const newReposts = stats.reposts + 1;
+      await set(statsRef, { ...stats, reposts: newReposts });
+      
+      return newReposts;
+    } catch (error) {
+      console.error('Error recording repost:', error);
+      throw new Error('Failed to record repost');
     }
   },
 

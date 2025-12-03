@@ -18,10 +18,14 @@ export interface Post {
   timestamp: number;
   likes: number;
   commentsCount: number;
+  repostsCount: number;
   ipfsHash: string;
   txHash: string;
   attachmentUrl?: string;
   isLiked?: boolean; // Contextual to current user
+  isRepost?: boolean; // If this post is a repost of another
+  originalPostId?: string; // Token ID of original post if this is a repost
+  originalAuthor?: User; // Original author if this is a repost
 }
 
 export interface Comment {

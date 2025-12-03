@@ -309,6 +309,7 @@ export const BlockchainService = {
         timestamp: metadata.timestamp,
         likes: 0,
         commentsCount: 0,
+        repostsCount: 0,
         ipfsHash,
         txHash: receipt.hash,
         attachmentUrl
@@ -336,6 +337,140 @@ export const BlockchainService = {
       }
       
       throw new Error(error.message || 'Failed to mint post on blockchain');
+    }
+  },
+
+  repostPost: async (originalPost: Post): Promise<Post> => {
+    if (!CURRENT_USER) {
+      throw new Error('Please connect your wallet first');
+    }
+
+    if (!CONTRACT_ADDRESS) {
+      throw new Error('Contract address not configured. Please add VITE_BSC_CONTRACT_ADDRESS to your environment.');
+    }
+
+    try {
+      // Check if user already reposted this post
+      const alreadyReposted = await FirebaseService.hasReposted(originalPost.tokenId, CURRENT_USER.address);
+      if (alreadyReposted) {
+        throw new Error('You have already reposted this post');
+      }
+
+      // Create repost metadata
+      console.log('📝 Creating repost metadata...');
+      const metadata = {
+        content: originalPost.content,
+        author: CURRENT_USER.address,
+        timestamp: Date.now(),
+        imageUrl: originalPost.attachmentUrl,
+        isRepost: true,
+        originalPostId: originalPost.tokenId,
+        originalAuthor: {
+          address: originalPost.author.address,
+          ens: originalPost.author.ens,
+          avatarUrl: originalPost.author.avatarUrl
+        }
+      };
+      
+      const ipfsHash = await IPFSService.uploadMetadata(metadata);
+      console.log('✅ Repost metadata uploaded to IPFS:', ipfsHash);
+
+      // Mint the repost NFT on blockchain
+      console.log('🔗 Connecting to smart contract for repost...');
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(CONTRACT_ADDRESS, POST_MINTING_ABI, signer);
+
+      console.log('⛏️ Minting repost NFT on blockchain...');
+      const tx = await contract.mint(ipfsHash);
+      console.log('📡 Repost transaction sent:', tx.hash);
+      console.log('⏳ Waiting for confirmation...');
+      
+      const receipt = await tx.wait();
+      console.log('✅ Repost transaction confirmed!');
+
+      // Extract token ID from event logs
+      let tokenId: string | null = null;
+      if (receipt.logs && receipt.logs.length > 0) {
+        try {
+          const postMintedEvent = receipt.logs.find((log: any) => {
+            try {
+              const parsed = contract.interface.parseLog(log);
+              return parsed?.name === 'PostMinted';
+            } catch {
+              return false;
+            }
+          });
+
+          if (postMintedEvent) {
+            const parsed = contract.interface.parseLog(postMintedEvent);
+            tokenId = parsed?.args?.tokenId?.toString();
+          } else {
+            for (const log of receipt.logs) {
+              try {
+                if (log.address.toLowerCase() !== CONTRACT_ADDRESS.toLowerCase()) {
+                  continue;
+                }
+                if (log.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef') {
+                  if (log.topics.length >= 4) {
+                    tokenId = BigInt(log.topics[3]).toString();
+                    break;
+                  }
+                }
+              } catch (error) {
+                console.warn('Could not parse Transfer event:', error);
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('Could not parse event logs:', error);
+        }
+      }
+
+      if (!tokenId) {
+        throw new Error('Failed to extract token ID from repost transaction.');
+      }
+
+      // Record the repost in Firebase
+      await FirebaseService.recordRepost(originalPost.tokenId, CURRENT_USER.address, tokenId);
+
+      // Create the repost object
+      const repost: Post = {
+        id: Date.now(),
+        tokenId,
+        author: CURRENT_USER,
+        content: originalPost.content,
+        timestamp: metadata.timestamp,
+        likes: 0,
+        commentsCount: 0,
+        repostsCount: 0,
+        ipfsHash,
+        txHash: receipt.hash,
+        attachmentUrl: originalPost.attachmentUrl,
+        isRepost: true,
+        originalPostId: originalPost.tokenId,
+        originalAuthor: originalPost.author
+      };
+
+      console.log('🎉 Repost minted successfully!');
+      console.log('Repost Token ID:', tokenId);
+      console.log('Original Post ID:', originalPost.tokenId);
+      
+      DataService.invalidateCache();
+      
+      return repost;
+    } catch (error: any) {
+      console.error('Error reposting:', error);
+      
+      if (error.code === 'ACTION_REJECTED') {
+        throw new Error('Repost rejected by user');
+      } else if (error.code === 'INSUFFICIENT_FUNDS') {
+        throw new Error('Insufficient BNB for gas fees');
+      } else if (error.message?.includes('user rejected')) {
+        throw new Error('Repost rejected by user');
+      }
+      
+      throw new Error(error.message || 'Failed to repost on blockchain');
     }
   }
 };
@@ -398,9 +533,13 @@ const fetchPostData = async (
       timestamp: metadata.timestamp || Date.now(),
       likes: stats.likes,
       commentsCount: stats.comments,
+      repostsCount: stats.reposts,
       ipfsHash: cleanHash,
       txHash: '',
-      attachmentUrl: metadata.imageUrl
+      attachmentUrl: metadata.imageUrl,
+      isRepost: metadata.isRepost || false,
+      originalPostId: metadata.originalPostId,
+      originalAuthor: metadata.originalAuthor
     };
   } catch (error) {
     console.warn(`Skipping post ${tokenId}:`, error instanceof Error ? error.message : String(error));

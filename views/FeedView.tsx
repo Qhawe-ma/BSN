@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { MessageSquare, Heart, Share2, Repeat, MoreHorizontal, ShieldCheck, Send, Loader } from 'lucide-react';
+import { MessageSquare, Heart, Share2, Repeat, MoreHorizontal, ShieldCheck, Send, Loader, X, Check } from 'lucide-react';
 import { Post, Comment, User } from '../types';
-import { DataService, FeedEvents, formatAddress, generateAvatar } from '../services';
+import { DataService, BlockchainService, FeedEvents, formatAddress, generateAvatar } from '../services';
 import { GlassCard, Button, Avatar, Badge } from '../components/UIComponents';
 import { FirebaseService } from '../firebaseService';
 
@@ -11,17 +11,23 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; curren
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentsCount, setCommentsCount] = useState(post.commentsCount);
+  const [repostsCount, setRepostsCount] = useState(post.repostsCount || 0);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+  const [isReposting, setIsReposting] = useState(false);
+  const [showRepostConfirm, setShowRepostConfirm] = useState(false);
+  const [hasReposted, setHasReposted] = useState(false);
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle');
   
   // Comment Input State
   const [newComment, setNewComment] = useState("");
   const [isPostingComment, setIsPostingComment] = useState(false);
 
-  // Check if current user has liked this post
+  // Check if current user has liked this post and has reposted
   useEffect(() => {
     if (currentUser) {
       DataService.isPostLiked(post.tokenId, currentUser.address).then(setIsLiked);
+      FirebaseService.hasReposted(post.tokenId, currentUser.address).then(setHasReposted);
     }
   }, [currentUser, post.tokenId]);
 
@@ -66,6 +72,73 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; curren
     }
   };
 
+  const handleShare = async () => {
+    const postUrl = `${window.location.origin}/post/${post.tokenId}`;
+    const shareText = `Check out this post by ${post.author.ens || formatAddress(post.author.address)} on BSC Social`;
+    
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'BSC Social Post',
+          text: shareText,
+          url: postUrl
+        });
+        setShareStatus('shared');
+      } else {
+        await navigator.clipboard.writeText(postUrl);
+        setShareStatus('copied');
+      }
+      
+      setTimeout(() => setShareStatus('idle'), 2000);
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') {
+        try {
+          await navigator.clipboard.writeText(postUrl);
+          setShareStatus('copied');
+          setTimeout(() => setShareStatus('idle'), 2000);
+        } catch (clipError) {
+          console.error('Failed to copy:', clipError);
+        }
+      }
+    }
+  };
+
+  const handleRepostClick = () => {
+    if (!currentUser) {
+      alert('Please connect your wallet to repost');
+      return;
+    }
+    
+    if (hasReposted) {
+      alert('You have already reposted this post');
+      return;
+    }
+    
+    if (post.author.address.toLowerCase() === currentUser.address.toLowerCase()) {
+      alert('You cannot repost your own post');
+      return;
+    }
+    
+    setShowRepostConfirm(true);
+  };
+
+  const handleConfirmRepost = async () => {
+    if (!currentUser || isReposting) return;
+    
+    setIsReposting(true);
+    try {
+      await BlockchainService.repostPost(post);
+      setHasReposted(true);
+      setRepostsCount(prev => prev + 1);
+      setShowRepostConfirm(false);
+    } catch (error: any) {
+      console.error('Repost error:', error);
+      alert(error.message || 'Failed to repost. Please try again.');
+    } finally {
+      setIsReposting(false);
+    }
+  };
+
   // Format time nicely
   const timeAgo = (timestamp: number) => {
     const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -79,6 +152,28 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; curren
 
   return (
     <GlassCard className="mb-4 md:mb-6 hover:border-white/10 transition-all duration-300">
+      {/* Repost Indicator */}
+      {post.isRepost && post.originalAuthor && (
+        <div className="px-4 md:px-6 pt-3 flex items-center gap-2 text-gray-500 text-xs">
+          <Repeat size={12} />
+          <span>
+            <span 
+              onClick={() => onUserClick(post.author)} 
+              className="font-semibold hover:underline cursor-pointer"
+            >
+              {post.author.ens || formatAddress(post.author.address)}
+            </span>
+            {' '}reposted from{' '}
+            <span 
+              onClick={() => onUserClick(post.originalAuthor!)} 
+              className="font-semibold hover:underline cursor-pointer"
+            >
+              {post.originalAuthor.ens || formatAddress(post.originalAuthor.address)}
+            </span>
+          </span>
+        </div>
+      )}
+      
       <div className="p-4 md:p-6">
         {/* Header */}
         <div className="flex justify-between items-start mb-4">
@@ -150,10 +245,21 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; curren
               <span>{commentsCount || ''}</span>
             </button>
             
-            <button className="group flex items-center gap-2 hover:text-green-400 transition-colors text-sm">
+            <button 
+              onClick={handleRepostClick}
+              disabled={isReposting || hasReposted}
+              className={`group flex items-center gap-2 transition-colors text-sm ${
+                hasReposted ? 'text-green-400' : 'hover:text-green-400'
+              } ${isReposting ? 'opacity-50 cursor-wait' : ''}`}
+            >
                <div className="p-2 rounded-full group-hover:bg-green-400/10 transition-colors">
-                <Repeat size={18} />
+                {isReposting ? (
+                  <Loader size={18} className="animate-spin" />
+                ) : (
+                  <Repeat size={18} />
+                )}
               </div>
+              <span>{repostsCount || ''}</span>
             </button>
 
             <button 
@@ -166,14 +272,85 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; curren
               <span>{likesCount || ''}</span>
             </button>
 
-            <button className="group flex items-center gap-2 hover:text-primary transition-colors text-sm">
+            <button 
+              onClick={handleShare}
+              className={`group flex items-center gap-2 transition-colors text-sm ${
+                shareStatus !== 'idle' ? 'text-primary' : 'hover:text-primary'
+              }`}
+            >
                <div className="p-2 rounded-full group-hover:bg-primary/10 transition-colors">
-                <Share2 size={18} />
+                {shareStatus === 'copied' || shareStatus === 'shared' ? (
+                  <Check size={18} />
+                ) : (
+                  <Share2 size={18} />
+                )}
               </div>
+              {shareStatus === 'copied' && <span className="text-xs">Copied!</span>}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Repost Confirmation Modal */}
+      {showRepostConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-white">Confirm Repost</h3>
+              <button 
+                onClick={() => setShowRepostConfirm(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-300 mb-4">
+                Reposting will mint a new post on the blockchain. This action requires a wallet transaction and gas fees.
+              </p>
+              
+              <div className="bg-black/30 rounded-xl p-4 border border-white/5">
+                <div className="flex items-center gap-3 mb-2">
+                  <Avatar url={post.author.avatarUrl} size="sm" />
+                  <div>
+                    <span className="text-sm font-semibold text-white">
+                      {post.author.ens || formatAddress(post.author.address)}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-400 line-clamp-3">{post.content}</p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowRepostConfirm(false)}
+                className="flex-1 px-4 py-3 rounded-xl border border-white/10 text-gray-300 hover:bg-white/5 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmRepost}
+                disabled={isReposting}
+                className="flex-1 px-4 py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isReposting ? (
+                  <>
+                    <Loader size={16} className="animate-spin" />
+                    Confirming...
+                  </>
+                ) : (
+                  <>
+                    <Repeat size={16} />
+                    Repost
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Comments Section */}
       {showComments && (
