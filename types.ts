@@ -59,5 +59,7 @@ export enum ViewState {
   PROFILE = 'PROFILE',
   DASHBOARD = 'DASHBOARD',
   CREATE = 'CREATE', // Mobile only mostly
-  POST_DETAIL = 'POST_DETAIL' // Single post view
+  POST_DETAIL = 'POST_DETAIL', // Single post view
+  ADMIN = 'ADMIN', // Admin panel
+  BLOGS = 'BLOGS' // Blog section
 }

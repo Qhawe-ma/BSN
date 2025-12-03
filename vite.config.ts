@@ -1,6 +1,7 @@
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import type { Connect } from 'vite';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
@@ -15,7 +16,52 @@ export default defineConfig(({ mode }) => {
         },
         allowedHosts: true,
       },
-      plugins: [react()],
+      plugins: [
+        react(),
+        {
+          name: 'admin-api',
+          configureServer(server) {
+            server.middlewares.use('/api/admin/verify', ((req, res) => {
+              if (req.method === 'POST') {
+                let body = '';
+                req.on('data', (chunk: Buffer) => {
+                  body += chunk.toString();
+                });
+                req.on('end', () => {
+                  try {
+                    const { password } = JSON.parse(body);
+                    const adminPassword = process.env.ADMIN_PASSWORD;
+                    
+                    if (!adminPassword) {
+                      res.statusCode = 500;
+                      res.setHeader('Content-Type', 'application/json');
+                      res.end(JSON.stringify({ error: 'Admin password not configured' }));
+                      return;
+                    }
+                    
+                    if (password === adminPassword) {
+                      res.statusCode = 200;
+                      res.setHeader('Content-Type', 'application/json');
+                      res.end(JSON.stringify({ success: true }));
+                    } else {
+                      res.statusCode = 401;
+                      res.setHeader('Content-Type', 'application/json');
+                      res.end(JSON.stringify({ error: 'Invalid password' }));
+                    }
+                  } catch (e) {
+                    res.statusCode = 400;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ error: 'Invalid request' }));
+                  }
+                });
+              } else {
+                res.statusCode = 405;
+                res.end('Method not allowed');
+              }
+            }) as Connect.NextHandleFunction);
+          }
+        }
+      ],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
@@ -23,6 +69,7 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
+          '@assets': path.resolve(__dirname, 'attached_assets'),
         }
       }
     };

@@ -11,6 +11,8 @@ import { ChatView } from './views/ChatView';
 import { ProfileView } from './views/ProfileView';
 import { DashboardView } from './views/DashboardView';
 import { PostDetailView } from './views/PostDetailView';
+import { AdminView } from './views/AdminView';
+import { BlogView } from './views/BlogView';
 
 // Guest Protection Component
 const ConnectWalletPrompt: React.FC<{ onConnect: () => void, isConnecting?: boolean, title?: string, subtitle?: string }> = ({ onConnect, isConnecting = false, title = "Connect Wallet", subtitle = "You need to connect your wallet to access this feature." }) => (
@@ -161,21 +163,28 @@ const App: React.FC = () => {
     loadSharedProfile();
   }, []);
 
-  // --- Check for shared post link in URL ---
+  // --- Check for shared post link or special pages in URL ---
   useEffect(() => {
-    const loadSharedPost = () => {
+    const handleInitialRoute = () => {
       const pathname = window.location.pathname;
       const postMatch = pathname.match(/^\/post\/([^/]+)$/);
+      const blogMatch = pathname.match(/^\/blogs?\/?(.*)$/);
       
       if (postMatch) {
         const postId = postMatch[1];
         console.log('🔗 Loading shared post:', postId);
         setViewingPostId(postId);
         setView(ViewState.POST_DETAIL);
+      } else if (pathname === '/admin') {
+        console.log('🔗 Loading admin panel');
+        setView(ViewState.ADMIN);
+      } else if (blogMatch || pathname === '/blogs') {
+        console.log('🔗 Loading blog');
+        setView(ViewState.BLOGS);
       }
     };
 
-    loadSharedPost();
+    handleInitialRoute();
   }, []);
 
   // --- Handle browser back/forward button ---
@@ -188,6 +197,10 @@ const App: React.FC = () => {
         const postId = postMatch[1];
         setViewingPostId(postId);
         setView(ViewState.POST_DETAIL);
+      } else if (pathname === '/admin') {
+        setView(ViewState.ADMIN);
+      } else if (pathname === '/blogs' || pathname.startsWith('/blog')) {
+        setView(ViewState.BLOGS);
       } else if (pathname === '/' || pathname === '') {
         setViewingPostId(null);
         setView(ViewState.FEED);
@@ -474,6 +487,26 @@ const App: React.FC = () => {
               window.history.pushState({}, '', '/');
             }}
             onUserClick={handleNavigateToProfile}
+          />
+        );
+      
+      case ViewState.ADMIN:
+        return (
+          <AdminView
+            onBack={() => {
+              setView(ViewState.FEED);
+              window.history.pushState({}, '', '/');
+            }}
+          />
+        );
+      
+      case ViewState.BLOGS:
+        return (
+          <BlogView
+            onBack={() => {
+              setView(ViewState.FEED);
+              window.history.pushState({}, '', '/');
+            }}
           />
         );
       
