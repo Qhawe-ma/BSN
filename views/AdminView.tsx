@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Shield, Lock, AlertTriangle, Trash2, Eye, EyeOff, FileText, Plus, Edit, X, Check, Loader, ArrowLeft, Flag, RefreshCw, Upload, Image, Crown, Users, Search, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { GlassCard, Button } from '../components/UIComponents';
 import { FirebaseService } from '../firebaseService';
-import { formatAddress } from '../services';
+import { formatAddress, DataService } from '../services';
 import { BadgeType } from '../types';
 
 interface AdminViewProps {
@@ -175,6 +175,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
   const handleApproveBadge = async (badgeId: string) => {
     try {
       await FirebaseService.updateBadgeStatus(badgeId, 'active', 'admin');
+      DataService.invalidateCache();
       loadBadges();
     } catch (err) {
       console.error('Error approving badge:', err);
@@ -186,6 +187,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
   const handleRejectBadge = async (badgeId: string) => {
     try {
       await FirebaseService.updateBadgeStatus(badgeId, 'rejected', undefined, 'Rejected by admin');
+      DataService.invalidateCache();
       loadBadges();
     } catch (err) {
       console.error('Error rejecting badge:', err);
@@ -199,6 +201,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     
     try {
       await FirebaseService.revokeBadge(userAddress, badgeId, 'admin');
+      DataService.invalidateCache();
       loadBadges();
       loadUsers();
     } catch (err) {
@@ -214,6 +217,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     setAssigningBadge(true);
     try {
       await FirebaseService.assignBadge(selectedUser.address, selectedBadgeType, 'admin');
+      DataService.invalidateCache();
       setShowAssignBadge(false);
       setSelectedUser(null);
       loadBadges();

@@ -234,7 +234,7 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
         <div className="flex justify-between items-start mb-4">
           <div className="flex gap-3">
             <div onClick={() => onUserClick(post.author)} className="cursor-pointer hover:opacity-80 transition-opacity">
-              <Avatar url={post.author.avatarUrl} size="md" />
+              <Avatar url={post.author.avatarUrl} size="md" address={post.author.address} />
             </div>
             <div className="flex flex-col justify-center">
               <div className="flex items-center gap-2">
@@ -395,7 +395,7 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
                 
                 <div className="bg-black/40 rounded-xl p-4 border border-white/5">
                   <div className="flex items-center gap-3 mb-2">
-                    <Avatar url={post.author.avatarUrl} size="sm" />
+                    <Avatar url={post.author.avatarUrl} size="sm" address={post.author.address} />
                     <div>
                       <span className="text-sm font-semibold text-white">
                         {post.author.ens || formatAddress(post.author.address)}
@@ -547,7 +547,7 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
               {comments.map(comment => (
                 <div key={comment.id} className="flex gap-3 animate-in fade-in duration-300">
                   <div onClick={() => onUserClick(comment.author)} className="cursor-pointer">
-                    <Avatar url={comment.author.avatarUrl} size="sm" bordered={false} />
+                    <Avatar url={comment.author.avatarUrl} size="sm" bordered={false} address={comment.author.address} />
                   </div>
                   <div className="flex-1">
                       <div className="flex justify-between items-baseline mb-1">
@@ -572,7 +572,7 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
               {/* Comment Input */}
               {currentUser ? (
                   <div className="flex gap-3 pt-4 items-center">
-                     <Avatar url={currentUser.avatarUrl} size="sm" />
+                     <Avatar url={currentUser.avatarUrl} size="sm" address={currentUser.address} />
                      <div className="relative flex-1 group">
                        <input 
                           type="text" 

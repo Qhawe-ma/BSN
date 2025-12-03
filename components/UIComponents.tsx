@@ -52,7 +52,8 @@ export const Badge: React.FC<{ children: React.ReactNode; color?: string; varian
   );
 };
 
-export const Avatar: React.FC<{ url: string; size?: 'sm' | 'md' | 'lg' | 'xl'; bordered?: boolean }> = ({ url, size = 'md', bordered = true }) => {
+export const Avatar: React.FC<{ url: string; size?: 'sm' | 'md' | 'lg' | 'xl'; bordered?: boolean; address?: string }> = ({ url, size = 'md', bordered = true, address }) => {
+  const [imgError, setImgError] = React.useState(false);
   const sizes = {
     sm: "w-8 h-8",
     md: "w-11 h-11",
@@ -60,9 +61,18 @@ export const Avatar: React.FC<{ url: string; size?: 'sm' | 'md' | 'lg' | 'xl'; b
     xl: "w-24 h-24"
   };
   
+  const fallbackUrl = address 
+    ? `https://api.dicebear.com/7.x/identicon/svg?seed=${address}`
+    : `https://api.dicebear.com/7.x/identicon/svg?seed=${Date.now()}`;
+  
   return (
     <div className={`${sizes[size]} rounded-full overflow-hidden ${bordered ? 'ring-2 ring-white/10 ring-offset-2 ring-offset-black/50' : ''} bg-gray-800 flex-shrink-0 shadow-lg`}>
-      <img src={url} alt="Avatar" className="w-full h-full object-cover" />
+      <img 
+        src={imgError ? fallbackUrl : (url || fallbackUrl)} 
+        alt="" 
+        className="w-full h-full object-cover"
+        onError={() => setImgError(true)}
+      />
     </div>
   );
 };
