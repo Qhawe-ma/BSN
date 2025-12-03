@@ -61,6 +61,25 @@ The app runs on port 5000 with Vite dev server configured for Replit's proxy env
 - HMR enabled on port 5000
 
 ## Recent Changes
+- **2024-12-03**: Premium Badge System
+  - ✅ **Two Badge Tiers**: Blue Badge ($9/month) and Gold Badge ($35/month)
+  - ✅ **MetaMask Payment**: Cryptocurrency payments via wallet transactions
+  - ✅ **Badge Purchase Flow**: Users select tier → confirm payment → pending admin review
+  - ✅ **Admin Approval**: Badge requests require admin approval before activation
+  - ✅ **30-Day Expiration**: Badges automatically expire after 30 days
+  - ✅ **Admin Panel**: New Badges and Users tabs for badge management
+  - ✅ **Badge Display**: Crown icon badges appear next to usernames in:
+    - Post authors in feed
+    - Repost attribution
+    - Comment authors
+    - Profile headers
+    - Chat session list
+    - Chat headers
+  - ✅ **Admin Controls**: View all badges, filter by status, approve/reject requests, manually assign badges
+  - ✅ **User Search**: Search users by wallet address in admin panel
+  - 📁 **New Files**: `components/BadgeIcon.tsx`, `views/PremiumView.tsx`
+  - 📁 **Updated Files**: `types.ts`, `firebaseService.ts`, `views/AdminView.tsx`, `views/FeedView.tsx`, `views/ProfileView.tsx`, `views/ChatView.tsx`, `App.tsx`
+
 - **2024-12-03**: Share, Repost, and Post Detail View
   - ✅ **Share Button**: Uses Web Share API on mobile or copies post link to clipboard on desktop
   - ✅ **Visual Feedback**: Share button shows checkmark and "Copied!" when link is copied
