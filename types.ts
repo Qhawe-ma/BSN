@@ -61,5 +61,6 @@ export enum ViewState {
   CREATE = 'CREATE', // Mobile only mostly
   POST_DETAIL = 'POST_DETAIL', // Single post view
   ADMIN = 'ADMIN', // Admin panel
-  BLOGS = 'BLOGS' // Blog section
+  BLOGS = 'BLOGS', // Blog section
+  PREMIUM = 'PREMIUM' // Premium subscription
 }

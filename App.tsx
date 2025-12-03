@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Home, MessageCircle, PlusSquare, User as UserIcon, BarChart2, LogOut, Wallet, X, Feather, Image as ImageIcon, Loader, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
+import { Home, MessageCircle, PlusSquare, User as UserIcon, BarChart2, LogOut, Wallet, X, Feather, Image as ImageIcon, Loader, ChevronLeft, ChevronRight, BookOpen, Crown } from 'lucide-react';
 import { User, ViewState } from './types';
 import { BlockchainService } from './services';
 import { FirebaseService } from './firebaseService';
@@ -13,6 +13,7 @@ import { DashboardView } from './views/DashboardView';
 import { PostDetailView } from './views/PostDetailView';
 import { AdminView } from './views/AdminView';
 import { BlogView } from './views/BlogView';
+import { PremiumView } from './views/PremiumView';
 
 // Guest Protection Component
 const ConnectWalletPrompt: React.FC<{ onConnect: () => void, isConnecting?: boolean, title?: string, subtitle?: string }> = ({ onConnect, isConnecting = false, title = "Connect Wallet", subtitle = "You need to connect your wallet to access this feature." }) => (
@@ -510,6 +511,16 @@ const App: React.FC = () => {
           />
         );
       
+      case ViewState.PREMIUM:
+        return (
+          <PremiumView
+            onBack={() => {
+              setView(ViewState.FEED);
+              window.history.pushState({}, '', '/');
+            }}
+          />
+        );
+      
       default: 
         return <FeedView type="global" onUserClick={handleNavigateToProfile} onPostClick={handleNavigateToPost} currentUser={user || undefined} />;
     }
@@ -596,6 +607,16 @@ const App: React.FC = () => {
               window.history.pushState({}, '', '/blog');
             }}
           />
+          <NavItem 
+            icon={<Crown size={20} />} 
+            label="Premium" 
+            target={ViewState.PREMIUM} 
+            active={view === ViewState.PREMIUM}
+            onClick={() => {
+              setView(ViewState.PREMIUM);
+              window.history.pushState({}, '', '/premium');
+            }}
+          />
         </nav>
 
         <div className="p-4 mt-auto">
@@ -630,13 +651,26 @@ const App: React.FC = () => {
       </aside>
 
       {/* Mobile Bottom Nav - Floating Pill */}
-      <div className="md:hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[92%] max-w-md z-50 safe-area-pb">
-        <div className="bg-gray-900/90 backdrop-blur-2xl border border-white/10 rounded-full shadow-2xl flex justify-around items-center p-1.5 px-2">
-            <button onClick={() => setView(ViewState.FEED)} className={`p-3.5 rounded-full transition-colors ${view === ViewState.FEED ? 'text-primary bg-white/10' : 'text-gray-500'}`}><Home size={24} /></button>
-            <button onClick={() => setView(ViewState.CHAT)} className={`p-3.5 rounded-full transition-colors ${view === ViewState.CHAT ? 'text-primary bg-white/10' : 'text-gray-500'}`}><MessageCircle size={24} /></button>
-            <button onClick={() => user ? setIsCreating(true) : handleConnect()} disabled={isConnecting} className="p-3.5 rounded-full bg-primary text-black shadow-lg shadow-primary/30 transform -translate-y-6 border-4 border-[#0B0E11] disabled:opacity-50">{user ? <PlusSquare size={28} /> : (isConnecting ? <Loader size={24} className="animate-spin" /> : <Wallet size={24} />)}</button>
-            <button onClick={() => { if (user) { handleNavigateToProfile(user); } else { setViewingProfileUser(null); setView(ViewState.PROFILE); } }} className={`p-3.5 rounded-full transition-colors ${view === ViewState.PROFILE ? 'text-primary bg-white/10' : 'text-gray-500'}`}><UserIcon size={24} /></button>
-            <button onClick={() => setView(ViewState.DASHBOARD)} className={`p-3.5 rounded-full transition-colors ${view === ViewState.DASHBOARD ? 'text-primary bg-white/10' : 'text-gray-500'}`}><BarChart2 size={24} /></button>
+      <div className="md:hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[94%] max-w-md z-50 safe-area-pb">
+        <div className="bg-gray-900/90 backdrop-blur-2xl border border-white/10 rounded-full shadow-2xl flex items-center p-1 px-1.5 relative">
+            {/* Left group */}
+            <div className="flex items-center gap-0.5">
+              <button onClick={() => setView(ViewState.FEED)} className={`p-2.5 rounded-full transition-colors ${view === ViewState.FEED ? 'text-primary bg-white/10' : 'text-gray-500'}`}><Home size={22} /></button>
+              <button onClick={() => setView(ViewState.CHAT)} className={`p-2.5 rounded-full transition-colors ${view === ViewState.CHAT ? 'text-primary bg-white/10' : 'text-gray-500'}`}><MessageCircle size={22} /></button>
+              <button onClick={() => { setView(ViewState.BLOGS); window.history.pushState({}, '', '/blog'); }} className={`p-2.5 rounded-full transition-colors ${view === ViewState.BLOGS ? 'text-primary bg-white/10' : 'text-gray-500'}`}><BookOpen size={22} /></button>
+            </div>
+            
+            {/* Center floating button */}
+            <div className="flex-1 flex justify-center">
+              <button onClick={() => user ? setIsCreating(true) : handleConnect()} disabled={isConnecting} className="p-3 rounded-full bg-primary text-black shadow-lg shadow-primary/30 transform -translate-y-5 border-4 border-[#0B0E11] disabled:opacity-50">{user ? <PlusSquare size={26} /> : (isConnecting ? <Loader size={22} className="animate-spin" /> : <Wallet size={22} />)}</button>
+            </div>
+            
+            {/* Right group */}
+            <div className="flex items-center gap-0.5">
+              <button onClick={() => { if (user) { handleNavigateToProfile(user); } else { setViewingProfileUser(null); setView(ViewState.PROFILE); } }} className={`p-2.5 rounded-full transition-colors ${view === ViewState.PROFILE ? 'text-primary bg-white/10' : 'text-gray-500'}`}><UserIcon size={22} /></button>
+              <button onClick={() => setView(ViewState.DASHBOARD)} className={`p-2.5 rounded-full transition-colors ${view === ViewState.DASHBOARD ? 'text-primary bg-white/10' : 'text-gray-500'}`}><BarChart2 size={22} /></button>
+              <button onClick={() => { setView(ViewState.PREMIUM); window.history.pushState({}, '', '/premium'); }} className={`p-2.5 rounded-full transition-colors ${view === ViewState.PREMIUM ? 'text-primary bg-white/10' : 'text-gray-500'}`}><Crown size={22} /></button>
+            </div>
         </div>
       </div>
 
