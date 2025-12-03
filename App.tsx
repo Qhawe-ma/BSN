@@ -562,13 +562,12 @@ const App: React.FC = () => {
         
         {/* Sidebar Header */}
         <div className={`p-6 flex items-center relative ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start'}`}>
-          <div className="flex items-center gap-3 text-white">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20 shrink-0 z-10 relative">
-                <Feather size={18} className="text-black" />
-              </div>
-              <h1 className={`text-2xl font-bold tracking-tight whitespace-nowrap overflow-hidden transition-all duration-300 ${isSidebarCollapsed ? 'opacity-0 w-0' : 'opacity-100 w-auto'}`}>
-                BSN
-              </h1>
+          <div className="flex items-center text-white">
+              <img 
+                src="/check/logoo.svg" 
+                alt="BSN" 
+                className={`transition-all duration-300 ${isSidebarCollapsed ? 'h-8 w-8' : 'h-10'}`}
+              />
           </div>
 
           {/* Toggle Button */}
