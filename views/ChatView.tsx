@@ -315,7 +315,6 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                             {activeSession?.participant.activeBadge && activeSession.participant.activeBadge.status === 'active' && (
                               <BadgeIcon badgeType={activeSession.participant.activeBadge.badgeType} size="sm" />
                             )}
-                            {activeSession?.participant.ens && <ShieldCheck size={14} className="text-blue-400" />}
                         </h3>
                         <div className="flex items-center gap-2">
                             {isOtherUserOnline ? (

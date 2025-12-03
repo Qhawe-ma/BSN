@@ -247,7 +247,6 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
                 {post.author.activeBadge && post.author.activeBadge.status === 'active' && (
                   <BadgeIcon badgeType={post.author.activeBadge.badgeType} size="sm" />
                 )}
-                {post.author.ens && <ShieldCheck size={14} className="text-blue-400" />}
                 <span className="text-gray-500 text-xs md:text-sm">· {timeAgo(post.timestamp)}</span>
               </div>
               <span className="text-gray-500 text-xs font-mono">{formatAddress(post.author.address)}</span>

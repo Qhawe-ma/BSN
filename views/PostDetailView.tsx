@@ -3,6 +3,7 @@ import { ArrowLeft, MessageSquare, Heart, Share2, Repeat, ShieldCheck, Send, Loa
 import { Post, Comment, User } from '../types';
 import { DataService, BlockchainService, formatAddress } from '../services';
 import { GlassCard, Button, Avatar } from '../components/UIComponents';
+import { BadgeIcon } from '../components/BadgeIcon';
 import { FirebaseService } from '../firebaseService';
 import { Portal } from '../components/Portal';
 
@@ -255,7 +256,9 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                   >
                     {post.author.ens || formatAddress(post.author.address)}
                   </span>
-                  {post.author.ens && <ShieldCheck size={14} className="text-blue-400" />}
+                  {post.author.activeBadge && post.author.activeBadge.status === 'active' && (
+                    <BadgeIcon badgeType={post.author.activeBadge.badgeType} size="sm" />
+                  )}
                   <span className="text-gray-500 text-xs md:text-sm">· {timeAgo(post.timestamp)}</span>
                 </div>
                 <span className="text-gray-500 text-xs font-mono">{formatAddress(post.author.address)}</span>
