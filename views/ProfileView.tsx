@@ -28,6 +28,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   
+  // Local follower/following counts that update in real-time
+  const [followersCount, setFollowersCount] = useState(user.followers || 0);
+  const [followingCount, setFollowingCount] = useState(user.following || 0);
+  
+  // Sync local counts when user prop updates from parent
+  useEffect(() => {
+    setFollowersCount(user.followers || 0);
+    setFollowingCount(user.following || 0);
+  }, [user.followers, user.following]);
+  
   // Determine if we are viewing our own profile (requires currentUser to exist)
   const isOwnProfile = currentUser?.address === user.address;
 
@@ -37,21 +47,30 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
   const [editWebsite, setEditWebsite] = useState(user.website || "");
   const [editAvatar, setEditAvatar] = useState(user.avatarUrl);
 
-  // Check if current user is following this profile on mount
+  // Fetch fresh profile counts from Firebase and check follow status
   useEffect(() => {
-    // Reset state first to avoid showing stale data
     setIsFollowing(false);
     
-    const checkFollowStatus = async () => {
-      if (currentUser && !isOwnProfile) {
-        console.log('🔍 Checking follow status:', currentUser.address, '->', user.address);
-        const following = await FirebaseService.isFollowing(currentUser.address, user.address);
-        console.log('✅ Follow status result:', following);
-        setIsFollowing(following);
+    const loadProfileData = async () => {
+      try {
+        const freshProfile = await FirebaseService.getUserProfile(user.address);
+        if (freshProfile) {
+          setFollowersCount(freshProfile.followers || 0);
+          setFollowingCount(freshProfile.following || 0);
+        }
+        
+        if (currentUser && !isOwnProfile) {
+          console.log('🔍 Checking follow status:', currentUser.address, '->', user.address);
+          const following = await FirebaseService.isFollowing(currentUser.address, user.address);
+          console.log('✅ Follow status result:', following);
+          setIsFollowing(following);
+        }
+      } catch (error) {
+        console.error('Error loading profile data:', error);
       }
     };
     
-    checkFollowStatus();
+    loadProfileData();
   }, [currentUser?.address, user.address, isOwnProfile]);
 
   // Load posts for this user's profile
@@ -80,9 +99,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
       if (isFollowing) {
         await FirebaseService.unfollowUser(currentUser.address, user.address);
         setIsFollowing(false);
+        setFollowersCount(prev => Math.max(0, prev - 1));
       } else {
         await FirebaseService.followUser(currentUser.address, user.address);
         setIsFollowing(true);
+        setFollowersCount(prev => prev + 1);
       }
       
       // Refresh profile to show updated counts
@@ -232,15 +253,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
               {/* Simple Stats Row */}
               <div className="flex gap-10 py-5 border-t border-white/5">
                 <div className="cursor-pointer group">
-                   <span className="font-bold text-white text-xl block group-hover:text-primary transition-colors">{user.totalPosts}</span>
+                   <span className="font-bold text-white text-xl block group-hover:text-primary transition-colors">{isLoadingPosts ? '...' : posts.length}</span>
                    <span className="text-xs text-gray-500 uppercase tracking-wide font-bold">Posts</span>
                 </div>
                 <div className="cursor-pointer group">
-                   <span className="font-bold text-white text-xl block group-hover:text-primary transition-colors">{user.followers}</span>
+                   <span className="font-bold text-white text-xl block group-hover:text-primary transition-colors">{followersCount}</span>
                    <span className="text-xs text-gray-500 uppercase tracking-wide font-bold">Followers</span>
                 </div>
                 <div className="cursor-pointer group">
-                   <span className="font-bold text-white text-xl block group-hover:text-primary transition-colors">{user.following}</span>
+                   <span className="font-bold text-white text-xl block group-hover:text-primary transition-colors">{followingCount}</span>
                    <span className="text-xs text-gray-500 uppercase tracking-wide font-bold">Following</span>
                 </div>
               </div>
