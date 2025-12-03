@@ -1,7 +1,10 @@
 import React from 'react';
 
-export const GlassCard: React.FC<{ children: React.ReactNode; className?: string; hoverEffect?: boolean }> = ({ children, className = "", hoverEffect = false }) => (
-  <div className={`relative bg-gray-900/40 backdrop-blur-xl border border-white/5 shadow-xl rounded-3xl overflow-hidden ${hoverEffect ? 'transition-transform duration-300 hover:-translate-y-1 hover:shadow-2xl hover:bg-gray-900/50' : ''} ${className}`}>
+export const GlassCard: React.FC<{ children: React.ReactNode; className?: string; hoverEffect?: boolean; onClick?: () => void }> = ({ children, className = "", hoverEffect = false, onClick }) => (
+  <div 
+    className={`relative bg-gray-900/40 backdrop-blur-xl border border-white/5 shadow-xl rounded-3xl overflow-hidden ${hoverEffect ? 'transition-transform duration-300 hover:-translate-y-1 hover:shadow-2xl hover:bg-gray-900/50' : ''} ${className}`}
+    onClick={onClick}
+  >
     {children}
   </div>
 );

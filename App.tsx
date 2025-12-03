@@ -467,6 +467,7 @@ const App: React.FC = () => {
             onConnect={handleConnect}
             isConnecting={isConnecting}
             onRefreshProfile={handleRefreshProfile}
+            onPostClick={handleNavigateToPost}
           />
         );
       

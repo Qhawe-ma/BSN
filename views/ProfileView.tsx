@@ -14,9 +14,10 @@ interface ProfileViewProps {
     onConnect?: () => void;
     isConnecting?: boolean;
     onRefreshProfile?: () => void;
+    onPostClick?: (postId: string) => void;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onNavigateToChat, onUpdateProfile, onConnect, isConnecting = false, onRefreshProfile }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onNavigateToChat, onUpdateProfile, onConnect, isConnecting = false, onRefreshProfile, onPostClick }) => {
   const [copied, setCopied] = useState(false);
   const [profileShared, setProfileShared] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -284,7 +285,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
       ) : (
         <div className="space-y-4">
           {posts.map((post) => (
-            <GlassCard key={post.tokenId} className="p-4 hover:border-white/10 transition-all">
+            <GlassCard 
+              key={post.tokenId} 
+              className="p-4 hover:border-white/10 transition-all cursor-pointer hover:bg-white/5"
+              onClick={() => onPostClick?.(post.tokenId)}
+            >
               <div className="flex gap-3">
                 <Avatar url={post.author.avatarUrl} size="sm" />
                 <div className="flex-1">
@@ -292,6 +297,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
                     <span className="font-bold text-white text-sm">
                       {post.author.ens || formatAddress(post.author.address)}
                     </span>
+                    {post.author.activeBadge && post.author.activeBadge.status === 'active' && (
+                      <BadgeIcon badgeType={post.author.activeBadge.badgeType} size="sm" />
+                    )}
                     <span className="text-gray-500 text-xs">
                       {new Date(post.timestamp).toLocaleDateString()}
                     </span>
