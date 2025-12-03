@@ -995,13 +995,22 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
                     
                     <div className="flex items-center gap-2">
                       {user.activeBadge ? (
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          user.activeBadge.badgeType === 'gold' 
-                            ? 'bg-yellow-500/20 text-yellow-400' 
-                            : 'bg-blue-500/20 text-blue-400'
-                        }`}>
-                          {user.activeBadge.badgeType} badge
-                        </span>
+                        <>
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            user.activeBadge.badgeType === 'gold' 
+                              ? 'bg-yellow-500/20 text-yellow-400' 
+                              : 'bg-blue-500/20 text-blue-400'
+                          }`}>
+                            {user.activeBadge.badgeType} badge
+                          </span>
+                          <button
+                            onClick={() => handleRevokeBadge(user.activeBadge.id, user.address)}
+                            className="px-3 py-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg text-sm font-medium transition-colors flex items-center gap-1"
+                          >
+                            <X size={14} />
+                            Remove
+                          </button>
+                        </>
                       ) : (
                         <button
                           onClick={() => {

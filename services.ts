@@ -516,14 +516,16 @@ const fetchPostData = async (
       FirebaseService.getPostStats(tokenId.toString())
     ]);
     
-    const finalAuthor = author || {
-      address: owner,
-      followers: 0,
-      following: 0,
-      totalPosts: 0,
-      avatarUrl: generateAvatar(owner),
-      createdAt: Date.now()
-    };
+    const finalAuthor = author 
+      ? { ...author, address: author.address || owner }
+      : {
+          address: owner,
+          followers: 0,
+          following: 0,
+          totalPosts: 0,
+          avatarUrl: generateAvatar(owner),
+          createdAt: Date.now()
+        };
 
     return {
       id: tokenId,

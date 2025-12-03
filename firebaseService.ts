@@ -224,7 +224,8 @@ export const FirebaseService = {
    */
   getUserProfile: async (address: string): Promise<User | null> => {
     try {
-      const userRef = ref(database, `users/${address}`);
+      const normalizedAddress = address.toLowerCase();
+      const userRef = ref(database, `users/${normalizedAddress}`);
       
       return new Promise((resolve) => {
         onValue(userRef, (snapshot) => {
@@ -247,7 +248,8 @@ export const FirebaseService = {
    */
   saveUserProfile: async (user: User): Promise<void> => {
     try {
-      const userRef = ref(database, `users/${user.address}`);
+      const normalizedAddress = user.address.toLowerCase();
+      const userRef = ref(database, `users/${normalizedAddress}`);
       
       // Filter out undefined values (Firebase doesn't allow them)
       const cleanUser: Record<string, any> = {};
@@ -256,9 +258,10 @@ export const FirebaseService = {
           cleanUser[key] = value;
         }
       }
+      cleanUser.address = normalizedAddress;
       
       await set(userRef, cleanUser);
-      console.log('✅ User profile saved to Firebase:', user.address);
+      console.log('✅ User profile saved to Firebase:', normalizedAddress);
     } catch (error) {
       console.error('Error saving user profile:', error);
       throw new Error('Failed to save user profile');
@@ -270,10 +273,11 @@ export const FirebaseService = {
    */
   updateUserProfile: async (address: string, updates: Partial<User>): Promise<void> => {
     try {
-      const userRef = ref(database, `users/${address}`);
+      const normalizedAddress = address.toLowerCase();
+      const userRef = ref(database, `users/${normalizedAddress}`);
       
       // Get current user data
-      const currentUser = await FirebaseService.getUserProfile(address);
+      const currentUser = await FirebaseService.getUserProfile(normalizedAddress);
       if (currentUser) {
         const updatedUser = { ...currentUser, ...updates };
         
@@ -286,7 +290,7 @@ export const FirebaseService = {
         }
         
         await set(userRef, cleanUser);
-        console.log('✅ User profile updated:', address);
+        console.log('✅ User profile updated:', normalizedAddress);
       }
     } catch (error) {
       console.error('Error updating user profile:', error);
