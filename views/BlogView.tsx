@@ -154,14 +154,9 @@ export const BlogView: React.FC<BlogViewProps> = ({ onBack }) => {
               <span className="text-sm font-medium">Back to Home</span>
             </button>
             
-            <div className="flex items-center gap-5">
-              <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary/70 rounded-2xl flex items-center justify-center shadow-lg shadow-primary/25">
-                <Feather size={28} className="text-black" />
-              </div>
-              <div>
-                <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">Blog</h1>
-                <p className="text-gray-400 mt-1 text-lg">Insights, updates, and stories from BSN</p>
-              </div>
+            <div>
+              <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">Blog</h1>
+              <p className="text-gray-400 mt-1 text-lg">Insights, updates, and stories from BSN</p>
             </div>
           </div>
         </div>

@@ -318,14 +318,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
       const compressedFile = await compressImage(file);
       console.log(`Compressed image from ${(file.size / 1024).toFixed(1)}KB to ${(compressedFile.size / 1024).toFixed(1)}KB`);
       
-      let imageUrl: string;
-      try {
-        imageUrl = await FirebaseService.uploadImage(compressedFile, 'blog-covers');
-      } catch (uploadErr) {
-        console.warn('Firebase Storage upload failed, using base64 fallback:', uploadErr);
-        imageUrl = await FirebaseService.imageToBase64(compressedFile);
-      }
-      
+      const imageUrl = await FirebaseService.imageToBase64(compressedFile);
       setBlogForm({ ...blogForm, coverImage: imageUrl });
     } catch (err: any) {
       console.error('Error uploading image:', err);
