@@ -248,7 +248,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
                       />
                     </div>
                     <div>
-                      <p className="text-white font-medium text-sm">alice.eth</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-white font-medium text-sm">alice.eth</p>
+                        <img 
+                          src="/check/gold.svg" 
+                          alt="Verified" 
+                          className="w-4 h-4"
+                        />
+                      </div>
                       <div className="flex items-center gap-1.5">
                         <div className="w-2 h-2 rounded-full bg-green-500"></div>
                         <span className="text-gray-500 text-xs">Online</span>
