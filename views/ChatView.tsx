@@ -115,28 +115,32 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     if (!initialChatTarget || !currentUser) return;
     
     const openOrCreateChat = async () => {
-      const existingSession = sessions.find(s => 
-        s.participant.address.toLowerCase() === initialChatTarget.toLowerCase()
-      );
+      try {
+        const existingSession = sessions.find(s => 
+          s.participant.address.toLowerCase() === initialChatTarget.toLowerCase()
+        );
 
-      if (existingSession) {
-        setActiveSessionId(existingSession.id);
-        if (isMobileView) setIsSidebarOpen(false);
-      } else {
-        const newSession = await DataService.startNewChat(initialChatTarget);
-        setSessions(prev => {
-          const exists = prev.some(s => s.id === newSession.id);
-          return exists ? prev : [newSession, ...prev];
-        });
-        setActiveSessionId(newSession.id);
-        if (isMobileView) setIsSidebarOpen(false);
+        if (existingSession) {
+          setActiveSessionId(existingSession.id);
+          if (isMobileView) setIsSidebarOpen(false);
+        } else {
+          const newSession = await DataService.startNewChat(initialChatTarget);
+          setSessions(prev => {
+            const exists = prev.some(s => s.id === newSession.id);
+            return exists ? prev : [newSession, ...prev];
+          });
+          setActiveSessionId(newSession.id);
+          if (isMobileView) setIsSidebarOpen(false);
+        }
+        
+        onClearChatTarget?.();
+      } catch (error) {
+        console.error('Failed to open chat:', error);
       }
-      
-      onClearChatTarget?.();
     };
     
     openOrCreateChat();
-  }, [initialChatTarget, currentUser, sessions.length > 0]);
+  }, [initialChatTarget, currentUser]);
 
   // Handlers
   const handleSend = async () => {
