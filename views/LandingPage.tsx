@@ -206,22 +206,33 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
 
           <div className="relative max-w-2xl mx-auto mb-24">
             <div className="rounded-3xl bg-[#0D1117] border border-white/10 shadow-2xl overflow-hidden">
-              <div className="bg-[#161B22] border-b border-white/5 px-5 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-                    <span className="text-white font-semibold text-sm">A</span>
-                  </div>
-                  <div>
-                    <p className="text-white font-medium text-sm">alice.eth</p>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                      <span className="text-gray-500 text-xs">Online</span>
+              <div className="bg-[#161B22] border-b border-white/5 px-5 py-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-3 h-3 rounded-full bg-[#FF5F56]" />
+                  <div className="w-3 h-3 rounded-full bg-[#FFBD2E]" />
+                  <div className="w-3 h-3 rounded-full bg-[#27C93F]" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-white/10 ring-offset-2 ring-offset-[#161B22]">
+                      <img 
+                        src="https://api.dicebear.com/7.x/identicon/svg?seed=alice&backgroundColor=1e2329" 
+                        alt="alice.eth" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-white font-medium text-sm">alice.eth</p>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span className="text-gray-500 text-xs">Online</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
-                  <Lock size={12} className="text-green-400" />
-                  <span className="text-green-400 text-xs font-medium">Encrypted</span>
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
+                    <Lock size={12} className="text-green-400" />
+                    <span className="text-green-400 text-xs font-medium">Encrypted</span>
+                  </div>
                 </div>
               </div>
               
