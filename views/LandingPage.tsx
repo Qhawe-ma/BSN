@@ -204,54 +204,72 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
             </div>
           </div>
 
-          <div className="relative max-w-4xl mx-auto mb-24">
-            <GlassCard className="p-1 overflow-hidden">
-              <div className="rounded-2xl bg-gradient-to-b from-gray-900/80 to-gray-900/40 p-6 md:p-8">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-3 h-3 rounded-full bg-red-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                  <div className="w-3 h-3 rounded-full bg-green-500/80" />
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-yellow-400 flex items-center justify-center text-black font-bold text-sm flex-shrink-0">
-                      0x
-                    </div>
-                    <div className="flex-1">
-                      <div className="bg-white/5 rounded-2xl rounded-tl-none p-4 max-w-md">
-                        <p className="text-gray-300">Hey! Just sent you 0.5 BNB for the project</p>
-                        <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
-                          <Lock size={10} />
-                          <span>Encrypted</span>
-                        </div>
-                      </div>
+          <div className="relative max-w-2xl mx-auto mb-24">
+            <div className="rounded-3xl bg-[#0D1117] border border-white/10 shadow-2xl overflow-hidden">
+              <div className="bg-[#161B22] border-b border-white/5 px-5 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                    <span className="text-white font-semibold text-sm">A</span>
+                  </div>
+                  <div>
+                    <p className="text-white font-medium text-sm">alice.eth</p>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                      <span className="text-gray-500 text-xs">Online</span>
                     </div>
                   </div>
-                  
-                  <div className="flex items-start gap-4 justify-end">
-                    <div className="flex-1 flex justify-end">
-                      <div className="bg-gradient-to-r from-primary/20 to-yellow-400/20 rounded-2xl rounded-tr-none p-4 max-w-md border border-primary/20">
-                        <p className="text-white">Thanks! Received it. The smart contract is deployed</p>
-                        <div className="flex items-center gap-1 mt-2 text-xs text-primary">
-                          <Shield size={10} />
-                          <span>End-to-End Encrypted</span>
-                        </div>
-                      </div>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
+                  <Lock size={12} className="text-green-400" />
+                  <span className="text-green-400 text-xs font-medium">Encrypted</span>
+                </div>
+              </div>
+              
+              <div className="p-5 space-y-4 min-h-[200px] bg-[#0D1117]">
+                <div className="flex justify-start">
+                  <div className="flex flex-col items-start max-w-[75%]">
+                    <div className="bg-[#1E2025] text-gray-100 border border-white/5 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+                      <p className="text-[15px] leading-relaxed">Hey! Just sent you 0.5 BNB for the project</p>
                     </div>
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                      U
+                    <span className="text-[10px] text-gray-500 mt-1.5 ml-1 font-mono">10:42 AM</span>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end">
+                  <div className="flex flex-col items-end max-w-[75%]">
+                    <div className="bg-primary text-black rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm">
+                      <p className="text-[15px] leading-relaxed font-medium">Thanks! Received it. The smart contract is deployed</p>
                     </div>
+                    <div className="flex items-center gap-1.5 mt-1.5 mr-1">
+                      <span className="text-[10px] text-gray-500 font-mono">10:43 AM</span>
+                      <svg className="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20 6L9 17l-5-5" />
+                        <path d="M15 6L4 17" strokeOpacity="0.5" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-start">
+                  <div className="flex flex-col items-start max-w-[75%]">
+                    <div className="bg-[#1E2025] text-gray-100 border border-white/5 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+                      <p className="text-[15px] leading-relaxed">Perfect! Let me check it out</p>
+                    </div>
+                    <span className="text-[10px] text-gray-500 mt-1.5 ml-1 font-mono">10:44 AM</span>
                   </div>
                 </div>
               </div>
-            </GlassCard>
-            
-            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-green-500/10 border border-green-500/20">
-              <span className="text-green-400 text-sm flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                All messages are encrypted
-              </span>
+              
+              <div className="bg-[#161B22] border-t border-white/5 px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 bg-[#0D1117] border border-white/10 rounded-2xl px-4 py-3 flex items-center">
+                    <span className="text-gray-500 text-sm">Type a message...</span>
+                  </div>
+                  <button className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-lg hover:shadow-primary/25 transition-shadow">
+                    <Send size={18} className="text-black" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
