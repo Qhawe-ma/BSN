@@ -13,7 +13,7 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { 
   children, variant = 'primary', size = 'md', className = "", ...props 
 }) => {
   const variants = {
-    primary: "bg-gradient-to-r from-primary to-yellow-400 text-black font-bold hover:shadow-lg hover:shadow-primary/25 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
+    primary: "bg-gradient-to-r from-primary to-yellow-400 text-black font-bold hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100",
     secondary: "bg-white/5 text-white hover:bg-white/10 border border-white/10 backdrop-blur-sm",
     ghost: "bg-transparent text-gray-400 hover:text-white hover:bg-white/5",
     danger: "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
@@ -37,7 +37,7 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { 
 
 export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => (
   <input 
-    className={`w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all ${props.className}`}
+    className={`w-full bg-black/20 border border-white/10 rounded-2xl px-5 py-3.5 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all ${props.className}`}
     {...props}
   />
 );

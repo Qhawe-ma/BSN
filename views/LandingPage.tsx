@@ -268,7 +268,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
                   <div className="flex-1 bg-[#0D1117] border border-white/10 rounded-2xl px-4 py-3 flex items-center">
                     <span className="text-gray-500 text-sm">Type a message...</span>
                   </div>
-                  <button className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-lg hover:shadow-primary/25 transition-shadow">
+                  <button className="w-10 h-10 rounded-full bg-primary flex items-center justify-center hover:brightness-110 transition-all">
                     <Send size={18} className="text-black" />
                   </button>
                 </div>
@@ -291,7 +291,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
                   hoverEffect
                   className="p-6 group cursor-default"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-r from-primary/20 to-yellow-400/20 flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform duration-300">
+                  <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform duration-300">
                     {feature.icon}
                   </div>
                   <h3 className="text-xl font-semibold text-white mb-2">
