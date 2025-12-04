@@ -102,36 +102,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
       ref={containerRef}
       className="min-h-screen bg-[#0B0E11] text-white overflow-hidden relative"
     >
-      {particles.map(particle => (
-        <div
-          key={particle.id}
-          className="absolute rounded-full bg-blue-500 pointer-events-none transition-all duration-1000"
-          style={{
-            left: particle.x,
-            top: particle.y,
-            width: particle.size,
-            height: particle.size,
-            opacity: particle.opacity,
-          }}
-        />
-      ))}
-
-
-      <div 
-        className="fixed pointer-events-none z-10 transition-all duration-500 ease-out"
-        style={{
-          left: mousePosition.x,
-          top: mousePosition.y,
-          transform: 'translate(-50%, -50%)',
-        }}
-      >
-        <div className="w-[600px] h-[600px] rounded-full bg-gradient-radial from-blue-500/10 via-transparent to-transparent blur-3xl" />
-      </div>
-
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute bottom-0 right-[10%] w-[500px] h-[500px] bg-blue-900/10 rounded-full blur-[150px]" />
-        <div className="absolute top-[40%] right-[30%] w-[300px] h-[300px] bg-purple-900/5 rounded-full blur-[100px]" />
-      </div>
 
       <nav className="relative z-20 px-6 py-6 flex items-center justify-between max-w-7xl mx-auto">
         <div className="flex items-center gap-3">
