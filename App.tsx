@@ -580,13 +580,17 @@ const App: React.FC = () => {
         
         {/* Sidebar Header */}
         <div className={`p-6 flex items-center relative ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start'}`}>
-          <div className="flex items-center text-white">
+          <button 
+            onClick={() => setShowLanding(true)} 
+            className="flex items-center text-white hover:opacity-80 transition-opacity cursor-pointer"
+            title="Back to Landing Page"
+          >
               <img 
                 src="/check/logoo.svg" 
                 alt="BSN" 
                 className={`transition-all duration-300 ${isSidebarCollapsed ? 'h-10 w-10' : 'h-14'}`}
               />
-          </div>
+          </button>
 
           {/* Toggle Button */}
           <button 
