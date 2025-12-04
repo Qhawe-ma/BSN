@@ -337,7 +337,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
               alt="BSN" 
               className="h-8"
             />
-            <span className="text-gray-500 text-sm">Blockchain Social Network</span>
+            <span className="text-gray-500 text-sm">Binance Social Network</span>
           </div>
           <p className="text-gray-500 text-sm">
             Powered by BSC - Built with Privacy in Mind
