@@ -46,7 +46,14 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     if (!currentUser) return;
     
     const unsubscribe = DataService.subscribeToChats(currentUser.address, (chats) => {
-      setSessions(chats);
+      // Merge Firebase chats with local sessions (preserve locally created ones)
+      setSessions(prev => {
+        const firebaseChatIds = new Set(chats.map(c => c.id));
+        // Keep local sessions that aren't in Firebase yet
+        const localOnlySessions = prev.filter(s => !firebaseChatIds.has(s.id));
+        // Combine: Firebase chats + local-only sessions
+        return [...chats, ...localOnlySessions];
+      });
       
       // Subscribe to online status for all chat participants
       chats.forEach(chat => {
@@ -116,6 +123,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     
     const openOrCreateChat = async () => {
       try {
+        // Check if session already exists
         const existingSession = sessions.find(s => 
           s.participant.address.toLowerCase() === initialChatTarget.toLowerCase()
         );
@@ -123,19 +131,28 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
         if (existingSession) {
           setActiveSessionId(existingSession.id);
           if (isMobileView) setIsSidebarOpen(false);
+          onClearChatTarget?.();
         } else {
+          // Create new chat session
           const newSession = await DataService.startNewChat(initialChatTarget);
+          
+          // Add to sessions and set as active
           setSessions(prev => {
             const exists = prev.some(s => s.id === newSession.id);
             return exists ? prev : [newSession, ...prev];
           });
-          setActiveSessionId(newSession.id);
-          if (isMobileView) setIsSidebarOpen(false);
+          
+          // Set active session after adding to state
+          setTimeout(() => {
+            setActiveSessionId(newSession.id);
+            if (isMobileView) setIsSidebarOpen(false);
+          }, 50);
+          
+          onClearChatTarget?.();
         }
-        
-        onClearChatTarget?.();
       } catch (error) {
         console.error('Failed to open chat:', error);
+        onClearChatTarget?.();
       }
     };
     
