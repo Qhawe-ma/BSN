@@ -14,6 +14,7 @@ import { PostDetailView } from './views/PostDetailView';
 import { AdminView } from './views/AdminView';
 import { BlogView } from './views/BlogView';
 import { PremiumView } from './views/PremiumView';
+import { LandingPage } from './views/LandingPage';
 
 // Guest Protection Component
 const ConnectWalletPrompt: React.FC<{ onConnect: () => void, isConnecting?: boolean, title?: string, subtitle?: string }> = ({ onConnect, isConnecting = false, title = "Connect Wallet", subtitle = "You need to connect your wallet to access this feature." }) => (
@@ -37,6 +38,14 @@ const ConnectWalletPrompt: React.FC<{ onConnect: () => void, isConnecting?: bool
 );
 
 const App: React.FC = () => {
+  const [showLanding, setShowLanding] = useState(() => {
+    const hasVisited = localStorage.getItem('hasVisitedApp');
+    const pathname = window.location.pathname;
+    if (pathname.startsWith('/post/') || pathname === '/admin' || pathname.startsWith('/blog')) {
+      return false;
+    }
+    return !hasVisited;
+  });
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState<ViewState>(ViewState.FEED);
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -548,6 +557,15 @@ const App: React.FC = () => {
       </span>
     </button>
   );
+
+  const handleLaunchApp = () => {
+    localStorage.setItem('hasVisitedApp', 'true');
+    setShowLanding(false);
+  };
+
+  if (showLanding) {
+    return <LandingPage onLaunchApp={handleLaunchApp} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#0B0E11] text-foreground font-sans selection:bg-primary/30 selection:text-white overflow-x-hidden pb-24 md:pb-0">
