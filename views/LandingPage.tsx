@@ -314,14 +314,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
                 Connect your wallet and start messaging anyone on the blockchain. 
                 Your messages are encrypted and your identity is yours.
               </p>
-              <Button 
-                onClick={onLaunchApp}
-                size="lg"
-                className="rounded-full px-12 py-4 text-lg group"
-              >
-                <span>Get Started Now</span>
-                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-              </Button>
+              <div className="flex justify-center">
+                <Button 
+                  onClick={onLaunchApp}
+                  size="lg"
+                  className="rounded-full px-12 py-4 text-lg group"
+                >
+                  <span>Get Started Now</span>
+                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </div>
             </GlassCard>
           </div>
         </div>
