@@ -205,6 +205,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
           </div>
 
           <div className="relative max-w-2xl mx-auto mb-24">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <span className="text-gray-500 text-sm font-mono">CA:</span>
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText('TBA');
+                  const btn = document.getElementById('ca-copy-btn');
+                  if (btn) {
+                    btn.textContent = 'Copied!';
+                    setTimeout(() => { btn.textContent = 'TBA'; }, 1500);
+                  }
+                }}
+                id="ca-copy-btn"
+                className="text-primary text-sm font-mono hover:text-yellow-300 transition-colors cursor-pointer"
+                title="Click to copy"
+              >
+                TBA
+              </button>
+            </div>
             <div className="rounded-3xl bg-[#0D1117] border border-white/10 shadow-2xl overflow-hidden">
               <div className="bg-[#161B22] border-b border-white/5 px-5 py-4">
                 <div className="flex items-center gap-2 mb-4">
