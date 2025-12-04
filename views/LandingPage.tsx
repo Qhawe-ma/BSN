@@ -353,7 +353,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
                 size="lg"
                 className="rounded-full px-12 py-4 text-lg group"
               >
-                <Sparkles size={20} />
                 <span>Get Started Now</span>
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </Button>
