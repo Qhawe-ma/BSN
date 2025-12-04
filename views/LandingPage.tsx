@@ -105,7 +105,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
       {particles.map(particle => (
         <div
           key={particle.id}
-          className="absolute rounded-full bg-primary pointer-events-none transition-all duration-1000"
+          className="absolute rounded-full bg-blue-500 pointer-events-none transition-all duration-1000"
           style={{
             left: particle.x,
             top: particle.y,
@@ -116,16 +116,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
         />
       ))}
 
-      <div 
-        className="fixed pointer-events-none z-10 transition-all duration-300 ease-out"
-        style={{
-          left: mousePosition.x,
-          top: mousePosition.y,
-          transform: 'translate(-50%, -50%)',
-        }}
-      >
-        <div className="w-[400px] h-[400px] rounded-full bg-gradient-radial from-primary/20 via-primary/5 to-transparent blur-3xl" />
-      </div>
 
       <div 
         className="fixed pointer-events-none z-10 transition-all duration-500 ease-out"
@@ -139,7 +129,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
       </div>
 
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 left-[20%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[150px] animate-pulse" />
         <div className="absolute bottom-0 right-[10%] w-[500px] h-[500px] bg-blue-900/10 rounded-full blur-[150px]" />
         <div className="absolute top-[40%] right-[30%] w-[300px] h-[300px] bg-purple-900/5 rounded-full blur-[100px]" />
       </div>
