@@ -42,7 +42,7 @@ app.post('/api/admin/verify-badge-password', (req, res) => {
   }
 });
 
-app.get('*', (req, res) => {
+app.get('/{*splat}', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
