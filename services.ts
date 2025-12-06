@@ -653,70 +653,30 @@ export const DataService = {
     }
   },
 
-  // Get posts by specific owner address (fetches from both current and legacy contracts)
+  // Get posts by specific owner address - uses cache for instant loading
   getPostsByOwner: async (ownerAddress: string): Promise<Post[]> => {
     try {
-      const provider = getReadOnlyProvider();
       const normalizedOwner = ownerAddress.toLowerCase();
-      const allPosts: Post[] = [];
-
-      // Helper function to fetch posts from a specific contract
-      const fetchFromContract = async (contractAddress: string): Promise<Post[]> => {
-        try {
-          const contract = new Contract(contractAddress, POST_MINTING_ABI, provider);
-          const totalSupply = await contract.totalSupply();
-          const totalPosts = Number(totalSupply);
-
-          if (totalPosts === 0) {
-            return [];
-          }
-
-          const posts: Post[] = [];
-          const batchSize = 10;
-          
-          for (let i = 0; i < totalPosts; i += batchSize) {
-            const batch = [];
-            for (let j = i; j < Math.min(i + batchSize, totalPosts); j++) {
-              batch.push(fetchPostData(contract, j, contractAddress));
-            }
-            
-            const results = await Promise.all(batch);
-            const validPosts = results.filter((p): p is Post => p !== null);
-            
-            for (const post of validPosts) {
-              if (post.author.address.toLowerCase() === normalizedOwner) {
-                posts.push(post);
-              }
-            }
-          }
-
-          return posts;
-        } catch (error) {
-          console.error(`Error fetching posts from contract ${contractAddress}:`, error);
-          return [];
-        }
-      };
-
-      // Fetch from current contract
-      if (CONTRACT_ADDRESS) {
-        const currentPosts = await fetchFromContract(CONTRACT_ADDRESS);
-        allPosts.push(...currentPosts);
+      
+      // First, try to get from cache for instant results
+      if (feedCache && (Date.now() - feedCache.timestamp < feedCache.ttl)) {
+        const cachedPosts = feedCache.posts.filter(
+          post => post.author.address.toLowerCase() === normalizedOwner
+        );
+        console.log(`⚡ Instant load: ${cachedPosts.length} posts for ${formatAddress(ownerAddress)} from cache`);
+        return cachedPosts;
       }
-
-      // Small delay between contracts
-      await delay(300);
-
-      // Fetch from legacy contract
-      if (LEGACY_CONTRACT_ADDRESS) {
-        const legacyPosts = await fetchFromContract(LEGACY_CONTRACT_ADDRESS);
-        allPosts.push(...legacyPosts);
-      }
-
-      // Sort by timestamp (newest first)
-      allPosts.sort((a, b) => b.timestamp - a.timestamp);
-
-      console.log(`✅ Loaded ${allPosts.length} posts for user ${formatAddress(ownerAddress)}`);
-      return allPosts;
+      
+      // If no cache, fetch the full feed (this populates the cache)
+      const allPosts = await DataService.getFeed();
+      
+      // Filter for this owner
+      const ownerPosts = allPosts.filter(
+        post => post.author.address.toLowerCase() === normalizedOwner
+      );
+      
+      console.log(`✅ Loaded ${ownerPosts.length} posts for user ${formatAddress(ownerAddress)}`);
+      return ownerPosts;
     } catch (error) {
       console.error('Error fetching posts by owner:', error);
       return [];
