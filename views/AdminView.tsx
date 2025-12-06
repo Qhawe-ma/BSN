@@ -1318,10 +1318,77 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Content * (Markdown supported)</label>
+                
+                <div className="flex items-center gap-2 mb-2 p-2 bg-white/5 rounded-lg border border-white/5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const textarea = document.getElementById('blog-content') as HTMLTextAreaElement;
+                      if (textarea) {
+                        const start = textarea.selectionStart;
+                        const end = textarea.selectionEnd;
+                        const text = blogForm.content;
+                        const selectedText = text.substring(start, end);
+                        const newText = text.substring(0, start) + `**${selectedText || 'bold text'}**` + text.substring(end);
+                        setBlogForm({ ...blogForm, content: newText });
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white font-bold text-sm transition-colors"
+                    title="Bold (select text first)"
+                  >
+                    B
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const textarea = document.getElementById('blog-content') as HTMLTextAreaElement;
+                      if (textarea) {
+                        const start = textarea.selectionStart;
+                        const end = textarea.selectionEnd;
+                        const text = blogForm.content;
+                        const selectedText = text.substring(start, end);
+                        const newText = text.substring(0, start) + `*${selectedText || 'italic text'}*` + text.substring(end);
+                        setBlogForm({ ...blogForm, content: newText });
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white italic text-sm transition-colors"
+                    title="Italic (select text first)"
+                  >
+                    I
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const text = blogForm.content;
+                      const newText = text + '\n\n# ';
+                      setBlogForm({ ...blogForm, content: newText });
+                    }}
+                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors"
+                    title="Heading"
+                  >
+                    H1
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const text = blogForm.content;
+                      const newText = text + '\n\n## ';
+                      setBlogForm({ ...blogForm, content: newText });
+                    }}
+                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors"
+                    title="Subheading"
+                  >
+                    H2
+                  </button>
+                  <div className="flex-1" />
+                  <span className="text-[10px] text-gray-500">**bold** | *italic* | # heading</span>
+                </div>
+                
                 <textarea
+                  id="blog-content"
                   value={blogForm.content}
                   onChange={(e) => setBlogForm({ ...blogForm, content: e.target.value })}
-                  placeholder="Write your blog content here... Markdown is supported."
+                  placeholder="Write your blog content here...&#10;&#10;Use **text** for bold&#10;Use *text* for italic&#10;Use # for headings"
                   rows={12}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 resize-none font-mono text-sm"
                 />
