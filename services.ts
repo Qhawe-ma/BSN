@@ -327,6 +327,10 @@ export const BlockchainService = {
       console.log('Transaction Hash:', receipt.hash);
       console.log('View on BSCScan:', `https://bscscan.com/tx/${receipt.hash}`);
       
+      // Save txHash to Firebase for this post
+      const internalId = `${CONTRACT_ADDRESS.toLowerCase()}_${tokenId}`;
+      await FirebaseService.savePostTxHash(internalId, receipt.hash);
+      
       // Invalidate feed cache so the new post shows up
       DataService.invalidateCache();
       
@@ -463,6 +467,10 @@ export const BlockchainService = {
       console.log('Repost Token ID:', tokenId);
       console.log('Original Post ID:', originalPost.tokenId);
       
+      // Save txHash to Firebase for this repost
+      const internalId = `${CONTRACT_ADDRESS.toLowerCase()}_${tokenId}`;
+      await FirebaseService.savePostTxHash(internalId, receipt.hash);
+      
       DataService.invalidateCache();
       
       return repost;
@@ -548,7 +556,7 @@ const fetchPostData = async (
       commentsCount: stats.comments,
       repostsCount: stats.reposts,
       ipfsHash: cleanHash,
-      txHash: metadata.txHash || '',
+      txHash: stats.txHash || metadata.txHash || '',
       attachmentUrl: metadata.imageUrl,
       isRepost: metadata.isRepost || false,
       originalPostId: metadata.originalPostId,

@@ -512,9 +512,9 @@ export const FirebaseService = {
   },
 
   /**
-   * Get post stats (likes count, comments count, reposts count)
+   * Get post stats (likes count, comments count, reposts count, txHash)
    */
-  getPostStats: async (postId: string): Promise<{ likes: number; comments: number; reposts: number }> => {
+  getPostStats: async (postId: string): Promise<{ likes: number; comments: number; reposts: number; txHash?: string }> => {
     try {
       const statsRef = ref(database, `postStats/${postId}`);
       
@@ -525,7 +525,8 @@ export const FirebaseService = {
             resolve({
               likes: data.likes || 0,
               comments: data.comments || 0,
-              reposts: data.reposts || 0
+              reposts: data.reposts || 0,
+              txHash: data.txHash || undefined
             });
           } else {
             resolve({ likes: 0, comments: 0, reposts: 0 });
@@ -535,6 +536,20 @@ export const FirebaseService = {
     } catch (error) {
       console.error('Error getting post stats:', error);
       return { likes: 0, comments: 0, reposts: 0 };
+    }
+  },
+
+  /**
+   * Save transaction hash for a post
+   */
+  savePostTxHash: async (postId: string, txHash: string): Promise<void> => {
+    try {
+      const statsRef = ref(database, `postStats/${postId}`);
+      const stats = await FirebaseService.getPostStats(postId);
+      await set(statsRef, { ...stats, txHash });
+      console.log('✅ Saved txHash for post:', postId);
+    } catch (error) {
+      console.error('Error saving txHash:', error);
     }
   },
 
