@@ -80,14 +80,29 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
   const handlePostComment = async () => {
     if (!newComment.trim() || !currentUser) return;
     
+    const commentText = newComment.trim();
+    const tempId = `temp_${Date.now()}`;
+    
+    const optimisticComment: Comment = {
+      id: tempId,
+      postId: parseInt(post.tokenId),
+      author: currentUser,
+      content: commentText,
+      timestamp: Date.now()
+    };
+    
+    setComments(prev => [...prev, optimisticComment]);
+    setNewComment("");
+    setCommentsCount(prev => prev + 1);
     setIsPostingComment(true);
+    
     try {
-      const comment = await DataService.postComment(post.tokenId, newComment, currentUser);
-      setComments(prev => [...prev, comment]);
-      setNewComment("");
-      setCommentsCount(prev => prev + 1);
+      const comment = await DataService.postComment(post.tokenId, commentText, currentUser);
+      setComments(prev => prev.map(c => c.id === tempId ? comment : c));
     } catch (error) {
       console.error('Error posting comment:', error);
+      setComments(prev => prev.filter(c => c.id !== tempId));
+      setCommentsCount(prev => Math.max(0, prev - 1));
     } finally {
       setIsPostingComment(false);
     }
