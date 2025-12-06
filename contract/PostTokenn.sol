@@ -4,13 +4,20 @@ pragma solidity ^0.8.20;
 /**
  * @title PostToken
  * @dev BEP-20 compatible token contract for BSC Social Network posts
- * Each token represents a unique post with IPFS metadata
+ * Fully on-chain storage - all post data is stored directly on the blockchain
  */
 contract PostToken {
     string public name = "BSC Social Post";
     string public symbol = "BSCPOST";
     
     uint256 private _tokenIdCounter;
+    
+    struct PostData {
+        string content;
+        string imageUrl;
+        uint256 timestamp;
+        address author;
+    }
     
     // Token ID => Owner address
     mapping(uint256 => address) private _owners;
@@ -24,18 +31,34 @@ contract PostToken {
     // Token ID => Owner index
     mapping(uint256 => uint256) private _ownedTokensIndex;
     
-    // Token ID => Metadata URI (IPFS hash)
+    // Token ID => Metadata URI (IPFS hash) - kept for backwards compatibility
     mapping(uint256 => string) private _tokenURIs;
     
-    event PostMinted(address indexed author, uint256 indexed tokenId, string metadataURI);
+    // Token ID => Full Post Data (stored on-chain)
+    mapping(uint256 => PostData) private _postData;
+    
+    event PostMinted(
+        address indexed author, 
+        uint256 indexed tokenId, 
+        string metadataURI,
+        string content,
+        string imageUrl,
+        uint256 timestamp
+    );
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
     
     /**
-     * @dev Mint a new post token
-     * @param metadataURI IPFS URI containing post metadata
+     * @dev Mint a new post token with full on-chain data
+     * @param metadataURI IPFS URI containing post metadata (for compatibility)
+     * @param content The actual post content text
+     * @param imageUrl The image URL (IPFS or other)
      * @return tokenId The ID of the newly minted token
      */
-    function mint(string memory metadataURI) public returns (uint256) {
+    function mintWithData(
+        string memory metadataURI,
+        string memory content,
+        string memory imageUrl
+    ) public returns (uint256) {
         uint256 tokenId = _tokenIdCounter;
         _tokenIdCounter++;
         
@@ -48,10 +71,66 @@ contract PostToken {
         
         _tokenURIs[tokenId] = metadataURI;
         
-        emit PostMinted(msg.sender, tokenId, metadataURI);
+        // Store full post data on-chain
+        _postData[tokenId] = PostData({
+            content: content,
+            imageUrl: imageUrl,
+            timestamp: block.timestamp,
+            author: msg.sender
+        });
+        
+        emit PostMinted(msg.sender, tokenId, metadataURI, content, imageUrl, block.timestamp);
         emit Transfer(address(0), msg.sender, tokenId);
         
         return tokenId;
+    }
+    
+    /**
+     * @dev Legacy mint function for backwards compatibility
+     * @param metadataURI IPFS URI containing post metadata
+     * @return tokenId The ID of the newly minted token
+     */
+    function mint(string memory metadataURI) public returns (uint256) {
+        return mintWithData(metadataURI, "", "");
+    }
+    
+    /**
+     * @dev Get the full post data stored on-chain
+     * @param tokenId The token ID
+     * @return content The post text content
+     * @return imageUrl The image URL
+     * @return timestamp When the post was created
+     * @return author The post author address
+     */
+    function getPostData(uint256 tokenId) public view returns (
+        string memory content,
+        string memory imageUrl,
+        uint256 timestamp,
+        address author
+    ) {
+        require(_owners[tokenId] != address(0), "Token does not exist");
+        PostData memory post = _postData[tokenId];
+        return (post.content, post.imageUrl, post.timestamp, post.author);
+    }
+    
+    /**
+     * @dev Get just the post content
+     * @param tokenId The token ID
+     * @return The post content text
+     */
+    function getContent(uint256 tokenId) public view returns (string memory) {
+        require(_owners[tokenId] != address(0), "Token does not exist");
+        return _postData[tokenId].content;
+    }
+    
+    /**
+     * @dev Get just the image URL
+     * @param tokenId The token ID
+     * @return The image URL
+     */
+    function getImageUrl(uint256 tokenId) public view returns (string memory) {
+        require(_owners[tokenId] != address(0), "Token does not exist");
+        return _postData[tokenId].imageUrl;
     }
     
     /**

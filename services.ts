@@ -239,9 +239,13 @@ export const BlockchainService = {
       const signer = await provider.getSigner();
       const contract = new Contract(CONTRACT_ADDRESS, POST_MINTING_ABI, signer);
 
-      console.log('⛏️ Minting post NFT on blockchain...');
+      console.log('⛏️ Minting post NFT on blockchain with FULL ON-CHAIN DATA...');
       console.log('📦 IPFS Hash:', ipfsHash);
-      const tx = await contract.mint(ipfsHash);
+      console.log('📝 Content:', content);
+      console.log('🖼️ Image URL:', attachmentUrl || '(none)');
+      
+      // Use mintWithData to store content and image URL directly on-chain
+      const tx = await contract.mintWithData(ipfsHash, content, attachmentUrl || '');
       console.log('📡 Transaction sent:', tx.hash);
       console.log('⏳ Waiting for confirmation...');
       
