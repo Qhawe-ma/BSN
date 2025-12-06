@@ -7,8 +7,8 @@ pragma solidity ^0.8.20;
  * Fully on-chain storage - all post data is stored directly on the blockchain
  */
 contract PostToken {
-    string public name = "BSC Social Post";
-    string public symbol = "BSCPOST";
+    string public name = "BSN Post Token";
+    string public symbol = "BSNPOST";
     
     uint256 private _tokenIdCounter;
     
