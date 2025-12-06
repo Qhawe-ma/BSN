@@ -499,12 +499,8 @@ export const FirebaseService = {
     try {
       const normalizedAddress = userAddress.toLowerCase();
       const likeRef = ref(database, `likes/${postId}/${normalizedAddress}`);
-      
-      return new Promise((resolve) => {
-        onValue(likeRef, (snapshot) => {
-          resolve(snapshot.exists());
-        }, { onlyOnce: true });
-      });
+      const snapshot = await get(likeRef);
+      return snapshot.exists();
     } catch (error) {
       console.error('Error checking like status:', error);
       return false;
@@ -517,22 +513,17 @@ export const FirebaseService = {
   getPostStats: async (postId: string): Promise<{ likes: number; comments: number; reposts: number; txHash?: string }> => {
     try {
       const statsRef = ref(database, `postStats/${postId}`);
-      
-      return new Promise((resolve) => {
-        onValue(statsRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.val();
-            resolve({
-              likes: data.likes || 0,
-              comments: data.comments || 0,
-              reposts: data.reposts || 0,
-              txHash: data.txHash || undefined
-            });
-          } else {
-            resolve({ likes: 0, comments: 0, reposts: 0 });
-          }
-        }, { onlyOnce: true });
-      });
+      const snapshot = await get(statsRef);
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        return {
+          likes: data.likes || 0,
+          comments: data.comments || 0,
+          reposts: data.reposts || 0,
+          txHash: data.txHash || undefined
+        };
+      }
+      return { likes: 0, comments: 0, reposts: 0 };
     } catch (error) {
       console.error('Error getting post stats:', error);
       return { likes: 0, comments: 0, reposts: 0 };

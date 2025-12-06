@@ -45,7 +45,11 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
       setError(null);
       
       try {
-        const posts = await DataService.getFeed(true);
+        // Try cached feed first for instant load, fall back to fresh fetch
+        let posts = DataService.getCachedFeed();
+        if (!posts) {
+          posts = await DataService.getFeed(false);
+        }
         const foundPost = posts.find(p => p.tokenId === postId);
         
         if (foundPost) {
@@ -80,12 +84,22 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
   const handleLike = async () => {
     if (!currentUser || !post || isLiking) return;
     
+    // Optimistic update - instant UI response
+    const wasLiked = isLiked;
+    const prevCount = likesCount;
+    setIsLiked(!wasLiked);
+    setLikesCount(wasLiked ? prevCount - 1 : prevCount + 1);
+    
     setIsLiking(true);
     try {
       const result = await DataService.toggleLike(post.tokenId, currentUser.address);
+      // Sync with actual server state
       setIsLiked(result.liked);
       setLikesCount(result.likes);
     } catch (error) {
+      // Revert on error
+      setIsLiked(wasLiked);
+      setLikesCount(prevCount);
       console.error('Error toggling like:', error);
     } finally {
       setIsLiking(false);

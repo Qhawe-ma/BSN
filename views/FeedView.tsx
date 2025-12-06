@@ -44,12 +44,22 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
   const handleLike = async () => {
     if (!currentUser || isLiking) return;
     
+    // Optimistic update - instant UI response
+    const wasLiked = isLiked;
+    const prevCount = likesCount;
+    setIsLiked(!wasLiked);
+    setLikesCount(wasLiked ? prevCount - 1 : prevCount + 1);
+    
     setIsLiking(true);
     try {
       const result = await DataService.toggleLike(post.tokenId, currentUser.address);
+      // Sync with actual server state
       setIsLiked(result.liked);
       setLikesCount(result.likes);
     } catch (error) {
+      // Revert on error
+      setIsLiked(wasLiked);
+      setLikesCount(prevCount);
       console.error('Error toggling like:', error);
     } finally {
       setIsLiking(false);
