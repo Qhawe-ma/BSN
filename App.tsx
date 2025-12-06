@@ -3,7 +3,7 @@ import { Home, MessageCircle, PlusSquare, User as UserIcon, BarChart2, LogOut, W
 import { User, ViewState } from './types';
 import { BlockchainService } from './services';
 import { FirebaseService } from './firebaseService';
-import { Button, GlassCard } from './components/UIComponents';
+import { Button, GlassCard, Avatar } from './components/UIComponents';
 
 // Views
 import { FeedView } from './views/FeedView';
@@ -715,7 +715,7 @@ const App: React.FC = () => {
             
             <div className="p-6 flex-1 flex flex-col overflow-y-auto">
                 <div className="flex gap-4 mb-4">
-                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-700 to-gray-900 border border-white/10 shrink-0" />
+                   <Avatar url={user?.avatarUrl || ''} size="md" address={user?.address} />
                    <textarea 
                       className="w-full bg-transparent border-none text-white resize-none focus:ring-0 text-lg placeholder-gray-600 min-h-[120px]"
                       placeholder="What's happening on-chain?"
