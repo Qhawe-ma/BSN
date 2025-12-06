@@ -244,6 +244,28 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     }
   };
 
+  // Long press handler for mobile
+  const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const handleMessageLongPressStart = (messageId: string) => {
+    longPressTimeoutRef.current = setTimeout(() => {
+      setDeletingMessageId(messageId);
+    }, 500);
+  };
+  
+  const handleMessageLongPressEnd = () => {
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+      longPressTimeoutRef.current = null;
+    }
+  };
+
+  // Right-click handler for desktop
+  const handleMessageContextMenu = (e: React.MouseEvent, messageId: string) => {
+    e.preventDefault();
+    setDeletingMessageId(messageId);
+  };
+
   // Logic for View Toggle
   const showList = isMobileView ? !activeSessionId : isSidebarOpen;
   const showChat = isMobileView ? activeSessionId : true;
@@ -425,7 +447,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
               {/* Messages Area */}
               <div 
                 ref={scrollContainerRef}
-                className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 scroll-smooth custom-scrollbar relative"
+                className="flex-1 overflow-y-auto p-4 md:p-6 space-y-1 scroll-smooth custom-scrollbar relative"
               >
                 {/* Fade mask at top for smooth feel */}
                 <div className="fixed top-[4.5rem] left-0 right-0 h-8 bg-gradient-to-b from-black/20 to-transparent pointer-events-none z-10" />
@@ -463,45 +485,41 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                              </div>
                         )}
                         
-                        <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} group animate-fade-in`}>
-                          <div className={`flex ${isMe ? 'flex-row-reverse' : 'flex-row'} items-center gap-2`}>
-                            <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%] md:max-w-[65%]`}>
-                              
-                              <div className={`
-                                px-5 py-3 text-[15px] leading-relaxed shadow-sm transition-all relative
-                                ${isMe 
-                                    ? `bg-primary text-black rounded-2xl rounded-tr-sm ${!isLastInSequence ? 'mb-1' : ''}` 
-                                    : `bg-[#1E2025] text-gray-100 border border-white/5 rounded-2xl rounded-tl-sm ${!isLastInSequence ? 'mb-1' : ''}`
-                                }
-                              `}>
-                                {msg.content}
-                              </div>
-                              
-                              {isLastInSequence && (
-                                <div className="flex items-center gap-1.5 mt-1 px-1">
-                                  <span className="text-[10px] text-gray-500 font-mono">
-                                    {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                  </span>
-                                  {isMe && (
-                                    <span className="flex items-center">
-                                      {msg.isRead ? (
-                                        <CheckCheck size={14} className="text-blue-400" />
-                                      ) : (
-                                        <Check size={14} className="text-gray-500" />
-                                      )}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+                        <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in ${!isSequence ? 'mt-3' : 'mt-1'}`}>
+                          <div 
+                            className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%] md:max-w-[60%] cursor-pointer select-none`}
+                            onContextMenu={(e) => handleMessageContextMenu(e, msg.id)}
+                            onTouchStart={() => handleMessageLongPressStart(msg.id)}
+                            onTouchEnd={handleMessageLongPressEnd}
+                            onTouchCancel={handleMessageLongPressEnd}
+                          >
+                            
+                            <div className={`
+                              px-4 py-2.5 text-[15px] leading-relaxed shadow-sm transition-all relative
+                              ${isMe 
+                                  ? `bg-primary text-black rounded-2xl ${isSequence ? 'rounded-tr-md' : 'rounded-tr-sm'}` 
+                                  : `bg-[#1E2025] text-gray-100 border border-white/5 rounded-2xl ${isSequence ? 'rounded-tl-md' : 'rounded-tl-sm'}`
+                              }
+                            `}>
+                              {msg.content}
                             </div>
-                            {/* Delete message button - shows on hover */}
-                            <button
-                              onClick={() => setDeletingMessageId(msg.id)}
-                              className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/20 rounded-lg text-gray-500 hover:text-red-400 transition-all"
-                              title="Delete message"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                            
+                            {isLastInSequence && (
+                              <div className="flex items-center gap-1.5 mt-1.5 px-1">
+                                <span className="text-[10px] text-gray-500 font-mono">
+                                  {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                </span>
+                                {isMe && (
+                                  <span className="flex items-center">
+                                    {msg.isRead ? (
+                                      <CheckCheck size={14} className="text-blue-400" />
+                                    ) : (
+                                      <Check size={14} className="text-gray-500" />
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                     </React.Fragment>
@@ -685,30 +703,33 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
 
       {/* Delete Message Confirmation Modal */}
       {deletingMessageId && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-          <div className="bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
-                <Trash2 size={24} className="text-red-400" />
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setDeletingMessageId(null)}
+        >
+          <div 
+            className="bg-[#1a1a1f] border border-white/10 rounded-xl p-4 max-w-[280px] w-full shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="w-8 h-8 bg-red-500/10 rounded-lg flex items-center justify-center">
+                <Trash2 size={16} className="text-red-400" />
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">Delete Message?</h3>
-                <p className="text-sm text-gray-400">This cannot be undone</p>
-              </div>
+              <h3 className="text-sm font-semibold text-white">Delete for you?</h3>
             </div>
-            <p className="text-gray-400 text-sm mb-6">
-              This message will be permanently deleted from the conversation.
+            <p className="text-gray-500 text-xs mb-4 leading-relaxed">
+              This message will only be removed from your view.
             </p>
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 onClick={() => setDeletingMessageId(null)}
-                className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition-colors font-medium"
+                className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-300 transition-colors text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDeleteMessage(deletingMessageId)}
-                className="flex-1 px-4 py-3 rounded-xl bg-red-500 text-white font-bold transition-all hover:bg-red-600"
+                className="flex-1 px-3 py-2 rounded-lg bg-red-500/90 text-white text-sm font-medium transition-all hover:bg-red-500"
               >
                 Delete
               </button>
