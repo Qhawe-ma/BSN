@@ -12,6 +12,11 @@ export default defineConfig(({ mode }) => {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
     
+    const commentsDir = path.resolve(__dirname, 'uploads', 'comments');
+    if (!fs.existsSync(commentsDir)) {
+      fs.mkdirSync(commentsDir, { recursive: true });
+    }
+    
     return {
       publicDir: 'public',
       server: {
@@ -124,6 +129,88 @@ export default defineConfig(({ mode }) => {
                   res.statusCode = 500;
                   res.setHeader('Content-Type', 'application/json');
                   res.end(JSON.stringify({ error: 'Upload failed' }));
+                }
+              });
+            }) as Connect.NextHandleFunction);
+
+            server.middlewares.use('/api/upload/comment-image', ((req, res) => {
+              if (req.method !== 'POST') {
+                res.statusCode = 405;
+                res.end('Method not allowed');
+                return;
+              }
+
+              const boundary = req.headers['content-type']?.split('boundary=')[1];
+              if (!boundary) {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'No boundary found', success: false }));
+                return;
+              }
+
+              const chunks: Buffer[] = [];
+              req.on('data', (chunk: Buffer) => chunks.push(chunk));
+              req.on('end', () => {
+                try {
+                  const buffer = Buffer.concat(chunks);
+                  const boundaryBuffer = Buffer.from(`--${boundary}`);
+                  
+                  const parts = [];
+                  let start = 0;
+                  let idx;
+                  
+                  while ((idx = buffer.indexOf(boundaryBuffer, start)) !== -1) {
+                    if (start > 0) {
+                      parts.push(buffer.slice(start, idx - 2));
+                    }
+                    start = idx + boundaryBuffer.length + 2;
+                  }
+                  
+                  for (const part of parts) {
+                    const headerEnd = part.indexOf('\r\n\r\n');
+                    if (headerEnd === -1) continue;
+                    
+                    const headers = part.slice(0, headerEnd).toString();
+                    const filenameMatch = headers.match(/filename="([^"]+)"/);
+                    
+                    if (filenameMatch) {
+                      const originalFilename = filenameMatch[1];
+                      const ext = path.extname(originalFilename).toLowerCase();
+                      const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+                      
+                      if (!allowedExts.includes(ext)) {
+                        res.statusCode = 400;
+                        res.setHeader('Content-Type', 'application/json');
+                        res.end(JSON.stringify({ error: 'Invalid file type', success: false }));
+                        return;
+                      }
+                      
+                      const fileContent = part.slice(headerEnd + 4);
+                      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                      const filename = `comment-${uniqueSuffix}${ext}`;
+                      const filePath = path.join(commentsDir, filename);
+                      
+                      fs.writeFileSync(filePath, fileContent);
+                      
+                      const protocol = req.headers['x-forwarded-proto'] || 'https';
+                      const host = req.headers['x-forwarded-host'] || req.headers.host;
+                      const imageUrl = `${protocol}://${host}/uploads/comments/${filename}`;
+                      
+                      res.statusCode = 200;
+                      res.setHeader('Content-Type', 'application/json');
+                      res.end(JSON.stringify({ success: true, imageUrl, filename }));
+                      return;
+                    }
+                  }
+                  
+                  res.statusCode = 400;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: 'No file found in request', success: false }));
+                } catch (error) {
+                  console.error('Comment image upload error:', error);
+                  res.statusCode = 500;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: 'Upload failed', success: false }));
                 }
               });
             }) as Connect.NextHandleFunction);
