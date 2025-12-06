@@ -58,13 +58,13 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
           setCommentsCount(foundPost.commentsCount);
           setRepostsCount(foundPost.repostsCount || 0);
           
-          const fetchedComments = await DataService.getComments(foundPost.tokenId);
+          const fetchedComments = await DataService.getComments(foundPost.internalId);
           setComments(fetchedComments);
           
           if (currentUser) {
-            const liked = await DataService.isPostLiked(foundPost.tokenId, currentUser.address);
+            const liked = await DataService.isPostLiked(foundPost.internalId, currentUser.address);
             setIsLiked(liked);
-            const reposted = await FirebaseService.hasReposted(foundPost.tokenId, currentUser.address);
+            const reposted = await FirebaseService.hasReposted(foundPost.internalId, currentUser.address);
             setHasReposted(reposted);
           }
         } else {
@@ -92,7 +92,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
     
     setIsLiking(true);
     try {
-      const result = await DataService.toggleLike(post.tokenId, currentUser.address);
+      const result = await DataService.toggleLike(post.internalId, currentUser.address);
       // Sync with actual server state
       setIsLiked(result.liked);
       setLikesCount(result.likes);
@@ -109,14 +109,29 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
   const handlePostComment = async () => {
     if (!newComment.trim() || !currentUser || !post) return;
     
+    const commentText = newComment.trim();
+    const tempId = `temp_${Date.now()}`;
+    
+    const optimisticComment: Comment = {
+      id: tempId,
+      postId: parseInt(post.tokenId),
+      author: currentUser,
+      content: commentText,
+      timestamp: Date.now()
+    };
+    
+    setComments(prev => [...prev, optimisticComment]);
+    setNewComment("");
+    setCommentsCount(prev => prev + 1);
     setIsPostingComment(true);
+    
     try {
-      const comment = await DataService.postComment(post.tokenId, newComment, currentUser);
-      setComments(prev => [...prev, comment]);
-      setNewComment("");
-      setCommentsCount(prev => prev + 1);
+      const comment = await DataService.postComment(post.internalId, commentText, currentUser);
+      setComments(prev => prev.map(c => c.id === tempId ? comment : c));
     } catch (error) {
       console.error('Error posting comment:', error);
+      setComments(prev => prev.filter(c => c.id !== tempId));
+      setCommentsCount(prev => Math.max(0, prev - 1));
     } finally {
       setIsPostingComment(false);
     }

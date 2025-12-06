@@ -333,9 +333,11 @@ export const BlockchainService = {
       }
 
       // Step 4: Create post object with real blockchain data
+      const internalId = `${CONTRACT_ADDRESS.toLowerCase()}_${tokenId}`;
       const post: Post = {
         id: Date.now(),
         tokenId,
+        internalId,
         author: CURRENT_USER,
         content,
         timestamp: metadata.timestamp,
@@ -344,16 +346,14 @@ export const BlockchainService = {
         repostsCount: 0,
         ipfsHash,
         txHash: receipt.hash,
-        attachmentUrl
+        attachmentUrl,
+        contractAddress: CONTRACT_ADDRESS
       };
 
       console.log('🎉 Post minted successfully!');
       console.log('Token ID:', tokenId);
       console.log('Transaction Hash:', receipt.hash);
       console.log('View on BSCScan:', `https://bscscan.com/tx/${receipt.hash}`);
-      
-      // Save txHash to Firebase for this post
-      const internalId = `${CONTRACT_ADDRESS.toLowerCase()}_${tokenId}`;
       await FirebaseService.savePostTxHash(internalId, receipt.hash);
       
       // Invalidate feed cache so the new post shows up
@@ -468,12 +468,14 @@ export const BlockchainService = {
       }
 
       // Record the repost in Firebase
-      await FirebaseService.recordRepost(originalPost.tokenId, CURRENT_USER.address, tokenId);
+      await FirebaseService.recordRepost(originalPost.internalId, CURRENT_USER.address, tokenId);
 
       // Create the repost object
+      const internalId = `${CONTRACT_ADDRESS.toLowerCase()}_${tokenId}`;
       const repost: Post = {
         id: Date.now(),
         tokenId,
+        internalId,
         author: CURRENT_USER,
         content: originalPost.content,
         timestamp: metadata.timestamp,
@@ -485,15 +487,13 @@ export const BlockchainService = {
         attachmentUrl: originalPost.attachmentUrl,
         isRepost: true,
         originalPostId: originalPost.tokenId,
-        originalAuthor: originalPost.author
+        originalAuthor: originalPost.author,
+        contractAddress: CONTRACT_ADDRESS
       };
 
       console.log('🎉 Repost minted successfully!');
       console.log('Repost Token ID:', tokenId);
       console.log('Original Post ID:', originalPost.tokenId);
-      
-      // Save txHash to Firebase for this repost
-      const internalId = `${CONTRACT_ADDRESS.toLowerCase()}_${tokenId}`;
       await FirebaseService.savePostTxHash(internalId, receipt.hash);
       
       DataService.invalidateCache();
@@ -574,6 +574,7 @@ const fetchPostData = async (
     return {
       id: tokenId,
       tokenId: tokenId.toString(),
+      internalId: internalId,
       author: finalAuthor,
       content: metadata.content || '',
       timestamp: metadata.timestamp || Date.now(),

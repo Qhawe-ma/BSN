@@ -37,10 +37,10 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
   // Check if current user has liked this post and has reposted
   useEffect(() => {
     if (currentUser) {
-      DataService.isPostLiked(post.tokenId, currentUser.address).then(setIsLiked);
-      FirebaseService.hasReposted(post.tokenId, currentUser.address).then(setHasReposted);
+      DataService.isPostLiked(post.internalId, currentUser.address).then(setIsLiked);
+      FirebaseService.hasReposted(post.internalId, currentUser.address).then(setHasReposted);
     }
-  }, [currentUser, post.tokenId]);
+  }, [currentUser, post.internalId]);
 
   const handleLike = async () => {
     if (!currentUser || isLiking) return;
@@ -53,7 +53,7 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
     
     setIsLiking(true);
     try {
-      const result = await DataService.toggleLike(post.tokenId, currentUser.address);
+      const result = await DataService.toggleLike(post.internalId, currentUser.address);
       // Sync with actual server state
       setIsLiked(result.liked);
       setLikesCount(result.likes);
@@ -70,7 +70,7 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
   const toggleComments = async () => {
     if (!showComments && comments.length === 0) {
       setIsLoadingComments(true);
-      const fetched = await DataService.getComments(post.tokenId);
+      const fetched = await DataService.getComments(post.internalId);
       setComments(fetched);
       setIsLoadingComments(false);
     }
@@ -97,7 +97,7 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
     setIsPostingComment(true);
     
     try {
-      const comment = await DataService.postComment(post.tokenId, commentText, currentUser);
+      const comment = await DataService.postComment(post.internalId, commentText, currentUser);
       setComments(prev => prev.map(c => c.id === tempId ? comment : c));
     } catch (error) {
       console.error('Error posting comment:', error);

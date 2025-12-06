@@ -31,6 +31,7 @@ export interface User {
 export interface Post {
   id: number;
   tokenId: string;
+  internalId: string; // Unique ID for stats tracking: contractAddress_tokenId
   author: User;
   content: string;
   timestamp: number;
