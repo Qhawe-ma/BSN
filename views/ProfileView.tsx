@@ -330,7 +330,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
                     <img 
                       src={post.attachmentUrl} 
                       alt="Post attachment" 
-                      className="rounded-xl max-h-64 object-cover mb-3"
+                      className="rounded-xl w-full h-auto object-contain mb-3"
                     />
                   )}
                   <div className="flex items-center gap-4 text-gray-500 text-xs">

@@ -289,7 +289,7 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
 
             {post.attachmentUrl && (
               <div className="mb-4 rounded-2xl overflow-hidden border border-white/5 shadow-lg hover:border-white/10 transition-colors">
-                <img src={post.attachmentUrl} alt="Attachment" className="w-full h-auto max-h-80 md:max-h-96 object-cover" />
+                <img src={post.attachmentUrl} alt="Attachment" className="w-full h-auto object-contain" />
               </div>
             )}
           </div>

@@ -273,7 +273,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
 
             {post.attachmentUrl && (
               <div className="mb-4 rounded-2xl overflow-hidden border border-white/5 shadow-lg">
-                <img src={post.attachmentUrl} alt="Attachment" className="w-full h-auto max-h-80 md:max-h-96 object-cover" />
+                <img src={post.attachmentUrl} alt="Attachment" className="w-full h-auto object-contain" />
               </div>
             )}
 
