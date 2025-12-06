@@ -872,11 +872,11 @@ export const DataService = {
     return await FirebaseService.getComments(postId);
   },
 
-  postComment: async (postId: string, content: string, author: User): Promise<Comment> => {
+  postComment: async (postId: string, content: string, author: User, imageUrl?: string): Promise<Comment> => {
     if (!author) {
       throw new Error('Please connect your wallet first');
     }
-    return await FirebaseService.postComment(postId, content, author);
+    return await FirebaseService.postComment(postId, content, author, imageUrl);
   },
 
   getChats: async (): Promise<ChatSession[]> => {

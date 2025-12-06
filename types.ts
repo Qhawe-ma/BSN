@@ -54,6 +54,7 @@ export interface Comment {
   author: User;
   content: string;
   timestamp: number;
+  imageUrl?: string;
 }
 
 export interface Message {

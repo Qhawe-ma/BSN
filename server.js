@@ -15,6 +15,11 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+const commentImagesDir = path.join(__dirname, 'uploads', 'comments');
+if (!fs.existsSync(commentImagesDir)) {
+  fs.mkdirSync(commentImagesDir, { recursive: true });
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadsDir);
@@ -24,6 +29,17 @@ const storage = multer.diskStorage({
     const ext = path.extname(file.originalname).toLowerCase();
     const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
     cb(null, `avatar-${uniqueSuffix}${ext}`);
+  }
+});
+
+const commentImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, commentImagesDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `comment-${uniqueSuffix}${ext}`);
   }
 });
 
@@ -38,6 +54,14 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({
   storage,
+  fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024
+  }
+});
+
+const commentImageUpload = multer({
+  storage: commentImageStorage,
   fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024
@@ -68,6 +92,27 @@ app.post('/api/upload/avatar', upload.single('avatar'), (req, res) => {
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ error: 'Failed to upload file' });
+  }
+});
+
+app.post('/api/upload/comment-image', commentImageUpload.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const imageUrl = `${protocol}://${host}/uploads/comments/${req.file.filename}`;
+    
+    res.json({ 
+      success: true, 
+      imageUrl,
+      filename: req.file.filename
+    });
+  } catch (error) {
+    console.error('Comment image upload error:', error);
+    res.status(500).json({ error: 'Failed to upload image' });
   }
 });
 

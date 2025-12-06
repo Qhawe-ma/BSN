@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, memo, useCallback } from 'react';
-import { MessageSquare, Heart, Share2, Repeat, MoreHorizontal, ShieldCheck, Send, Loader, X, Check, Flag, AlertTriangle } from 'lucide-react';
+import { MessageSquare, Heart, Share2, Repeat, MoreHorizontal, ShieldCheck, Send, Loader, X, Check, Flag, AlertTriangle, ImagePlus } from 'lucide-react';
 import { Post, Comment, User } from '../types';
 import { DataService, BlockchainService, FeedEvents, formatAddress, generateAvatar, getStreamState } from '../services';
 import { GlassCard, Button, Avatar, Badge } from '../components/UIComponents';
@@ -25,6 +25,9 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
   // Comment Input State
   const [newComment, setNewComment] = useState("");
   const [isPostingComment, setIsPostingComment] = useState(false);
+  const [commentImage, setCommentImage] = useState<File | null>(null);
+  const [commentImagePreview, setCommentImagePreview] = useState<string | null>(null);
+  const commentImageInputRef = useRef<HTMLInputElement>(null);
   
   // Menu and Report State
   const [showMenu, setShowMenu] = useState(false);
@@ -41,6 +44,25 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
       FirebaseService.hasReposted(post.internalId, currentUser.address).then(setHasReposted);
     }
   }, [currentUser, post.internalId]);
+
+  // Real-time subscription to post stats
+  useEffect(() => {
+    const unsubscribe = FirebaseService.subscribeToPostStats(post.internalId, (stats) => {
+      setLikesCount(stats.likes);
+      setCommentsCount(stats.comments);
+      setRepostsCount(stats.reposts);
+    });
+    return () => unsubscribe();
+  }, [post.internalId]);
+
+  // Real-time subscription to comments when comments section is open
+  useEffect(() => {
+    if (!showComments) return;
+    const unsubscribe = FirebaseService.subscribeToComments(post.internalId, (updatedComments) => {
+      setComments(updatedComments);
+    });
+    return () => unsubscribe();
+  }, [post.internalId, showComments]);
 
   const handleLike = async () => {
     if (!currentUser || isLiking) return;
@@ -77,8 +99,28 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
     setShowComments(!showComments);
   };
 
+  const handleCommentImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image must be less than 5MB');
+        return;
+      }
+      setCommentImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setCommentImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearCommentImage = () => {
+    setCommentImage(null);
+    setCommentImagePreview(null);
+    if (commentImageInputRef.current) commentImageInputRef.current.value = '';
+  };
+
   const handlePostComment = async () => {
-    if (!newComment.trim() || !currentUser) return;
+    if ((!newComment.trim() && !commentImage) || !currentUser) return;
     
     const commentText = newComment.trim();
     const tempId = `temp_${Date.now()}`;
@@ -88,16 +130,27 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
       postId: parseInt(post.tokenId),
       author: currentUser,
       content: commentText,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      imageUrl: commentImagePreview || undefined
     };
     
     setComments(prev => [...prev, optimisticComment]);
     setNewComment("");
+    const savedImage = commentImage;
+    clearCommentImage();
     setCommentsCount(prev => prev + 1);
     setIsPostingComment(true);
     
     try {
-      const comment = await DataService.postComment(post.internalId, commentText, currentUser);
+      let imageUrl: string | undefined;
+      if (savedImage) {
+        const formData = new FormData();
+        formData.append('image', savedImage);
+        const response = await fetch('/api/upload/comment-image', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (data.success) imageUrl = data.imageUrl;
+      }
+      const comment = await DataService.postComment(post.internalId, commentText, currentUser, imageUrl);
       setComments(prev => prev.map(c => c.id === tempId ? comment : c));
     } catch (error) {
       console.error('Error posting comment:', error);
@@ -588,33 +641,52 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
                          </div>
                          <span className="text-[10px] text-gray-600">{timeAgo(comment.timestamp)}</span>
                       </div>
-                      <p className="text-sm text-gray-400">{comment.content}</p>
+                      {comment.content && <p className="text-sm text-gray-400">{comment.content}</p>}
+                      {comment.imageUrl && (
+                        <div className="mt-2 rounded-xl overflow-hidden border border-white/5 max-w-xs">
+                          <LazyImage src={comment.imageUrl} alt="Comment attachment" className="w-full h-auto" />
+                        </div>
+                      )}
                   </div>
                 </div>
               ))}
               
               {/* Comment Input */}
               {currentUser ? (
-                  <div className="flex gap-3 pt-4 items-center">
-                     <Avatar url={currentUser.avatarUrl} size="sm" address={currentUser.address} />
-                     <div className="relative flex-1 group">
-                       <input 
-                          type="text" 
-                          value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handlePostComment()}
-                          disabled={isPostingComment}
-                          placeholder="Write your reply..." 
-                          className="w-full bg-white/5 border border-white/10 rounded-full pl-4 pr-12 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 transition-all"
-                       />
-                       <button 
-                         onClick={handlePostComment}
-                         disabled={!newComment.trim() || isPostingComment}
-                         className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-black rounded-full hover:shadow-lg hover:shadow-primary/20 disabled:opacity-0 disabled:pointer-events-none transition-all"
-                       >
-                          {isPostingComment ? <Loader size={14} className="animate-spin" /> : <Send size={14} />}
-                       </button>
-                     </div>
+                  <div className="pt-4">
+                    {commentImagePreview && (
+                      <div className="mb-3 relative inline-block">
+                        <img src={commentImagePreview} alt="Preview" className="max-h-32 rounded-xl border border-white/10" />
+                        <button onClick={clearCommentImage} className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex gap-3 items-center">
+                       <Avatar url={currentUser.avatarUrl} size="sm" address={currentUser.address} />
+                       <div className="relative flex-1 group flex items-center gap-2">
+                         <input type="file" ref={commentImageInputRef} onChange={handleCommentImageSelect} accept="image/*" className="hidden" />
+                         <button onClick={() => commentImageInputRef.current?.click()} className="p-2 text-gray-400 hover:text-primary hover:bg-white/5 rounded-full transition-all" title="Add image">
+                           <ImagePlus size={18} />
+                         </button>
+                         <input 
+                            type="text" 
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handlePostComment()}
+                            disabled={isPostingComment}
+                            placeholder="Write your reply..." 
+                            className="flex-1 bg-white/5 border border-white/10 rounded-full pl-4 pr-12 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 transition-all"
+                         />
+                         <button 
+                           onClick={handlePostComment}
+                           disabled={(!newComment.trim() && !commentImage) || isPostingComment}
+                           className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-black rounded-full hover:shadow-lg hover:shadow-primary/20 disabled:opacity-0 disabled:pointer-events-none transition-all"
+                         >
+                            {isPostingComment ? <Loader size={14} className="animate-spin" /> : <Send size={14} />}
+                         </button>
+                       </div>
+                    </div>
                   </div>
               ) : (
                   <div className="pt-4 text-center">

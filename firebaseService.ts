@@ -646,7 +646,7 @@ export const FirebaseService = {
   /**
    * Post a comment
    */
-  postComment: async (postId: string, content: string, author: User): Promise<Comment> => {
+  postComment: async (postId: string, content: string, author: User, imageUrl?: string): Promise<Comment> => {
     try {
       const commentsRef = ref(database, `comments/${postId}`);
       const newCommentRef = push(commentsRef);
@@ -656,7 +656,8 @@ export const FirebaseService = {
         postId: parseInt(postId),
         author,
         content,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        ...(imageUrl && { imageUrl })
       };
 
       await set(newCommentRef, comment);
@@ -1345,5 +1346,54 @@ export const FirebaseService = {
       console.error('Error fetching users with badges:', error);
       return [];
     }
+  },
+
+  // ============ REAL-TIME SUBSCRIPTIONS ============
+
+  /**
+   * Subscribe to real-time post stats updates (likes, comments, reposts)
+   */
+  subscribeToPostStats: (
+    postId: string,
+    callback: (stats: { likes: number; comments: number; reposts: number; txHash?: string }) => void
+  ): (() => void) => {
+    const statsRef = ref(database, `postStats/${postId}`);
+    
+    const unsubscribe = onValue(statsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        callback({
+          likes: data.likes || 0,
+          comments: data.comments || 0,
+          reposts: data.reposts || 0,
+          txHash: data.txHash || undefined
+        });
+      } else {
+        callback({ likes: 0, comments: 0, reposts: 0 });
+      }
+    });
+
+    return () => off(statsRef);
+  },
+
+  /**
+   * Subscribe to real-time comments updates for a post
+   */
+  subscribeToComments: (
+    postId: string,
+    callback: (comments: Comment[]) => void
+  ): (() => void) => {
+    const commentsRef = ref(database, `comments/${postId}`);
+    const commentsQuery = query(commentsRef, orderByChild('timestamp'));
+
+    const unsubscribe = onValue(commentsQuery, (snapshot) => {
+      const comments: Comment[] = [];
+      snapshot.forEach((childSnapshot) => {
+        comments.push(childSnapshot.val());
+      });
+      callback(comments);
+    });
+
+    return () => off(commentsRef);
   }
 };
