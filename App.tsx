@@ -660,7 +660,7 @@ const App: React.FC = () => {
               className={`flex items-center gap-3 p-2 rounded-2xl bg-white/5 border border-white/5 hover:bg-red-500/10 hover:border-red-500/30 transition-all cursor-pointer overflow-hidden ${isSidebarCollapsed ? 'justify-center bg-transparent border-transparent hover:bg-red-500/10' : ''}`}
               title="Disconnect"
             >
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-yellow-200 shrink-0 shadow-md" />
+              <Avatar url={user.avatarUrl || ''} size="sm" address={user.address} bordered={false} />
               
               <div className={`overflow-hidden transition-all duration-300 ${isSidebarCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
                 <p className="text-sm font-bold text-white truncate">{user.ens || "0xUser"}</p>
