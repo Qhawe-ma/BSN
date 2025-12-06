@@ -605,11 +605,16 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
   );
 };
 
+const POSTS_PER_PAGE = 4;
+
 export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (user: User) => void; onPostClick: (postId: string) => void; currentUser?: User }> = ({ type, onUserClick, onPostClick, currentUser }) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [feedType, setFeedType] = useState<'forYou' | 'following'>('forYou');
   const [followingAddresses, setFollowingAddresses] = useState<string[]>([]);
+  const [visibleCount, setVisibleCount] = useState(POSTS_PER_PAGE);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadFollowing = async () => {
@@ -662,6 +667,36 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
   const filteredPosts = feedType === 'following' && currentUser
     ? posts.filter(post => followingAddresses.includes(post.author.address))
     : posts;
+
+  // Reset visible count when switching tabs
+  useEffect(() => {
+    setVisibleCount(POSTS_PER_PAGE);
+  }, [feedType]);
+
+  // Infinite scroll with IntersectionObserver
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingMore && visibleCount < filteredPosts.length) {
+          setLoadingMore(true);
+          setTimeout(() => {
+            setVisibleCount(prev => Math.min(prev + POSTS_PER_PAGE, filteredPosts.length));
+            setLoadingMore(false);
+          }, 300);
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [visibleCount, filteredPosts.length, loadingMore]);
+
+  const visiblePosts = filteredPosts.slice(0, visibleCount);
+  const hasMore = visibleCount < filteredPosts.length;
 
   if (loading) {
     return (
@@ -764,9 +799,25 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
           </div>
         </div>
       ) : (
-        filteredPosts.map(post => (
-          <PostItem key={post.id} post={post} onUserClick={onUserClick} onPostClick={onPostClick} currentUser={currentUser} />
-        ))
+        <>
+          {visiblePosts.map(post => (
+            <PostItem key={post.id} post={post} onUserClick={onUserClick} onPostClick={onPostClick} currentUser={currentUser} />
+          ))}
+          
+          {/* Infinite scroll trigger */}
+          {hasMore && (
+            <div ref={loadMoreRef} className="py-8 flex justify-center">
+              {loadingMore ? (
+                <div className="flex items-center gap-2 text-gray-500">
+                  <Loader size={20} className="animate-spin" />
+                  <span className="text-sm">Loading more...</span>
+                </div>
+              ) : (
+                <div className="h-8" />
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
