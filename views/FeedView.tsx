@@ -8,66 +8,6 @@ import { Portal } from '../components/Portal';
 import { BadgeIcon } from '../components/BadgeIcon';
 import { LazyImage } from '../components/LazyImage';
 
-const CommentItem: React.FC<{ 
-  comment: Comment; 
-  onUserClick: (user: User) => void;
-  timeAgo: (timestamp: number) => string;
-}> = memo(({ comment, onUserClick, timeAgo }) => {
-  const [author, setAuthor] = useState<User>(comment.author);
-  
-  useEffect(() => {
-    let isMounted = true;
-    
-    const fetchFreshAuthor = async () => {
-      try {
-        const freshProfile = await FirebaseService.getUserProfile(comment.author.address);
-        if (isMounted && freshProfile) {
-          setAuthor(freshProfile);
-        }
-      } catch (error) {
-        if (isMounted) {
-          console.warn('Failed to fetch fresh author profile:', error);
-        }
-      }
-    };
-    fetchFreshAuthor();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [comment.author.address]);
-  
-  return (
-    <div className="flex gap-3 animate-in fade-in duration-300">
-      <div onClick={() => onUserClick(author)} className="cursor-pointer">
-        <Avatar url={author.avatarUrl} size="sm" bordered={false} address={author.address} />
-      </div>
-      <div className="flex-1">
-        <div className="flex justify-between items-baseline mb-1">
-          <div className="flex items-center gap-1.5">
-            <span 
-              onClick={() => onUserClick(author)}
-              className="text-sm font-bold text-gray-200 cursor-pointer hover:text-primary hover:underline"
-            >
-              {author.ens || formatAddress(author.address)}
-            </span>
-            {author.activeBadge && author.activeBadge.status === 'active' && (
-              <BadgeIcon badgeType={author.activeBadge.badgeType} size="sm" />
-            )}
-          </div>
-          <span className="text-[10px] text-gray-600">{timeAgo(comment.timestamp)}</span>
-        </div>
-        {comment.content && <p className="text-sm text-gray-400">{comment.content}</p>}
-        {comment.imageUrl && (
-          <div className="mt-2 rounded-xl overflow-hidden border border-white/5 max-w-xs">
-            <LazyImage src={comment.imageUrl} alt="Comment attachment" className="w-full h-auto" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-});
-
 const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => void; onPostClick: (postId: string) => void; currentUser?: User }> = ({ post, onUserClick, onPostClick, currentUser }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(post.likes);
@@ -198,77 +138,48 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
     
     setComments(prev => [...prev, optimisticComment]);
     setNewComment("");
+    clearCommentImage();
     setCommentsCount(prev => prev + 1);
     setIsPostingComment(true);
     
     try {
       let imageUrl: string | undefined;
       
-      // Upload image first if present - MUST succeed for image comments
+      // Upload image first if present
       if (savedImage) {
-        console.log('📤 Uploading comment image...');
-        
-        const formData = new FormData();
-        formData.append('image', savedImage);
-        
-        const response = await fetch('/api/upload/comment-image', { 
-          method: 'POST', 
-          body: formData 
-        });
-        
-        // Check response status first
-        if (!response.ok) {
-          console.error('❌ Upload failed with status:', response.status);
-          // Revert optimistic update and restore text for retry
-          setComments(prev => prev.filter(c => c.id !== tempId));
-          setCommentsCount(prev => Math.max(0, prev - 1));
-          setNewComment(commentText);
-          setIsPostingComment(false);
-          alert('Failed to upload image. Please try again.');
-          return;
+        try {
+          const formData = new FormData();
+          formData.append('image', savedImage);
+          
+          const response = await fetch('/api/upload/comment-image', { 
+            method: 'POST', 
+            body: formData 
+          });
+          
+          // Safely parse response
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            if (response.ok && data.success && data.imageUrl) {
+              imageUrl = data.imageUrl;
+            } else if (data.error) {
+              console.warn('Upload error:', data.error);
+            }
+          } else if (!response.ok) {
+            console.warn('Upload failed with non-JSON response:', response.status);
+          }
+        } catch (uploadError) {
+          console.error('Image upload failed:', uploadError);
+          // Still post comment without image if upload fails
         }
-        
-        // Safely parse response
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          console.error('❌ Upload returned non-JSON response');
-          setComments(prev => prev.filter(c => c.id !== tempId));
-          setCommentsCount(prev => Math.max(0, prev - 1));
-          setNewComment(commentText);
-          setIsPostingComment(false);
-          alert('Failed to upload image. Please try again.');
-          return;
-        }
-        
-        const data = await response.json();
-        if (!data.success || !data.imageUrl) {
-          console.error('❌ Upload failed:', data.error || 'No image URL returned');
-          setComments(prev => prev.filter(c => c.id !== tempId));
-          setCommentsCount(prev => Math.max(0, prev - 1));
-          setNewComment(commentText);
-          setIsPostingComment(false);
-          alert(data.error || 'Failed to upload image. Please try again.');
-          return;
-        }
-        
-        imageUrl = data.imageUrl;
-        console.log('✅ Image uploaded:', imageUrl);
       }
       
-      console.log('📝 Posting comment to Firebase...');
       const comment = await DataService.postComment(post.internalId, commentText, currentUser, imageUrl);
-      console.log('✅ Comment posted:', comment.id);
-      
-      // Only clear image and text after FULL success (upload + Firebase post)
-      clearCommentImage();
       setComments(prev => prev.map(c => c.id === tempId ? { ...comment, imageUrl: imageUrl || comment.imageUrl } : c));
     } catch (error) {
       console.error('Error posting comment:', error);
-      // Revert optimistic update and restore text so user can retry
       setComments(prev => prev.filter(c => c.id !== tempId));
       setCommentsCount(prev => Math.max(0, prev - 1));
-      setNewComment(commentText); // Restore text for retry
-      alert('Failed to post comment. Please try again.');
     } finally {
       setIsPostingComment(false);
     }
@@ -735,12 +646,33 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
           ) : (
             <div className="space-y-6">
               {comments.map(comment => (
-                <CommentItem 
-                  key={comment.id} 
-                  comment={comment} 
-                  onUserClick={onUserClick}
-                  timeAgo={timeAgo}
-                />
+                <div key={comment.id} className="flex gap-3 animate-in fade-in duration-300">
+                  <div onClick={() => onUserClick(comment.author)} className="cursor-pointer">
+                    <Avatar url={comment.author.avatarUrl} size="sm" bordered={false} address={comment.author.address} />
+                  </div>
+                  <div className="flex-1">
+                      <div className="flex justify-between items-baseline mb-1">
+                         <div className="flex items-center gap-1.5">
+                           <span 
+                            onClick={() => onUserClick(comment.author)}
+                            className="text-sm font-bold text-gray-200 cursor-pointer hover:text-primary hover:underline"
+                           >
+                              {comment.author.ens || formatAddress(comment.author.address)}
+                           </span>
+                           {comment.author.activeBadge && comment.author.activeBadge.status === 'active' && (
+                             <BadgeIcon badgeType={comment.author.activeBadge.badgeType} size="sm" />
+                           )}
+                         </div>
+                         <span className="text-[10px] text-gray-600">{timeAgo(comment.timestamp)}</span>
+                      </div>
+                      {comment.content && <p className="text-sm text-gray-400">{comment.content}</p>}
+                      {comment.imageUrl && (
+                        <div className="mt-2 rounded-xl overflow-hidden border border-white/5 max-w-xs">
+                          <LazyImage src={comment.imageUrl} alt="Comment attachment" className="w-full h-auto" />
+                        </div>
+                      )}
+                  </div>
+                </div>
               ))}
               
               {/* Comment Input */}
