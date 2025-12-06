@@ -46,6 +46,50 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
   const [editBio, setEditBio] = useState(user.bio || "");
   const [editWebsite, setEditWebsite] = useState(user.website || "");
   const [editAvatar, setEditAvatar] = useState(user.avatarUrl);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Image must be less than 5MB');
+      return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setUploadError('Only JPEG, PNG, GIF, or WebP images allowed');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const response = await fetch('/api/upload/avatar', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const data = await response.json();
+      setEditAvatar(data.avatarUrl);
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploadError('Failed to upload image. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   // Fetch fresh profile counts from Firebase and check follow status
   useEffect(() => {
@@ -391,14 +435,40 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
                         </div>
 
                         <div className="space-y-2">
-                             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Avatar URL</label>
-                             <Input 
-                                value={editAvatar}
-                                onChange={(e) => setEditAvatar(e.target.value)}
-                             />
-                             <div className="flex items-center gap-3 mt-2 p-2 bg-white/5 rounded-lg">
-                                <Avatar url={editAvatar} size="sm" />
-                                <span className="text-xs text-gray-400">Preview</span>
+                             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Avatar</label>
+                             
+                             <div className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/5">
+                                <div className="relative">
+                                  <Avatar url={editAvatar} size="lg" />
+                                  {isUploading && (
+                                    <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center">
+                                      <Loader size={20} className="animate-spin text-primary" />
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                <div className="flex-1">
+                                  <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleAvatarUpload}
+                                    accept="image/jpeg,image/png,image/gif,image/webp"
+                                    className="hidden"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploading}
+                                    className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                                  >
+                                    <Camera size={16} />
+                                    {isUploading ? 'Uploading...' : 'Upload Image'}
+                                  </button>
+                                  <p className="text-[10px] text-gray-500 mt-2">JPEG, PNG, GIF or WebP. Max 5MB.</p>
+                                  {uploadError && (
+                                    <p className="text-[10px] text-red-400 mt-1">{uploadError}</p>
+                                  )}
+                                </div>
                              </div>
                         </div>
                     </div>
