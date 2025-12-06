@@ -545,16 +545,18 @@ const App: React.FC = () => {
         else setView(target);
       }}
       title={isSidebarCollapsed ? label : undefined}
-      className={`flex items-center ${isSidebarCollapsed ? 'justify-center px-2' : 'px-5 gap-4'} py-3.5 rounded-2xl transition-all duration-300 w-full group relative overflow-hidden ${
+      className={`flex items-center ${isSidebarCollapsed ? 'justify-center w-12 h-12 mx-auto px-0' : 'px-5 gap-4 w-full'} py-3 rounded-2xl transition-all duration-300 group relative ${
         active ? 'bg-white/10 text-white font-bold shadow-lg border border-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
       }`}
     >
       <div className={`transition-transform duration-300 flex-shrink-0 ${active ? 'scale-110 text-primary' : 'group-hover:scale-110'}`}>
         {icon}
       </div>
-      <span className={`transition-all duration-300 whitespace-nowrap ${isSidebarCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100 w-auto block'} text-sm tracking-wide`}>
-        {label}
-      </span>
+      {!isSidebarCollapsed && (
+        <span className="text-sm tracking-wide whitespace-nowrap">
+          {label}
+        </span>
+      )}
     </button>
   );
 
