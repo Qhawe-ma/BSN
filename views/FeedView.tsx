@@ -124,6 +124,8 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
     
     const commentText = newComment.trim();
     const tempId = `temp_${Date.now()}`;
+    const savedImage = commentImage;
+    const savedPreview = commentImagePreview;
     
     const optimisticComment: Comment = {
       id: tempId,
@@ -131,27 +133,49 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
       author: currentUser,
       content: commentText,
       timestamp: Date.now(),
-      imageUrl: commentImagePreview || undefined
+      imageUrl: savedPreview || undefined
     };
     
     setComments(prev => [...prev, optimisticComment]);
     setNewComment("");
-    const savedImage = commentImage;
     clearCommentImage();
     setCommentsCount(prev => prev + 1);
     setIsPostingComment(true);
     
     try {
       let imageUrl: string | undefined;
+      
+      // Upload image first if present
       if (savedImage) {
-        const formData = new FormData();
-        formData.append('image', savedImage);
-        const response = await fetch('/api/upload/comment-image', { method: 'POST', body: formData });
-        const data = await response.json();
-        if (data.success) imageUrl = data.imageUrl;
+        try {
+          const formData = new FormData();
+          formData.append('image', savedImage);
+          
+          const response = await fetch('/api/upload/comment-image', { 
+            method: 'POST', 
+            body: formData 
+          });
+          
+          // Safely parse response
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            if (response.ok && data.success && data.imageUrl) {
+              imageUrl = data.imageUrl;
+            } else if (data.error) {
+              console.warn('Upload error:', data.error);
+            }
+          } else if (!response.ok) {
+            console.warn('Upload failed with non-JSON response:', response.status);
+          }
+        } catch (uploadError) {
+          console.error('Image upload failed:', uploadError);
+          // Still post comment without image if upload fails
+        }
       }
+      
       const comment = await DataService.postComment(post.internalId, commentText, currentUser, imageUrl);
-      setComments(prev => prev.map(c => c.id === tempId ? comment : c));
+      setComments(prev => prev.map(c => c.id === tempId ? { ...comment, imageUrl: imageUrl || comment.imageUrl } : c));
     } catch (error) {
       console.error('Error posting comment:', error);
       setComments(prev => prev.filter(c => c.id !== tempId));

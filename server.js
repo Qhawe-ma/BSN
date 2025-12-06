@@ -95,25 +95,38 @@ app.post('/api/upload/avatar', upload.single('avatar'), (req, res) => {
   }
 });
 
-app.post('/api/upload/comment-image', commentImageUpload.single('image'), (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+app.post('/api/upload/comment-image', (req, res) => {
+  commentImageUpload.single('image')(req, res, (err) => {
+    if (err) {
+      console.error('Comment image upload error:', err);
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'File too large. Maximum size is 5MB', success: false });
+      }
+      if (err.message) {
+        return res.status(400).json({ error: err.message, success: false });
+      }
+      return res.status(500).json({ error: 'Failed to upload image', success: false });
     }
     
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-    const host = req.headers['x-forwarded-host'] || req.headers.host;
-    const imageUrl = `${protocol}://${host}/uploads/comments/${req.file.filename}`;
-    
-    res.json({ 
-      success: true, 
-      imageUrl,
-      filename: req.file.filename
-    });
-  } catch (error) {
-    console.error('Comment image upload error:', error);
-    res.status(500).json({ error: 'Failed to upload image' });
-  }
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded', success: false });
+      }
+      
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+      const host = req.headers['x-forwarded-host'] || req.headers.host;
+      const imageUrl = `${protocol}://${host}/uploads/comments/${req.file.filename}`;
+      
+      res.json({ 
+        success: true, 
+        imageUrl,
+        filename: req.file.filename
+      });
+    } catch (error) {
+      console.error('Comment image processing error:', error);
+      res.status(500).json({ error: 'Failed to process image', success: false });
+    }
+  });
 });
 
 app.post('/api/admin/verify', (req, res) => {

@@ -32,14 +32,17 @@ const CONTRACT_ADDRESS = import.meta.env.VITE_BSC_CONTRACT_ADDRESS;
 // Legacy contract address for old posts (keep showing old posts from previous contract)
 const LEGACY_CONTRACT_ADDRESS = '0x9b2950ff51ac7514d1469f4990f248f5b3cbf075';
 
-// --- Post Cache ---
+// --- Post Cache (Aggressive caching like major social platforms) ---
 interface PostCache {
   posts: Post[];
   timestamp: number;
   ttl: number; // Time to live in ms
+  staleTime: number; // When to background refresh
 }
 let feedCache: PostCache | null = null;
-const CACHE_TTL = 60000; // 1 minute cache
+const CACHE_TTL = 300000; // 5 minutes cache - aggressive like X/Facebook
+const STALE_TIME = 60000; // Background refresh after 1 minute
+let backgroundRefreshInProgress = false;
 
 // --- Progressive Loading State ---
 interface StreamState {
@@ -670,7 +673,7 @@ const fetchPostsProgressively = async (
       );
       
       if (startIdx > 0) {
-        await delay(150);
+        await delay(50); // Fast batch loading like major social platforms
       }
     }
 
@@ -681,12 +684,53 @@ const fetchPostsProgressively = async (
   }
 };
 
+// --- Background Refresh Helper (avoids recursion) ---
+const refreshFeedInBackground = async (): Promise<void> => {
+  try {
+    console.log('🔄 Background: Fetching fresh feed...');
+    const provider = getReadOnlyProvider();
+    
+    const newPosts = CONTRACT_ADDRESS ? await fetchPostsFromContract(CONTRACT_ADDRESS, provider) : [];
+    await delay(100);
+    const legacyPosts = LEGACY_CONTRACT_ADDRESS ? await fetchPostsFromContract(LEGACY_CONTRACT_ADDRESS, provider) : [];
+
+    const allPosts = [...newPosts, ...legacyPosts];
+    allPosts.sort((a, b) => b.timestamp - a.timestamp);
+
+    feedCache = {
+      posts: allPosts,
+      timestamp: Date.now(),
+      ttl: CACHE_TTL,
+      staleTime: STALE_TIME
+    };
+
+    console.log(`✅ Background refresh complete: ${allPosts.length} posts`);
+    FeedEvents.emit(); // Notify subscribers of new data
+  } catch (error) {
+    console.error('Background refresh failed:', error);
+    // Don't update cache on error - keep serving stale data
+  }
+};
+
 // --- Service: Data/Firebase ---
 export const DataService = {
   getFeed: async (forceRefresh = false): Promise<Post[]> => {
     try {
-      if (!forceRefresh && feedCache && (Date.now() - feedCache.timestamp < feedCache.ttl)) {
-        console.log('📦 Returning cached feed');
+      const now = Date.now();
+      
+      // Return cached immediately if valid (within TTL) and not forcing refresh
+      if (!forceRefresh && feedCache && (now - feedCache.timestamp < feedCache.ttl)) {
+        console.log('📦 Returning cached feed (instant)');
+        
+        // Background refresh if stale but still valid (separate helper to avoid recursion)
+        if (now - feedCache.timestamp > STALE_TIME && !backgroundRefreshInProgress) {
+          console.log('🔄 Starting background refresh...');
+          backgroundRefreshInProgress = true;
+          refreshFeedInBackground().finally(() => {
+            backgroundRefreshInProgress = false;
+          });
+        }
+        
         return feedCache.posts;
       }
 
@@ -696,7 +740,7 @@ export const DataService = {
       
       const newPosts = CONTRACT_ADDRESS ? await fetchPostsFromContract(CONTRACT_ADDRESS, provider) : [];
       
-      await delay(300);
+      await delay(100);
       
       const legacyPosts = LEGACY_CONTRACT_ADDRESS ? await fetchPostsFromContract(LEGACY_CONTRACT_ADDRESS, provider) : [];
 
@@ -707,20 +751,29 @@ export const DataService = {
       feedCache = {
         posts: allPosts,
         timestamp: Date.now(),
-        ttl: CACHE_TTL
+        ttl: CACHE_TTL,
+        staleTime: STALE_TIME
       };
 
       console.log(`✅ Loaded ${allPosts.length} posts (${newPosts.length} new, ${legacyPosts.length} legacy)`);
       return allPosts;
     } catch (error) {
       console.error('Error fetching feed:', error);
+      // Return stale cache if available on error
+      if (feedCache) {
+        console.log('⚠️ Using stale cache due to error');
+        return feedCache.posts;
+      }
       return [];
     }
   },
 
   getFeedProgressive: async (forceRefresh = false): Promise<void> => {
-    if (!forceRefresh && feedCache && (Date.now() - feedCache.timestamp < feedCache.ttl)) {
-      console.log('📦 Using cached feed for progressive load');
+    const now = Date.now();
+    
+    // Immediately return cached data if valid
+    if (!forceRefresh && feedCache && (now - feedCache.timestamp < feedCache.ttl)) {
+      console.log('📦 Using cached feed for progressive load (instant)');
       streamState = {
         isLoading: false,
         loadedCount: feedCache.posts.length,
@@ -728,6 +781,15 @@ export const DataService = {
         hasMore: false
       };
       FeedEvents.emitStream(feedCache.posts, streamState);
+      
+      // Background refresh if stale but still valid (uses dedicated helper)
+      if (now - feedCache.timestamp > STALE_TIME && !backgroundRefreshInProgress) {
+        console.log('🔄 Background refresh triggered...');
+        backgroundRefreshInProgress = true;
+        refreshFeedInBackground().finally(() => {
+          backgroundRefreshInProgress = false;
+        });
+      }
       return;
     }
 
@@ -771,7 +833,7 @@ export const DataService = {
         });
       }
 
-      await delay(200);
+      await delay(50); // Minimal delay between contracts
 
       if (LEGACY_CONTRACT_ADDRESS) {
         const currentPosts = [...allPosts];
@@ -786,7 +848,8 @@ export const DataService = {
       feedCache = {
         posts: allPosts,
         timestamp: Date.now(),
-        ttl: CACHE_TTL
+        ttl: CACHE_TTL,
+        staleTime: STALE_TIME
       };
 
       streamState = {
@@ -802,6 +865,10 @@ export const DataService = {
       console.error('Error in progressive fetch:', error);
       streamState.isLoading = false;
       streamState.hasMore = false;
+      // Emit cached data on error if available
+      if (feedCache) {
+        FeedEvents.emitStream(feedCache.posts, streamState);
+      }
     }
   },
 
