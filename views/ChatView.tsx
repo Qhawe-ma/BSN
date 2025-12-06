@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, ArrowLeft, MessageSquare, MoreVertical, Plus, Search, PanelLeftClose, PanelLeftOpen, X, ShieldCheck, CheckCheck, Check, Lock, UserPlus, Loader } from 'lucide-react';
+import { Send, ArrowLeft, MessageSquare, MoreVertical, Plus, Search, PanelLeftClose, PanelLeftOpen, X, ShieldCheck, CheckCheck, Check, Lock, UserPlus, Loader, Trash2 } from 'lucide-react';
 import { Message, ChatSession, User } from '../types';
 import { DataService, formatAddress } from '../services';
 import { FirebaseService } from '../firebaseService';
@@ -25,6 +25,10 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
   const [isSearching, setIsSearching] = useState(false);
   const [isOtherUserOnline, setIsOtherUserOnline] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [showChatMenu, setShowChatMenu] = useState(false);
+  const [showDeleteChatConfirm, setShowDeleteChatConfirm] = useState(false);
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  const chatMenuRef = useRef<HTMLDivElement>(null);
   
   // Refs & Responsive
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -203,6 +207,43 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
 
+  // Close chat menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (chatMenuRef.current && !chatMenuRef.current.contains(event.target as Node)) {
+        setShowChatMenu(false);
+      }
+    };
+    if (showChatMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showChatMenu]);
+
+  // Delete entire chat
+  const handleDeleteChat = async () => {
+    if (!currentUser || !activeSession) return;
+    try {
+      await FirebaseService.deleteChat(currentUser.address, activeSession.participant.address);
+      setSessions(prev => prev.filter(s => s.id !== activeSessionId));
+      setActiveSessionId(null);
+      setShowDeleteChatConfirm(false);
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+    }
+  };
+
+  // Delete single message
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!currentUser || !activeSession) return;
+    try {
+      await FirebaseService.deleteMessage(currentUser.address, activeSession.participant.address, messageId);
+      setDeletingMessageId(null);
+    } catch (error) {
+      console.error('Error deleting message:', error);
+    }
+  };
+
   // Logic for View Toggle
   const showList = isMobileView ? !activeSessionId : isSidebarOpen;
   const showChat = isMobileView ? activeSessionId : true;
@@ -357,9 +398,28 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                         </div>
                     </div>
                 </div>
-                <button className="p-2 hover:bg-white/5 rounded-lg text-gray-400 transition-colors">
+                <div className="relative" ref={chatMenuRef}>
+                  <button 
+                    onClick={() => setShowChatMenu(!showChatMenu)}
+                    className="p-2 hover:bg-white/5 rounded-lg text-gray-400 transition-colors"
+                  >
                     <MoreVertical size={20} />
-                </button>
+                  </button>
+                  {showChatMenu && (
+                    <div className="absolute right-0 top-10 w-48 bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+                      <button
+                        onClick={() => {
+                          setShowChatMenu(false);
+                          setShowDeleteChatConfirm(true);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 hover:bg-red-500/10 transition-colors text-sm"
+                      >
+                        <Trash2 size={16} />
+                        Delete Chat
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Messages Area */}
@@ -404,7 +464,8 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                         )}
                         
                         <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} group animate-fade-in`}>
-                          <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%] md:max-w-[65%]`}>
+                          <div className={`flex ${isMe ? 'flex-row-reverse' : 'flex-row'} items-center gap-2`}>
+                            <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%] md:max-w-[65%]`}>
                               
                               <div className={`
                                 px-5 py-3 text-[15px] leading-relaxed shadow-sm transition-all relative
@@ -432,6 +493,15 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                                   )}
                                 </div>
                               )}
+                            </div>
+                            {/* Delete message button - shows on hover */}
+                            <button
+                              onClick={() => setDeletingMessageId(msg.id)}
+                              className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/20 rounded-lg text-gray-500 hover:text-red-400 transition-all"
+                              title="Delete message"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
                         </div>
                     </React.Fragment>
@@ -576,6 +646,74 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
 
                 </div>
             </div>
+        </div>
+      )}
+
+      {/* Delete Chat Confirmation Modal */}
+      {showDeleteChatConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <div className="bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
+                <Trash2 size={24} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Delete Chat?</h3>
+                <p className="text-sm text-gray-400">This cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-gray-400 text-sm mb-6">
+              All messages in this conversation will be permanently deleted for both you and {activeSession?.participant.ens || (activeSession && formatAddress(activeSession.participant.address))}.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteChatConfirm(false)}
+                className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteChat}
+                className="flex-1 px-4 py-3 rounded-xl bg-red-500 text-white font-bold transition-all hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Message Confirmation Modal */}
+      {deletingMessageId && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <div className="bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
+                <Trash2 size={24} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Delete Message?</h3>
+                <p className="text-sm text-gray-400">This cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-gray-400 text-sm mb-6">
+              This message will be permanently deleted from the conversation.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeletingMessageId(null)}
+                className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteMessage(deletingMessageId)}
+                className="flex-1 px-4 py-3 rounded-xl bg-red-500 text-white font-bold transition-all hover:bg-red-600"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

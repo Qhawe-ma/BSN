@@ -1,5 +1,5 @@
 import { database, storage } from './firebaseConfig';
-import { ref, push, set, get, update, onValue, query, orderByChild, limitToLast, off } from 'firebase/database';
+import { ref, push, set, get, update, onValue, query, orderByChild, limitToLast, off, remove } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Message, ChatSession, User, Comment, PremiumBadge, BadgeType, BadgeStatus } from './types';
 import { generateAvatar } from './services';
@@ -208,6 +208,36 @@ export const FirebaseService = {
       }, { onlyOnce: true });
     } catch (error) {
       console.error('Error marking messages as read:', error);
+    }
+  },
+
+  /**
+   * Delete a single message from a chat
+   */
+  deleteMessage: async (senderId: string, recipientId: string, messageId: string): Promise<void> => {
+    try {
+      const chatId = [senderId, recipientId].sort().join('_');
+      const messageRef = ref(database, `chats/${chatId}/messages/${messageId}`);
+      await remove(messageRef);
+      console.log('✅ Message deleted:', messageId);
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      throw new Error('Failed to delete message');
+    }
+  },
+
+  /**
+   * Delete an entire chat conversation
+   */
+  deleteChat: async (userId: string, otherUserId: string): Promise<void> => {
+    try {
+      const chatId = [userId, otherUserId].sort().join('_');
+      const chatRef = ref(database, `chats/${chatId}`);
+      await remove(chatRef);
+      console.log('✅ Chat deleted:', chatId);
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+      throw new Error('Failed to delete chat');
     }
   },
 
