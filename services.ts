@@ -29,6 +29,9 @@ const PUBLIC_RPC_URLS = [
 // Get contract address from environment
 const CONTRACT_ADDRESS = import.meta.env.VITE_BSC_CONTRACT_ADDRESS;
 
+// Legacy contract address for old posts (keep showing old posts from previous contract)
+const LEGACY_CONTRACT_ADDRESS = '0x9b2950ff51ac7514d1469f4990f248f5b3cbf075';
+
 // --- Post Cache ---
 interface PostCache {
   posts: Post[];
@@ -482,7 +485,8 @@ export const BlockchainService = {
 // --- Helper: Fetch single post data ---
 const fetchPostData = async (
   contract: Contract, 
-  tokenId: number
+  tokenId: number,
+  prefix: string = ''
 ): Promise<Post | null> => {
   try {
     // Get owner and metadata URI from contract in parallel
@@ -514,10 +518,13 @@ const fetchPostData = async (
       throw new Error('Metadata missing content field');
     }
 
+    // Create unique token ID with prefix to differentiate between contracts
+    const uniqueTokenId = prefix ? `${prefix}${tokenId}` : tokenId.toString();
+
     // Get user profile and post stats in parallel
     const [author, stats] = await Promise.all([
       FirebaseService.getUserProfile(owner),
-      FirebaseService.getPostStats(tokenId.toString())
+      FirebaseService.getPostStats(uniqueTokenId)
     ]);
     
     const finalAuthor = author 
@@ -533,7 +540,7 @@ const fetchPostData = async (
 
     return {
       id: tokenId,
-      tokenId: tokenId.toString(),
+      tokenId: uniqueTokenId,
       author: finalAuthor,
       content: metadata.content || '',
       timestamp: metadata.timestamp || Date.now(),
@@ -553,15 +560,50 @@ const fetchPostData = async (
   }
 };
 
+// Helper to add delay between requests
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper to fetch posts from a specific contract
+const fetchPostsFromContract = async (contractAddress: string, provider: JsonRpcProvider, prefix: string = ''): Promise<Post[]> => {
+  try {
+    const contract = new Contract(contractAddress, POST_MINTING_ABI, provider);
+    const totalSupply = await contract.totalSupply();
+    const totalPosts = Number(totalSupply);
+
+    if (totalPosts === 0) {
+      return [];
+    }
+
+    // Reduced batch size to avoid rate limiting
+    const batchSize = 3;
+    const posts: Post[] = [];
+    
+    for (let i = 0; i < totalPosts; i += batchSize) {
+      const batch = [];
+      for (let j = i; j < Math.min(i + batchSize, totalPosts); j++) {
+        batch.push(fetchPostData(contract, j, prefix));
+      }
+      
+      const results = await Promise.all(batch);
+      posts.push(...results.filter((p): p is Post => p !== null));
+      
+      // Add small delay between batches to avoid rate limiting
+      if (i + batchSize < totalPosts) {
+        await delay(200);
+      }
+    }
+
+    return posts;
+  } catch (error) {
+    console.warn(`Error fetching from contract ${contractAddress}:`, error);
+    return [];
+  }
+};
+
 // --- Service: Data/Firebase ---
 export const DataService = {
   getFeed: async (forceRefresh = false): Promise<Post[]> => {
     try {
-      if (!CONTRACT_ADDRESS) {
-        console.error('Contract address not configured');
-        return [];
-      }
-
       // Check cache first
       if (!forceRefresh && feedCache && (Date.now() - feedCache.timestamp < feedCache.ttl)) {
         console.log('📦 Returning cached feed');
@@ -572,42 +614,30 @@ export const DataService = {
       
       // Use public RPC - works without wallet connection
       const provider = getReadOnlyProvider();
-      const contract = new Contract(CONTRACT_ADDRESS, POST_MINTING_ABI, provider);
-
-      // Get total number of posts
-      const totalSupply = await contract.totalSupply();
-      const totalPosts = Number(totalSupply);
-
-      if (totalPosts === 0) {
-        return [];
-      }
-
-      // Fetch all posts in parallel (batch of 10 at a time to avoid rate limits)
-      const batchSize = 10;
-      const posts: Post[] = [];
       
-      for (let i = 0; i < totalPosts; i += batchSize) {
-        const batch = [];
-        for (let j = i; j < Math.min(i + batchSize, totalPosts); j++) {
-          batch.push(fetchPostData(contract, j));
-        }
-        
-        const results = await Promise.all(batch);
-        posts.push(...results.filter((p): p is Post => p !== null));
-      }
+      // Fetch from contracts sequentially to avoid rate limiting
+      const newPosts = CONTRACT_ADDRESS ? await fetchPostsFromContract(CONTRACT_ADDRESS, provider, 'new_') : [];
+      
+      // Small delay between contracts
+      await delay(300);
+      
+      const legacyPosts = LEGACY_CONTRACT_ADDRESS ? await fetchPostsFromContract(LEGACY_CONTRACT_ADDRESS, provider, 'legacy_') : [];
+
+      // Combine all posts
+      const allPosts = [...newPosts, ...legacyPosts];
 
       // Sort by timestamp (newest first)
-      posts.sort((a, b) => b.timestamp - a.timestamp);
+      allPosts.sort((a, b) => b.timestamp - a.timestamp);
 
       // Update cache
       feedCache = {
-        posts,
+        posts: allPosts,
         timestamp: Date.now(),
         ttl: CACHE_TTL
       };
 
-      console.log(`✅ Loaded ${posts.length} posts`);
-      return posts;
+      console.log(`✅ Loaded ${allPosts.length} posts (${newPosts.length} new, ${legacyPosts.length} legacy)`);
+      return allPosts;
     } catch (error) {
       console.error('Error fetching feed:', error);
       return [];
