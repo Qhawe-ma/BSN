@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, Shield, Zap, Users, Lock, ArrowRight, Sparkles, Send, Globe } from 'lucide-react';
 import { Button, GlassCard } from '../components/UIComponents';
+import { DataService } from '../services';
 
 interface LandingPageProps {
   onLaunchApp: () => void;
@@ -21,6 +22,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
   const [particles, setParticles] = useState<Particle[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
+  const prefetchStarted = useRef(false);
+
+  useEffect(() => {
+    if (!prefetchStarted.current) {
+      prefetchStarted.current = true;
+      console.log('🚀 Prefetching feed in background while on landing page...');
+      DataService.getFeedProgressive(false);
+    }
+  }, []);
 
   useEffect(() => {
     const initialParticles: Particle[] = Array.from({ length: 50 }, (_, i) => ({

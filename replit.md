@@ -17,6 +17,15 @@ The app features a responsive landing page (LandingPage.tsx) that:
 - Includes a chat preview mockup demonstrating encrypted messaging
 - Has "Launch App" button that enters the main application
 - Matches the app's dark theme with gold/yellow primary colors
+- **Prefetches feed data** in background while user is viewing landing page - when they click "Launch App", posts are already loaded (no skeleton loading)
+
+## Feed Performance
+The feed is optimized for fast loading:
+- **Progressive loading**: Posts stream in as they arrive from blockchain, newest first
+- **Background prefetching**: Feed starts loading while on landing page
+- **Cache-first rendering**: FeedView initializes with cached data immediately, no skeleton if data exists
+- **Lazy loading images**: LazyImage component with blur placeholder and fade-in transitions
+- **Infinite scroll**: Uses IntersectionObserver to load more posts as user scrolls
 
 ## Admin Panel Security
 The admin panel uses two separate passwords:

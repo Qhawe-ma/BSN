@@ -620,15 +620,16 @@ const POSTS_PER_PAGE = 10;
 const INITIAL_POSTS = 6;
 
 export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (user: User) => void; onPostClick: (postId: string) => void; currentUser?: User }> = ({ type, onUserClick, onPostClick, currentUser }) => {
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cachedOnMount = DataService.getCachedFeed();
+  const [posts, setPosts] = useState<Post[]>(cachedOnMount || []);
+  const [loading, setLoading] = useState(!cachedOnMount || cachedOnMount.length === 0);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamProgress, setStreamProgress] = useState({ loaded: 0, total: 0 });
   const [feedType, setFeedType] = useState<'forYou' | 'following'>('forYou');
   const [followingAddresses, setFollowingAddresses] = useState<string[]>([]);
   const [visibleCount, setVisibleCount] = useState(POSTS_PER_PAGE);
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  const initialLoadDone = useRef(false);
+  const initialLoadDone = useRef(cachedOnMount && cachedOnMount.length > 0);
 
   useEffect(() => {
     const loadFollowing = async () => {
@@ -823,7 +824,7 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
       ) : (
         <>
           {visiblePosts.map(post => (
-            <PostItem key={post.id} post={post} onUserClick={onUserClick} onPostClick={onPostClick} currentUser={currentUser} />
+            <PostItem key={`${post.contractAddress || 'default'}_${post.tokenId}`} post={post} onUserClick={onUserClick} onPostClick={onPostClick} currentUser={currentUser} />
           ))}
           
           {hasMore && (

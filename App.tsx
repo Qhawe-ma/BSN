@@ -115,7 +115,7 @@ const App: React.FC = () => {
 
   // --- Preload feed data in background for instant loading ---
   useEffect(() => {
-    DataService.getFeed().catch(console.warn);
+    DataService.getFeedProgressive(false);
   }, []);
 
   // --- Keep user online with heartbeat ---
