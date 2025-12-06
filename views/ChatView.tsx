@@ -457,9 +457,9 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                   <Button 
                     type="submit" 
                     disabled={!inputValue.trim()} 
-                    className={`rounded-full w-14 h-14 p-0 flex items-center justify-center shrink-0 transition-all duration-300 shadow-lg ${inputValue.trim() ? 'bg-primary text-black hover:scale-105 hover:shadow-primary/30' : 'bg-white/5 text-gray-600 opacity-50'}`}
+                    className={`rounded-full w-12 h-12 p-0 flex items-center justify-center shrink-0 transition-all duration-300 shadow-lg ${inputValue.trim() ? 'bg-primary text-black hover:scale-105 hover:shadow-primary/30' : 'bg-white/5 text-gray-600 opacity-50'}`}
                   >
-                    <Send size={26} strokeWidth={2.5} />
+                    <Send size={24} strokeWidth={2} className="ml-0.5" />
                   </Button>
                 </form>
               </div>
