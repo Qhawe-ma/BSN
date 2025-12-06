@@ -653,51 +653,70 @@ export const DataService = {
     }
   },
 
-  // Get posts by specific owner address
+  // Get posts by specific owner address (fetches from both current and legacy contracts)
   getPostsByOwner: async (ownerAddress: string): Promise<Post[]> => {
     try {
-      if (!CONTRACT_ADDRESS) {
-        return [];
-      }
-
       const provider = getReadOnlyProvider();
-      const contract = new Contract(CONTRACT_ADDRESS, POST_MINTING_ABI, provider);
+      const normalizedOwner = ownerAddress.toLowerCase();
+      const allPosts: Post[] = [];
 
-      // Get total number of posts
-      const totalSupply = await contract.totalSupply();
-      const totalPosts = Number(totalSupply);
+      // Helper function to fetch posts from a specific contract
+      const fetchFromContract = async (contractAddress: string): Promise<Post[]> => {
+        try {
+          const contract = new Contract(contractAddress, POST_MINTING_ABI, provider);
+          const totalSupply = await contract.totalSupply();
+          const totalPosts = Number(totalSupply);
 
-      if (totalPosts === 0) {
-        return [];
+          if (totalPosts === 0) {
+            return [];
+          }
+
+          const posts: Post[] = [];
+          const batchSize = 10;
+          
+          for (let i = 0; i < totalPosts; i += batchSize) {
+            const batch = [];
+            for (let j = i; j < Math.min(i + batchSize, totalPosts); j++) {
+              batch.push(fetchPostData(contract, j, contractAddress));
+            }
+            
+            const results = await Promise.all(batch);
+            const validPosts = results.filter((p): p is Post => p !== null);
+            
+            for (const post of validPosts) {
+              if (post.author.address.toLowerCase() === normalizedOwner) {
+                posts.push(post);
+              }
+            }
+          }
+
+          return posts;
+        } catch (error) {
+          console.error(`Error fetching posts from contract ${contractAddress}:`, error);
+          return [];
+        }
+      };
+
+      // Fetch from current contract
+      if (CONTRACT_ADDRESS) {
+        const currentPosts = await fetchFromContract(CONTRACT_ADDRESS);
+        allPosts.push(...currentPosts);
       }
 
-      // Fetch all posts and filter by owner (could be optimized with events later)
-      const posts: Post[] = [];
-      const normalizedOwner = ownerAddress.toLowerCase();
-      
-      // Fetch in parallel batches
-      const batchSize = 10;
-      for (let i = 0; i < totalPosts; i += batchSize) {
-        const batch = [];
-        for (let j = i; j < Math.min(i + batchSize, totalPosts); j++) {
-          batch.push(fetchPostData(contract, j, CONTRACT_ADDRESS));
-        }
-        
-        const results = await Promise.all(batch);
-        const validPosts = results.filter((p): p is Post => p !== null);
-        
-        // Filter by owner
-        for (const post of validPosts) {
-          if (post.author.address.toLowerCase() === normalizedOwner) {
-            posts.push(post);
-          }
-        }
+      // Small delay between contracts
+      await delay(300);
+
+      // Fetch from legacy contract
+      if (LEGACY_CONTRACT_ADDRESS) {
+        const legacyPosts = await fetchFromContract(LEGACY_CONTRACT_ADDRESS);
+        allPosts.push(...legacyPosts);
       }
 
       // Sort by timestamp (newest first)
-      posts.sort((a, b) => b.timestamp - a.timestamp);
+      allPosts.sort((a, b) => b.timestamp - a.timestamp);
 
-      return posts;
+      console.log(`✅ Loaded ${allPosts.length} posts for user ${formatAddress(ownerAddress)}`);
+      return allPosts;
     } catch (error) {
       console.error('Error fetching posts by owner:', error);
       return [];
