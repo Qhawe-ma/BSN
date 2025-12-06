@@ -297,7 +297,7 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
           {/* Token Metadata (Subtle) */}
           <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 text-[10px] font-mono text-gray-600">
              <a 
-               href={`https://bscscan.com/token/${import.meta.env.VITE_BSC_CONTRACT_ADDRESS}?a=${post.tokenId}`} 
+               href={`https://bscscan.com/token/${post.contractAddress || import.meta.env.VITE_BSC_CONTRACT_ADDRESS}?a=${post.tokenId}#inventory`} 
                target="_blank" 
                rel="noreferrer" 
                className="bg-white/5 px-2 py-1 rounded-md border border-white/5 hover:text-primary hover:border-primary/30 transition-colors"
@@ -305,7 +305,7 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
                Token ID: #{post.tokenId}
              </a>
              {post.txHash && (
-               <a href={`https://bscscan.com/tx/${post.txHash}`} target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">
+               <a href={`https://bscscan.com/tx/${post.txHash}#eventlog`} target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">
                  Tx: {post.txHash.substring(0,8)}...
                </a>
              )}

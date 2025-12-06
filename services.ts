@@ -486,7 +486,7 @@ export const BlockchainService = {
 const fetchPostData = async (
   contract: Contract, 
   tokenId: number,
-  prefix: string = ''
+  contractAddress: string
 ): Promise<Post | null> => {
   try {
     // Get owner and metadata URI from contract in parallel
@@ -518,13 +518,13 @@ const fetchPostData = async (
       throw new Error('Metadata missing content field');
     }
 
-    // Create unique token ID with prefix to differentiate between contracts
-    const uniqueTokenId = prefix ? `${prefix}${tokenId}` : tokenId.toString();
+    // Create unique internal ID with contract prefix for Firebase stats tracking
+    const internalId = `${contractAddress.toLowerCase()}_${tokenId}`;
 
     // Get user profile and post stats in parallel
     const [author, stats] = await Promise.all([
       FirebaseService.getUserProfile(owner),
-      FirebaseService.getPostStats(uniqueTokenId)
+      FirebaseService.getPostStats(internalId)
     ]);
     
     const finalAuthor = author 
@@ -540,7 +540,7 @@ const fetchPostData = async (
 
     return {
       id: tokenId,
-      tokenId: uniqueTokenId,
+      tokenId: tokenId.toString(),
       author: finalAuthor,
       content: metadata.content || '',
       timestamp: metadata.timestamp || Date.now(),
@@ -548,11 +548,12 @@ const fetchPostData = async (
       commentsCount: stats.comments,
       repostsCount: stats.reposts,
       ipfsHash: cleanHash,
-      txHash: '',
+      txHash: metadata.txHash || '',
       attachmentUrl: metadata.imageUrl,
       isRepost: metadata.isRepost || false,
       originalPostId: metadata.originalPostId,
-      originalAuthor: metadata.originalAuthor
+      originalAuthor: metadata.originalAuthor,
+      contractAddress: contractAddress
     };
   } catch (error) {
     console.warn(`Skipping post ${tokenId}:`, error instanceof Error ? error.message : String(error));
@@ -564,7 +565,7 @@ const fetchPostData = async (
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Helper to fetch posts from a specific contract
-const fetchPostsFromContract = async (contractAddress: string, provider: JsonRpcProvider, prefix: string = ''): Promise<Post[]> => {
+const fetchPostsFromContract = async (contractAddress: string, provider: JsonRpcProvider): Promise<Post[]> => {
   try {
     const contract = new Contract(contractAddress, POST_MINTING_ABI, provider);
     const totalSupply = await contract.totalSupply();
@@ -581,7 +582,7 @@ const fetchPostsFromContract = async (contractAddress: string, provider: JsonRpc
     for (let i = 0; i < totalPosts; i += batchSize) {
       const batch = [];
       for (let j = i; j < Math.min(i + batchSize, totalPosts); j++) {
-        batch.push(fetchPostData(contract, j, prefix));
+        batch.push(fetchPostData(contract, j, contractAddress));
       }
       
       const results = await Promise.all(batch);
@@ -616,12 +617,12 @@ export const DataService = {
       const provider = getReadOnlyProvider();
       
       // Fetch from contracts sequentially to avoid rate limiting
-      const newPosts = CONTRACT_ADDRESS ? await fetchPostsFromContract(CONTRACT_ADDRESS, provider, 'new_') : [];
+      const newPosts = CONTRACT_ADDRESS ? await fetchPostsFromContract(CONTRACT_ADDRESS, provider) : [];
       
       // Small delay between contracts
       await delay(300);
       
-      const legacyPosts = LEGACY_CONTRACT_ADDRESS ? await fetchPostsFromContract(LEGACY_CONTRACT_ADDRESS, provider, 'legacy_') : [];
+      const legacyPosts = LEGACY_CONTRACT_ADDRESS ? await fetchPostsFromContract(LEGACY_CONTRACT_ADDRESS, provider) : [];
 
       // Combine all posts
       const allPosts = [...newPosts, ...legacyPosts];
@@ -671,7 +672,7 @@ export const DataService = {
       for (let i = 0; i < totalPosts; i += batchSize) {
         const batch = [];
         for (let j = i; j < Math.min(i + batchSize, totalPosts); j++) {
-          batch.push(fetchPostData(contract, j));
+          batch.push(fetchPostData(contract, j, CONTRACT_ADDRESS));
         }
         
         const results = await Promise.all(batch);

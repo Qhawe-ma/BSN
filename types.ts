@@ -44,6 +44,7 @@ export interface Post {
   isRepost?: boolean; // If this post is a repost of another
   originalPostId?: string; // Token ID of original post if this is a repost
   originalAuthor?: User; // Original author if this is a repost
+  contractAddress?: string; // The contract address this post was minted on
 }
 
 export interface Comment {
