@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, memo, useCallback } from 'react';
 import { MessageSquare, Heart, Share2, Repeat, MoreHorizontal, ShieldCheck, Send, Loader, X, Check, Flag, AlertTriangle } from 'lucide-react';
 import { Post, Comment, User } from '../types';
 import { DataService, BlockchainService, FeedEvents, formatAddress, generateAvatar } from '../services';
@@ -7,7 +7,7 @@ import { FirebaseService } from '../firebaseService';
 import { Portal } from '../components/Portal';
 import { BadgeIcon } from '../components/BadgeIcon';
 
-const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPostClick: (postId: string) => void; currentUser?: User }> = ({ post, onUserClick, onPostClick, currentUser }) => {
+const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => void; onPostClick: (postId: string) => void; currentUser?: User }> = ({ post, onUserClick, onPostClick, currentUser }) => {
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(post.likes);
   const [showComments, setShowComments] = useState(false);
@@ -608,7 +608,9 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
   );
 };
 
-const POSTS_PER_PAGE = 4;
+const PostItem = memo(PostItemComponent);
+
+const POSTS_PER_PAGE = 8;
 
 export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (user: User) => void; onPostClick: (postId: string) => void; currentUser?: User }> = ({ type, onUserClick, onPostClick, currentUser }) => {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -676,19 +678,15 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
     setVisibleCount(POSTS_PER_PAGE);
   }, [feedType]);
 
-  // Infinite scroll with IntersectionObserver
+  // Infinite scroll with IntersectionObserver - instant loading
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !loadingMore && visibleCount < filteredPosts.length) {
-          setLoadingMore(true);
-          setTimeout(() => {
-            setVisibleCount(prev => Math.min(prev + POSTS_PER_PAGE, filteredPosts.length));
-            setLoadingMore(false);
-          }, 300);
+          setVisibleCount(prev => Math.min(prev + POSTS_PER_PAGE, filteredPosts.length));
         }
       },
-      { threshold: 0.1, rootMargin: '100px' }
+      { threshold: 0.1, rootMargin: '200px' }
     );
 
     if (loadMoreRef.current) {
@@ -807,18 +805,9 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
             <PostItem key={post.id} post={post} onUserClick={onUserClick} onPostClick={onPostClick} currentUser={currentUser} />
           ))}
           
-          {/* Infinite scroll trigger */}
+          {/* Infinite scroll trigger - loads instantly */}
           {hasMore && (
-            <div ref={loadMoreRef} className="py-8 flex justify-center">
-              {loadingMore ? (
-                <div className="flex items-center gap-2 text-gray-500">
-                  <Loader size={20} className="animate-spin" />
-                  <span className="text-sm">Loading more...</span>
-                </div>
-              ) : (
-                <div className="h-8" />
-              )}
-            </div>
+            <div ref={loadMoreRef} className="py-4 h-4" />
           )}
         </>
       )}

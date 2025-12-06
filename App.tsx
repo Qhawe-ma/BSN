@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Home, MessageCircle, PlusSquare, User as UserIcon, BarChart2, LogOut, Wallet, X, Feather, Image as ImageIcon, Loader, ChevronLeft, ChevronRight, BookOpen, Crown } from 'lucide-react';
 import { User, ViewState } from './types';
-import { BlockchainService } from './services';
+import { BlockchainService, DataService } from './services';
 import { FirebaseService } from './firebaseService';
 import { Button, GlassCard, Avatar } from './components/UIComponents';
 
-// Views
+// Views - eagerly loaded for instant navigation
 import { FeedView } from './views/FeedView';
 import { ChatView } from './views/ChatView';
 import { ProfileView } from './views/ProfileView';
@@ -111,6 +111,11 @@ const App: React.FC = () => {
     };
 
     autoReconnect();
+  }, []);
+
+  // --- Preload feed data in background for instant loading ---
+  useEffect(() => {
+    DataService.getFeed().catch(console.warn);
   }, []);
 
   // --- Keep user online with heartbeat ---
