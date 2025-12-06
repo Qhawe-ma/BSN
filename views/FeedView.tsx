@@ -210,14 +210,14 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
   };
 
   return (
-    <GlassCard className="mb-4 md:mb-6 hover:border-white/10 transition-all duration-300">
+    <GlassCard className="mb-4 md:mb-6 hover:border-white/10 transition-all duration-300 cursor-pointer" onClick={() => onPostClick(post.tokenId)}>
       {/* Repost Indicator */}
       {post.isRepost && post.originalAuthor && (
         <div className="px-4 md:px-6 pt-3 flex items-center gap-2 text-gray-500 text-xs">
           <Repeat size={12} />
           <span className="flex items-center gap-1 flex-wrap">
             <span 
-              onClick={() => onUserClick(post.author)} 
+              onClick={(e) => { e.stopPropagation(); onUserClick(post.author); }} 
               className="font-semibold hover:underline cursor-pointer inline-flex items-center gap-1"
             >
               {post.author.ens || formatAddress(post.author.address)}
@@ -227,7 +227,7 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
             </span>
             {' '}reposted from{' '}
             <span 
-              onClick={() => onUserClick(post.originalAuthor!)} 
+              onClick={(e) => { e.stopPropagation(); onUserClick(post.originalAuthor!); }} 
               className="font-semibold hover:underline cursor-pointer inline-flex items-center gap-1"
             >
               {post.originalAuthor.ens || formatAddress(post.originalAuthor.address)}
@@ -243,13 +243,13 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
         {/* Header */}
         <div className="flex justify-between items-start mb-4">
           <div className="flex gap-3">
-            <div onClick={() => onUserClick(post.author)} className="cursor-pointer hover:opacity-80 transition-opacity">
+            <div onClick={(e) => { e.stopPropagation(); onUserClick(post.author); }} className="cursor-pointer hover:opacity-80 transition-opacity">
               <Avatar url={post.author.avatarUrl} size="md" address={post.author.address} />
             </div>
             <div className="flex flex-col justify-center">
               <div className="flex items-center gap-2">
                 <span 
-                  onClick={() => onUserClick(post.author)}
+                  onClick={(e) => { e.stopPropagation(); onUserClick(post.author); }}
                   className="font-bold text-white text-sm md:text-base hover:underline cursor-pointer hover:text-primary transition-colors"
                 >
                   {post.author.ens || formatAddress(post.author.address)}
@@ -264,7 +264,7 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
           </div>
           <div className="relative" ref={menuRef}>
             <button 
-              onClick={() => setShowMenu(!showMenu)}
+              onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
               className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5"
             >
               <MoreHorizontal size={20} />
@@ -289,23 +289,18 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
 
         {/* Content - Clickable to view post details */}
         <div className="pl-0 md:pl-[3.5rem]">
-          <div 
-            onClick={() => onPostClick(post.tokenId)}
-            className="cursor-pointer"
-          >
-            <p className="text-gray-100 leading-relaxed text-sm md:text-[15px] mb-4 whitespace-pre-wrap break-words hover:text-white transition-colors">
-              {post.content}
-            </p>
+          <p className="text-gray-100 leading-relaxed text-sm md:text-[15px] mb-4 whitespace-pre-wrap break-words hover:text-white transition-colors">
+            {post.content}
+          </p>
 
-            {post.attachmentUrl && (
-              <div className="mb-4 rounded-2xl overflow-hidden border border-white/5 shadow-lg hover:border-white/10 transition-colors">
-                <img src={post.attachmentUrl} alt="Attachment" className="w-full h-auto object-contain" />
-              </div>
-            )}
-          </div>
+          {post.attachmentUrl && (
+            <div className="mb-4 rounded-2xl overflow-hidden border border-white/5 shadow-lg hover:border-white/10 transition-colors">
+              <img src={post.attachmentUrl} alt="Attachment" className="w-full h-auto object-contain" />
+            </div>
+          )}
 
           {/* Token Metadata (Subtle) */}
-          <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 text-[10px] font-mono text-gray-600">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 text-[10px] font-mono text-gray-600" onClick={(e) => e.stopPropagation()}>
              <a 
                href={post.txHash 
                  ? `https://bscscan.com/tx/${post.txHash}#eventlog`
@@ -324,7 +319,7 @@ const PostItem: React.FC<{ post: Post; onUserClick: (user: User) => void; onPost
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between text-gray-400 max-w-md mt-2">
+          <div className="flex items-center justify-between text-gray-400 max-w-md mt-2" onClick={(e) => e.stopPropagation()}>
             <button 
               onClick={toggleComments}
               className="group flex items-center gap-2 hover:text-blue-400 transition-colors text-sm"
