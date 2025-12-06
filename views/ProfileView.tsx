@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Copy, Check, Link as LinkIcon, Grid, Calendar, MessageSquare, UserPlus, Settings, X, Save, Wallet, Image as ImageIcon, Heart, Loader } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Copy, Check, Link as LinkIcon, Grid, Calendar, MessageSquare, UserPlus, Settings, X, Save, Wallet, Image as ImageIcon, Heart, Loader, Upload, Camera } from 'lucide-react';
 import { User, Post } from '../types';
 import { GlassCard, Avatar, Button, Badge, Input } from '../components/UIComponents';
 import { FirebaseService } from '../firebaseService';
