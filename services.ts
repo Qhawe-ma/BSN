@@ -41,19 +41,44 @@ interface PostCache {
 let feedCache: PostCache | null = null;
 const CACHE_TTL = 60000; // 1 minute cache
 
-// --- Feed Update Events ---
+// --- Progressive Loading State ---
+interface StreamState {
+  isLoading: boolean;
+  loadedCount: number;
+  totalCount: number;
+  hasMore: boolean;
+}
+let streamState: StreamState = {
+  isLoading: false,
+  loadedCount: 0,
+  totalCount: 0,
+  hasMore: false
+};
+
+// --- Feed Update Events (Enhanced for Streaming) ---
 type FeedUpdateCallback = () => void;
+type StreamUpdateCallback = (posts: Post[], state: StreamState) => void;
 const feedUpdateListeners: Set<FeedUpdateCallback> = new Set();
+const streamUpdateListeners: Set<StreamUpdateCallback> = new Set();
 
 export const FeedEvents = {
   subscribe: (callback: FeedUpdateCallback): (() => void) => {
     feedUpdateListeners.add(callback);
     return () => feedUpdateListeners.delete(callback);
   },
+  subscribeToStream: (callback: StreamUpdateCallback): (() => void) => {
+    streamUpdateListeners.add(callback);
+    return () => streamUpdateListeners.delete(callback);
+  },
   emit: () => {
     feedUpdateListeners.forEach(callback => callback());
+  },
+  emitStream: (posts: Post[], state: StreamState) => {
+    streamUpdateListeners.forEach(callback => callback(posts, state));
   }
 };
+
+export const getStreamState = () => streamState;
 
 // --- Helper: Get Provider (works without wallet) ---
 const getReadOnlyProvider = () => {
@@ -572,7 +597,7 @@ const fetchPostData = async (
 // Helper to add delay between requests
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Helper to fetch posts from a specific contract
+// Helper to fetch posts from a specific contract (original - used for non-streaming)
 const fetchPostsFromContract = async (contractAddress: string, provider: JsonRpcProvider): Promise<Post[]> => {
   try {
     const contract = new Contract(contractAddress, POST_MINTING_ABI, provider);
@@ -583,7 +608,6 @@ const fetchPostsFromContract = async (contractAddress: string, provider: JsonRpc
       return [];
     }
 
-    // Reduced batch size to avoid rate limiting
     const batchSize = 3;
     const posts: Post[] = [];
     
@@ -596,7 +620,6 @@ const fetchPostsFromContract = async (contractAddress: string, provider: JsonRpc
       const results = await Promise.all(batch);
       posts.push(...results.filter((p): p is Post => p !== null));
       
-      // Add small delay between batches to avoid rate limiting
       if (i + batchSize < totalPosts) {
         await delay(200);
       }
@@ -609,11 +632,58 @@ const fetchPostsFromContract = async (contractAddress: string, provider: JsonRpc
   }
 };
 
+// Progressive/streaming fetch - emits posts as they arrive (NEWEST FIRST for instant UX)
+const fetchPostsProgressively = async (
+  contractAddress: string, 
+  provider: JsonRpcProvider,
+  onBatchComplete: (posts: Post[], loaded: number, total: number) => void
+): Promise<Post[]> => {
+  try {
+    const contract = new Contract(contractAddress, POST_MINTING_ABI, provider);
+    const totalSupply = await contract.totalSupply();
+    const totalPosts = Number(totalSupply);
+
+    if (totalPosts === 0) {
+      return [];
+    }
+
+    const batchSize = 5;
+    const allPosts: Post[] = [];
+    
+    for (let i = totalPosts - 1; i >= 0; i -= batchSize) {
+      const batch = [];
+      const startIdx = Math.max(0, i - batchSize + 1);
+      
+      for (let j = i; j >= startIdx; j--) {
+        batch.push(fetchPostData(contract, j, contractAddress));
+      }
+      
+      const results = await Promise.all(batch);
+      const validPosts = results.filter((p): p is Post => p !== null);
+      allPosts.push(...validPosts);
+      
+      onBatchComplete(
+        [...allPosts].sort((a, b) => b.timestamp - a.timestamp),
+        allPosts.length,
+        totalPosts
+      );
+      
+      if (startIdx > 0) {
+        await delay(150);
+      }
+    }
+
+    return allPosts;
+  } catch (error) {
+    console.warn(`Error fetching progressively from ${contractAddress}:`, error);
+    return [];
+  }
+};
+
 // --- Service: Data/Firebase ---
 export const DataService = {
   getFeed: async (forceRefresh = false): Promise<Post[]> => {
     try {
-      // Check cache first
       if (!forceRefresh && feedCache && (Date.now() - feedCache.timestamp < feedCache.ttl)) {
         console.log('📦 Returning cached feed');
         return feedCache.posts;
@@ -621,24 +691,18 @@ export const DataService = {
 
       console.log('🔄 Fetching fresh feed from blockchain...');
       
-      // Use public RPC - works without wallet connection
       const provider = getReadOnlyProvider();
       
-      // Fetch from contracts sequentially to avoid rate limiting
       const newPosts = CONTRACT_ADDRESS ? await fetchPostsFromContract(CONTRACT_ADDRESS, provider) : [];
       
-      // Small delay between contracts
       await delay(300);
       
       const legacyPosts = LEGACY_CONTRACT_ADDRESS ? await fetchPostsFromContract(LEGACY_CONTRACT_ADDRESS, provider) : [];
 
-      // Combine all posts
       const allPosts = [...newPosts, ...legacyPosts];
 
-      // Sort by timestamp (newest first)
       allPosts.sort((a, b) => b.timestamp - a.timestamp);
 
-      // Update cache
       feedCache = {
         posts: allPosts,
         timestamp: Date.now(),
@@ -650,6 +714,93 @@ export const DataService = {
     } catch (error) {
       console.error('Error fetching feed:', error);
       return [];
+    }
+  },
+
+  getFeedProgressive: async (forceRefresh = false): Promise<void> => {
+    if (!forceRefresh && feedCache && (Date.now() - feedCache.timestamp < feedCache.ttl)) {
+      console.log('📦 Using cached feed for progressive load');
+      streamState = {
+        isLoading: false,
+        loadedCount: feedCache.posts.length,
+        totalCount: feedCache.posts.length,
+        hasMore: false
+      };
+      FeedEvents.emitStream(feedCache.posts, streamState);
+      return;
+    }
+
+    if (streamState.isLoading) {
+      console.log('⏳ Progressive fetch already in progress');
+      return;
+    }
+
+    console.log('🔄 Starting progressive feed fetch...');
+    streamState = {
+      isLoading: true,
+      loadedCount: 0,
+      totalCount: 0,
+      hasMore: true
+    };
+
+    const provider = getReadOnlyProvider();
+    let allPosts: Post[] = [];
+    let totalExpected = 0;
+
+    try {
+      if (CONTRACT_ADDRESS) {
+        const contract = new Contract(CONTRACT_ADDRESS, POST_MINTING_ABI, provider);
+        const supply = await contract.totalSupply();
+        totalExpected += Number(supply);
+      }
+      if (LEGACY_CONTRACT_ADDRESS) {
+        const legacyContract = new Contract(LEGACY_CONTRACT_ADDRESS, POST_MINTING_ABI, provider);
+        const legacySupply = await legacyContract.totalSupply();
+        totalExpected += Number(legacySupply);
+      }
+
+      streamState.totalCount = totalExpected;
+
+      if (CONTRACT_ADDRESS) {
+        await fetchPostsProgressively(CONTRACT_ADDRESS, provider, (posts, loaded, total) => {
+          allPosts = [...posts];
+          allPosts.sort((a, b) => b.timestamp - a.timestamp);
+          streamState.loadedCount = loaded;
+          FeedEvents.emitStream([...allPosts], { ...streamState });
+        });
+      }
+
+      await delay(200);
+
+      if (LEGACY_CONTRACT_ADDRESS) {
+        const currentPosts = [...allPosts];
+        await fetchPostsProgressively(LEGACY_CONTRACT_ADDRESS, provider, (posts, loaded, total) => {
+          allPosts = [...currentPosts, ...posts];
+          allPosts.sort((a, b) => b.timestamp - a.timestamp);
+          streamState.loadedCount = currentPosts.length + loaded;
+          FeedEvents.emitStream([...allPosts], { ...streamState });
+        });
+      }
+
+      feedCache = {
+        posts: allPosts,
+        timestamp: Date.now(),
+        ttl: CACHE_TTL
+      };
+
+      streamState = {
+        isLoading: false,
+        loadedCount: allPosts.length,
+        totalCount: allPosts.length,
+        hasMore: false
+      };
+      FeedEvents.emitStream(allPosts, streamState);
+
+      console.log(`✅ Progressive load complete: ${allPosts.length} posts`);
+    } catch (error) {
+      console.error('Error in progressive fetch:', error);
+      streamState.isLoading = false;
+      streamState.hasMore = false;
     }
   },
 

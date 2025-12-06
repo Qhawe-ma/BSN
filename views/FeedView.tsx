@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef, memo, useCallback } from 'react';
 import { MessageSquare, Heart, Share2, Repeat, MoreHorizontal, ShieldCheck, Send, Loader, X, Check, Flag, AlertTriangle } from 'lucide-react';
 import { Post, Comment, User } from '../types';
-import { DataService, BlockchainService, FeedEvents, formatAddress, generateAvatar } from '../services';
+import { DataService, BlockchainService, FeedEvents, formatAddress, generateAvatar, getStreamState } from '../services';
 import { GlassCard, Button, Avatar, Badge } from '../components/UIComponents';
 import { FirebaseService } from '../firebaseService';
 import { Portal } from '../components/Portal';
 import { BadgeIcon } from '../components/BadgeIcon';
+import { LazyImage } from '../components/LazyImage';
 
 const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => void; onPostClick: (postId: string) => void; currentUser?: User }> = ({ post, onUserClick, onPostClick, currentUser }) => {
   const [isLiked, setIsLiked] = useState(false);
@@ -295,7 +296,12 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
 
           {post.attachmentUrl && (
             <div className="mb-4 rounded-2xl overflow-hidden border border-white/5 shadow-lg hover:border-white/10 transition-colors">
-              <img src={post.attachmentUrl} alt="Attachment" className="w-full h-auto object-contain" />
+              <LazyImage 
+                src={post.attachmentUrl} 
+                alt="Attachment" 
+                className="w-full h-auto min-h-[100px]"
+                placeholderColor="bg-white/5"
+              />
             </div>
           )}
 
@@ -610,16 +616,19 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
 
 const PostItem = memo(PostItemComponent);
 
-const POSTS_PER_PAGE = 8;
+const POSTS_PER_PAGE = 10;
+const INITIAL_POSTS = 6;
 
 export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (user: User) => void; onPostClick: (postId: string) => void; currentUser?: User }> = ({ type, onUserClick, onPostClick, currentUser }) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamProgress, setStreamProgress] = useState({ loaded: 0, total: 0 });
   const [feedType, setFeedType] = useState<'forYou' | 'following'>('forYou');
   const [followingAddresses, setFollowingAddresses] = useState<string[]>([]);
   const [visibleCount, setVisibleCount] = useState(POSTS_PER_PAGE);
-  const [loadingMore, setLoadingMore] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const initialLoadDone = useRef(false);
 
   useEffect(() => {
     const loadFollowing = async () => {
@@ -631,62 +640,74 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
     loadFollowing();
   }, [currentUser]);
 
-  const loadFeed = async (forceRefresh = false) => {
-    // Try to show cached posts immediately (no loading skeleton)
+  const loadFeedProgressive = useCallback(async (forceRefresh = false) => {
     const cached = DataService.getCachedFeed();
     if (cached && cached.length > 0) {
       setPosts(cached);
       setLoading(false);
       
-      // If not forcing refresh and cache is valid, we're done
       if (!forceRefresh && DataService.isCacheValid()) {
-        console.log('📦 Using cached feed');
+        console.log('📦 Using cached feed - instant load');
         return;
       }
     }
     
-    // If no cache, show loading skeleton
     if (!cached || cached.length === 0) {
       setLoading(true);
     }
     
-    // Fetch fresh data (in background if we have cached posts)
-    const data = await DataService.getFeed(forceRefresh);
-    setPosts(data);
-    setLoading(false);
-  };
+    setIsStreaming(true);
+    DataService.getFeedProgressive(forceRefresh);
+  }, []);
 
   useEffect(() => {
-    loadFeed(false); // Use cache on navigation
-  }, [type]);
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      loadFeedProgressive(false);
+    }
+  }, [type, loadFeedProgressive]);
 
-  // Subscribe to feed updates (e.g., after minting a new post)
+  useEffect(() => {
+    const unsubscribe = FeedEvents.subscribeToStream((streamedPosts, state) => {
+      setPosts(streamedPosts);
+      setStreamProgress({ loaded: state.loadedCount, total: state.totalCount });
+      
+      if (streamedPosts.length > 0) {
+        setLoading(false);
+      }
+      
+      if (!state.isLoading) {
+        setIsStreaming(false);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
   useEffect(() => {
     const unsubscribe = FeedEvents.subscribe(() => {
       console.log('📡 Feed update received, refreshing...');
-      loadFeed(true); // Force refresh after minting
+      loadFeedProgressive(true);
     });
     return unsubscribe;
-  }, []);
+  }, [loadFeedProgressive]);
 
   const filteredPosts = feedType === 'following' && currentUser
     ? posts.filter(post => followingAddresses.includes(post.author.address))
     : posts;
 
-  // Reset visible count when switching tabs
   useEffect(() => {
     setVisibleCount(POSTS_PER_PAGE);
   }, [feedType]);
 
-  // Infinite scroll with IntersectionObserver - instant loading
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !loadingMore && visibleCount < filteredPosts.length) {
+        if (entries[0].isIntersecting && visibleCount < filteredPosts.length) {
           setVisibleCount(prev => Math.min(prev + POSTS_PER_PAGE, filteredPosts.length));
         }
       },
-      { threshold: 0.1, rootMargin: '200px' }
+      { threshold: 0.1, rootMargin: '400px' }
     );
 
     if (loadMoreRef.current) {
@@ -694,10 +715,10 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
     }
 
     return () => observer.disconnect();
-  }, [visibleCount, filteredPosts.length, loadingMore]);
+  }, [visibleCount, filteredPosts.length]);
 
   const visiblePosts = filteredPosts.slice(0, visibleCount);
-  const hasMore = visibleCount < filteredPosts.length;
+  const hasMore = visibleCount < filteredPosts.length || isStreaming;
 
   if (loading) {
     return (
@@ -805,9 +826,25 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
             <PostItem key={post.id} post={post} onUserClick={onUserClick} onPostClick={onPostClick} currentUser={currentUser} />
           ))}
           
-          {/* Infinite scroll trigger - loads instantly */}
           {hasMore && (
-            <div ref={loadMoreRef} className="py-4 h-4" />
+            <div ref={loadMoreRef} className="py-8">
+              {isStreaming && (
+                <div className="flex flex-col items-center gap-3 py-4">
+                  <div className="flex items-center gap-2 text-gray-400 text-sm">
+                    <Loader size={16} className="animate-spin text-primary" />
+                    <span>Loading posts... {streamProgress.loaded > 0 ? `${streamProgress.loaded}/${streamProgress.total}` : ''}</span>
+                  </div>
+                  {streamProgress.total > 0 && (
+                    <div className="w-32 h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-primary to-yellow-400 transition-all duration-300"
+                        style={{ width: `${(streamProgress.loaded / streamProgress.total) * 100}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </>
       )}
