@@ -340,48 +340,58 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3">
+        <div className="space-y-4">
           {posts.map((post) => (
-            <div 
+            <GlassCard 
               key={post.tokenId} 
-              className="p-3 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-white/10 rounded-xl transition-all cursor-pointer"
+              className="hover:border-white/10 transition-all duration-300 cursor-pointer"
               onClick={() => onPostClick?.(post.tokenId)}
             >
-              <div className="flex gap-2.5">
-                <Avatar url={post.author.avatarUrl} size="xs" address={post.author.address} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="font-semibold text-white text-xs truncate">
-                      {post.author.ens || formatAddress(post.author.address)}
-                    </span>
-                    {post.author.activeBadge && post.author.activeBadge.status === 'active' && (
-                      <BadgeIcon badgeType={post.author.activeBadge.badgeType} size="sm" />
-                    )}
-                    <span className="text-gray-600 text-[10px]">
-                      {new Date(post.timestamp).toLocaleDateString()}
-                    </span>
+              <div className="p-4 md:p-6">
+                <div className="flex gap-3 mb-4">
+                  <Avatar url={post.author.avatarUrl} size="md" address={post.author.address} />
+                  <div className="flex flex-col justify-center">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-white text-sm md:text-base">
+                        {post.author.ens || formatAddress(post.author.address)}
+                      </span>
+                      {post.author.activeBadge && post.author.activeBadge.status === 'active' && (
+                        <BadgeIcon badgeType={post.author.activeBadge.badgeType} size="sm" />
+                      )}
+                      <span className="text-gray-500 text-xs md:text-sm">· {new Date(post.timestamp).toLocaleDateString()}</span>
+                    </div>
+                    <span className="text-gray-500 text-xs font-mono">{formatAddress(post.author.address)}</span>
                   </div>
-                  <p className="text-gray-300 text-xs line-clamp-2 mb-2">{post.content}</p>
+                </div>
+                
+                <div className="pl-0 md:pl-[3.5rem]">
+                  <p className="text-gray-100 leading-relaxed text-sm md:text-[15px] mb-4 whitespace-pre-wrap break-words">
+                    {post.content}
+                  </p>
+                  
                   {post.attachmentUrl && (
-                    <img 
-                      src={post.attachmentUrl} 
-                      alt="" 
-                      className="rounded-lg w-full max-h-40 object-cover mb-2"
-                    />
+                    <div className="mb-4 rounded-2xl overflow-hidden border border-white/5 shadow-lg">
+                      <img 
+                        src={post.attachmentUrl} 
+                        alt="" 
+                        className="w-full h-auto"
+                      />
+                    </div>
                   )}
-                  <div className="flex items-center gap-3 text-gray-500 text-[10px]">
-                    <div className="flex items-center gap-1">
-                      <Heart size={12} />
+                  
+                  <div className="flex items-center gap-6 text-gray-400 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Heart size={18} />
                       <span>{post.likes}</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <MessageSquare size={12} />
+                    <div className="flex items-center gap-2">
+                      <MessageSquare size={18} />
                       <span>{post.commentsCount}</span>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </GlassCard>
           ))}
         </div>
       )}
