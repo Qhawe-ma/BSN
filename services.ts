@@ -498,9 +498,6 @@ export const BlockchainService = {
       console.log('View on BSCScan:', `https://bscscan.com/tx/${receipt.hash}`);
       await FirebaseService.savePostTxHash(internalId, receipt.hash);
       
-      // Invalidate feed cache so the new post shows up
-      DataService.invalidateCache();
-      
       return post;
     } catch (error: any) {
       console.error('Error minting post:', error);
@@ -910,8 +907,9 @@ export const DataService = {
 
   getFeedProgressive: async (forceRefresh = false): Promise<void> => {
     const now = Date.now();
+    const existingPosts = feedCache?.posts || [];
+    const hasExistingData = existingPosts.length > 0;
     
-    // Immediately return cached data if valid
     if (!forceRefresh && feedCache && (now - feedCache.timestamp < feedCache.ttl)) {
       console.log('📦 Using cached feed for progressive load (instant)');
       streamState = {
@@ -922,7 +920,6 @@ export const DataService = {
       };
       FeedEvents.emitStream(feedCache.posts, streamState);
       
-      // Background refresh if stale but still valid (uses dedicated helper)
       if (now - feedCache.timestamp > STALE_TIME && !backgroundRefreshInProgress) {
         console.log('🔄 Background refresh triggered...');
         backgroundRefreshInProgress = true;
@@ -939,12 +936,23 @@ export const DataService = {
     }
 
     console.log('🔄 Starting progressive feed fetch...');
-    streamState = {
-      isLoading: true,
-      loadedCount: 0,
-      totalCount: 0,
-      hasMore: true
-    };
+    
+    if (hasExistingData) {
+      streamState = {
+        isLoading: true,
+        loadedCount: existingPosts.length,
+        totalCount: existingPosts.length,
+        hasMore: false
+      };
+      FeedEvents.emitStream(existingPosts, streamState);
+    } else {
+      streamState = {
+        isLoading: true,
+        loadedCount: 0,
+        totalCount: 0,
+        hasMore: true
+      };
+    }
 
     const provider = getReadOnlyProvider();
     let allPosts: Post[] = [];
@@ -967,21 +975,25 @@ export const DataService = {
       if (CONTRACT_ADDRESS) {
         await fetchPostsProgressively(CONTRACT_ADDRESS, provider, (posts, loaded, total) => {
           allPosts = [...posts];
-          allPosts.sort((a, b) => b.timestamp - a.timestamp);
+          const optimistic = OptimisticPostService.getOptimisticPosts();
+          const merged = [...optimistic, ...allPosts.filter(p => !p.isOptimistic)];
+          merged.sort((a, b) => b.timestamp - a.timestamp);
           streamState.loadedCount = loaded;
-          FeedEvents.emitStream([...allPosts], { ...streamState });
+          FeedEvents.emitStream(merged, { ...streamState });
         });
       }
 
-      await delay(50); // Minimal delay between contracts
+      await delay(50);
 
       if (LEGACY_CONTRACT_ADDRESS) {
         const currentPosts = [...allPosts];
         await fetchPostsProgressively(LEGACY_CONTRACT_ADDRESS, provider, (posts, loaded, total) => {
           allPosts = [...currentPosts, ...posts];
-          allPosts.sort((a, b) => b.timestamp - a.timestamp);
+          const optimistic = OptimisticPostService.getOptimisticPosts();
+          const merged = [...optimistic, ...allPosts.filter(p => !p.isOptimistic)];
+          merged.sort((a, b) => b.timestamp - a.timestamp);
           streamState.loadedCount = currentPosts.length + loaded;
-          FeedEvents.emitStream([...allPosts], { ...streamState });
+          FeedEvents.emitStream(merged, { ...streamState });
         });
       }
 
@@ -992,21 +1004,23 @@ export const DataService = {
         staleTime: STALE_TIME
       };
 
+      OptimisticPostService.reapplyOptimisticPosts();
+
       streamState = {
         isLoading: false,
-        loadedCount: allPosts.length,
-        totalCount: allPosts.length,
+        loadedCount: feedCache.posts.length,
+        totalCount: feedCache.posts.length,
         hasMore: false
       };
-      FeedEvents.emitStream(allPosts, streamState);
+      FeedEvents.emitStream(feedCache.posts, streamState);
 
       console.log(`✅ Progressive load complete: ${allPosts.length} posts`);
     } catch (error) {
       console.error('Error in progressive fetch:', error);
       streamState.isLoading = false;
       streamState.hasMore = false;
-      // Emit cached data on error if available
       if (feedCache) {
+        OptimisticPostService.reapplyOptimisticPosts();
         FeedEvents.emitStream(feedCache.posts, streamState);
       }
     }

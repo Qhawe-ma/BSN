@@ -829,11 +829,15 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
 
   useEffect(() => {
     const unsubscribe = FeedEvents.subscribe(() => {
-      console.log('📡 Feed update received, refreshing...');
-      loadFeedProgressive(true);
+      console.log('📡 Feed update received');
+      const cached = DataService.getCachedFeed();
+      if (cached && cached.length > 0) {
+        setPosts(cached);
+        setLoading(false);
+      }
     });
     return unsubscribe;
-  }, [loadFeedProgressive]);
+  }, []);
 
   const filteredPosts = feedType === 'following' && currentUser
     ? posts.filter(post => followingAddresses.includes(post.author.address))
