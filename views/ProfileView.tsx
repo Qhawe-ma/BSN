@@ -191,7 +191,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
       {/* Profile Header */}
       <GlassCard className="relative overflow-hidden mb-8 border-0 shadow-2xl bg-gray-900/60">
         {/* Banner */}
-        <div className="h-48 bg-gradient-to-r from-blue-900/40 via-purple-900/40 to-gray-900/40 w-full relative">
+        <div className="h-48 bg-gradient-to-r from-yellow-900/30 via-amber-900/20 to-gray-900/40 w-full relative">
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay"></div>
             <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-gray-900/80 to-transparent"></div>
         </div>
