@@ -592,16 +592,16 @@ const App: React.FC = () => {
             className="flex items-center text-white hover:opacity-80 transition-opacity cursor-pointer"
             title="Back to Landing Page"
           >
-              <div className="relative h-14 flex items-center justify-center">
+              <div className={`relative flex items-center justify-center transition-all duration-300 ${isSidebarCollapsed ? 'w-10 h-10' : 'h-14 w-auto'}`}>
                 <img 
                   src="/check/logoo.svg" 
                   alt="BSN" 
-                  className={`h-14 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'opacity-0 scale-75 absolute' : 'opacity-100 scale-100'}`}
+                  className={`h-14 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'opacity-0 scale-0 absolute pointer-events-none' : 'opacity-100 scale-100'}`}
                 />
                 <img 
                   src="/check/iconnns.svg" 
                   alt="BSN" 
-                  className={`h-10 w-10 transition-all duration-300 ease-in-out absolute ${isSidebarCollapsed ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}`}
+                  className={`h-10 w-10 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'opacity-100 scale-100' : 'opacity-0 scale-0 absolute pointer-events-none'}`}
                 />
               </div>
           </button>
