@@ -128,8 +128,16 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
       }
     );
     
-    // Mark messages as read when opening chat
-    FirebaseService.markAsRead(currentUser.address, otherUserId);
+    // Mark messages as read when opening chat and clear unread count locally
+    FirebaseService.markAsRead(currentUser.address, otherUserId).then(() => {
+      // Force update the session's unread count to 0 immediately in local state
+      setSessions(prev => prev.map(session => {
+        if (session.id === activeSessionId) {
+          return { ...session, unreadCount: 0 };
+        }
+        return session;
+      }));
+    });
     
     // Subscribe to other user's online status
     const unsubscribePresence = FirebaseService.subscribeToUserPresence(
@@ -331,16 +339,27 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     
     // Add participant address to deleted set (normalized) - this persists to localStorage
     const participantAddress = activeSession.participant.address.toLowerCase();
-    setDeletedChatIds(prev => new Set([...prev, participantAddress]));
+    const chatId = activeSessionId?.toLowerCase() || '';
     
-    // Also add chat ID variations to prevent any case issues
-    if (activeSessionId) {
-      setDeletedChatIds(prev => new Set([...prev, activeSessionId.toLowerCase()]));
-    }
+    // Create comprehensive deleted set with all variations
+    setDeletedChatIds(prev => {
+      const newSet = new Set(prev);
+      newSet.add(participantAddress);
+      if (chatId) {
+        newSet.add(chatId);
+      }
+      // Also add reversed chat ID pattern
+      const parts = chatId.split('_');
+      if (parts.length === 2) {
+        newSet.add(`${parts[1]}_${parts[0]}`);
+      }
+      return newSet;
+    });
     
-    // Remove from local state immediately
+    // Remove from local state immediately and clear everything
     setSessions(prev => prev.filter(s => 
-      s.participant.address.toLowerCase() !== participantAddress
+      s.participant.address.toLowerCase() !== participantAddress &&
+      s.id.toLowerCase() !== chatId
     ));
     setActiveSessionId(null);
     setShowDeleteChatConfirm(false);
@@ -659,26 +678,27 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                 <div ref={messagesEndRef} className="h-1" />
               </div>
 
-              {/* Input Area */}
-              <div className="p-4 bg-gray-900/60 backdrop-blur-xl border-t border-white/5 z-20">
+              {/* Input Area - Enhanced Visibility */}
+              <div className="p-5 md:p-6 bg-gradient-to-t from-gray-900/90 via-gray-900/80 to-gray-900/60 backdrop-blur-xl border-t border-white/10 z-20">
                 <form 
-                  className="flex gap-3 items-end max-w-4xl mx-auto"
+                  className="flex gap-4 items-end max-w-4xl mx-auto"
                   onSubmit={(e) => { e.preventDefault(); handleSend(); }}
                 >
                   <div className="flex-1 relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-blue-500/5 rounded-2xl blur-sm"></div>
                     <Input 
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         placeholder="Type a secure message..."
-                        className="w-full bg-black/40 border-white/10 focus:bg-black/60 focus:border-primary/40 rounded-2xl pl-5 pr-12 py-3.5 transition-all shadow-inner min-h-[50px] max-h-[120px]"
+                        className="relative w-full bg-black/50 border-2 border-white/15 focus:bg-black/70 focus:border-primary/50 rounded-2xl pl-6 pr-6 py-5 transition-all shadow-lg text-base min-h-[60px] max-h-[150px] placeholder:text-gray-500"
                     />
                   </div>
                   <Button 
                     type="submit" 
                     disabled={!inputValue.trim()} 
-                    className={`rounded-full w-16 h-16 p-0 flex items-center justify-center shrink-0 transition-all duration-300 shadow-xl ${inputValue.trim() ? 'bg-primary text-black hover:scale-110 hover:shadow-primary/40 hover:shadow-2xl' : 'bg-gray-800/80 text-gray-500 border border-white/10'}`}
+                    className={`rounded-2xl w-[70px] h-[60px] p-0 flex items-center justify-center shrink-0 transition-all duration-300 shadow-2xl ${inputValue.trim() ? 'bg-gradient-to-r from-primary to-primary/90 text-black hover:scale-105 hover:shadow-primary/50 hover:shadow-2xl ring-2 ring-primary/30' : 'bg-gray-800/90 text-gray-400 border-2 border-white/10'}`}
                   >
-                    <Send size={32} strokeWidth={2.5} className="ml-1" />
+                    <Send size={28} strokeWidth={2.5} className="ml-0.5" />
                   </Button>
                 </form>
               </div>
