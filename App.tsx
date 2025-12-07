@@ -75,6 +75,8 @@ const App: React.FC = () => {
   // Wallet Connection State
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Chat target for navigating from profile Message button
@@ -240,53 +242,45 @@ const App: React.FC = () => {
   }, []);
 
   // --- Wallet Connection ---
-  const handleConnect = async () => {
-    if (isConnecting) return; // Prevent multiple simultaneous connection attempts
+  const handleConnect = () => {
+    setShowWalletModal(true);
+  };
+
+  const handleSelectWallet = async (walletType: string) => {
+    if (isConnecting) return;
     
+    setSelectedWallet(walletType);
     setIsConnecting(true);
-    setConnectionError(null); // Clear any previous errors
+    setConnectionError(null);
     
-    // Clear any pending error timeout
     if (errorTimeoutRef.current) {
       clearTimeout(errorTimeoutRef.current);
       errorTimeoutRef.current = null;
     }
     
     try {
-      // Connect wallet (this handles MetaMask connection and network switching)
       const connectedUser = await BlockchainService.connectWallet();
       
-      // Save wallet address to localStorage for auto-reconnect
       localStorage.setItem('walletAddress', connectedUser.address);
-      
-      // Set user online status
       await FirebaseService.setUserOnline(connectedUser.address, true);
       
-      // Try to load user profile from Firebase to get additional data
       try {
         const firebaseUser = await FirebaseService.getUserProfile(connectedUser.address);
         if (firebaseUser) {
-          // Merge blockchain data with Firebase data
-          setUser({
-            ...connectedUser,
-            ...firebaseUser
-          });
+          setUser({ ...connectedUser, ...firebaseUser });
         } else {
-          // If no profile exists in Firebase, just use the blockchain data
           setUser(connectedUser);
         }
       } catch (firebaseError) {
-        // Firebase errors shouldn't block wallet connection
         console.warn('Firebase unavailable, using wallet data only:', firebaseError);
         setUser(connectedUser);
       }
       
       console.log('✅ Wallet connected successfully!');
+      setShowWalletModal(false);
     } catch (error: any) {
-      // Handle wallet connection errors with detailed logging
       console.error('Wallet connection failed:', error);
       
-      // Normalize error message to handle different error types
       let errorMessage = 'Failed to connect wallet. Please try again.';
       if (error && typeof error === 'object') {
         errorMessage = error.message || error.toString();
@@ -294,16 +288,15 @@ const App: React.FC = () => {
         errorMessage = error;
       }
       
-      // Show error in UI
       setConnectionError(errorMessage);
       
-      // Auto-dismiss error after 5 seconds (store timeout reference to prevent stacking)
       errorTimeoutRef.current = setTimeout(() => {
         setConnectionError(null);
         errorTimeoutRef.current = null;
       }, 5000);
     } finally {
       setIsConnecting(false);
+      setSelectedWallet(null);
     }
   };
 
@@ -859,8 +852,147 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* Wallet Selection Modal */}
+      {showWalletModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md relative">
+            {/* Glow Effect */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-3xl blur-xl opacity-60"></div>
+            
+            <div className="relative bg-[#12141a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-white/5">
+                <h3 className="text-xl font-bold text-white">Connect Wallet</h3>
+                <button 
+                  onClick={() => setShowWalletModal(false)}
+                  className="p-2 hover:bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Wallet Options */}
+              <div className="p-4 space-y-2">
+                {/* MetaMask */}
+                <button
+                  onClick={() => handleSelectWallet('metamask')}
+                  disabled={isConnecting}
+                  className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 ${
+                    selectedWallet === 'metamask' 
+                      ? 'bg-primary/10 border-primary/50' 
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+                  } ${isConnecting && selectedWallet !== 'metamask' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className="w-12 h-12 rounded-xl bg-[#f6851b]/10 flex items-center justify-center">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask" className="w-8 h-8" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className="text-white font-semibold">MetaMask</span>
+                    <p className="text-xs text-gray-500">Connect using browser extension</p>
+                  </div>
+                  {isConnecting && selectedWallet === 'metamask' && (
+                    <Loader size={20} className="text-primary animate-spin" />
+                  )}
+                </button>
+
+                {/* Trust Wallet */}
+                <button
+                  onClick={() => handleSelectWallet('trust')}
+                  disabled={isConnecting}
+                  className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 ${
+                    selectedWallet === 'trust' 
+                      ? 'bg-primary/10 border-primary/50' 
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+                  } ${isConnecting && selectedWallet !== 'trust' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className="w-12 h-12 rounded-xl bg-[#3375BB]/10 flex items-center justify-center">
+                    <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
+                      <path d="M20 4L6 10v12c0 9.627 6.4 15.333 14 18 7.6-2.667 14-8.373 14-18V10L20 4z" fill="#3375BB"/>
+                      <path d="M20 8l-10 4.5v9c0 7.22 4.8 11.5 10.5 13.5 5.7-2 10.5-6.28 10.5-13.5v-9L20 8z" fill="white"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className="text-white font-semibold">Trust Wallet</span>
+                    <p className="text-xs text-gray-500">Connect using Trust Wallet</p>
+                  </div>
+                  {isConnecting && selectedWallet === 'trust' && (
+                    <Loader size={20} className="text-primary animate-spin" />
+                  )}
+                </button>
+
+                {/* Coinbase Wallet */}
+                <button
+                  onClick={() => handleSelectWallet('coinbase')}
+                  disabled={isConnecting}
+                  className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 ${
+                    selectedWallet === 'coinbase' 
+                      ? 'bg-primary/10 border-primary/50' 
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+                  } ${isConnecting && selectedWallet !== 'coinbase' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className="w-12 h-12 rounded-xl bg-[#0052FF]/10 flex items-center justify-center">
+                    <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
+                      <circle cx="20" cy="20" r="16" fill="#0052FF"/>
+                      <path d="M20 8c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12S26.627 8 20 8zm-2.4 7.2h4.8c.663 0 1.2.537 1.2 1.2v7.2c0 .663-.537 1.2-1.2 1.2h-4.8c-.663 0-1.2-.537-1.2-1.2v-7.2c0-.663.537-1.2 1.2-1.2z" fill="white"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className="text-white font-semibold">Coinbase Wallet</span>
+                    <p className="text-xs text-gray-500">Connect using Coinbase Wallet</p>
+                  </div>
+                  {isConnecting && selectedWallet === 'coinbase' && (
+                    <Loader size={20} className="text-primary animate-spin" />
+                  )}
+                </button>
+
+                {/* WalletConnect */}
+                <button
+                  onClick={() => handleSelectWallet('walletconnect')}
+                  disabled={isConnecting}
+                  className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 ${
+                    selectedWallet === 'walletconnect' 
+                      ? 'bg-primary/10 border-primary/50' 
+                      : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+                  } ${isConnecting && selectedWallet !== 'walletconnect' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className="w-12 h-12 rounded-xl bg-[#3B99FC]/10 flex items-center justify-center">
+                    <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
+                      <path d="M11.4 15.4c4.7-4.7 12.5-4.7 17.2 0l.6.6c.2.2.2.6 0 .9l-2 2c-.1.1-.3.1-.4 0l-.8-.8c-3.3-3.3-8.7-3.3-12 0l-.9.9c-.1.1-.3.1-.4 0l-2-2c-.2-.2-.2-.6 0-.9l.7-.7zm21.3 4l1.8 1.8c.2.2.2.6 0 .9l-8.1 8.1c-.2.2-.6.2-.9 0l-5.7-5.7c-.1-.1-.2-.1-.2 0l-5.7 5.7c-.2.2-.6.2-.9 0l-8.1-8.1c-.2-.2-.2-.6 0-.9l1.8-1.8c.2-.2.6-.2.9 0l5.7 5.7c.1.1.2.1.2 0l5.7-5.7c.2-.2.6-.2.9 0l5.7 5.7c.1.1.2.1.2 0l5.7-5.7c.3-.2.7-.2.9 0z" fill="#3B99FC"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1 text-left">
+                    <span className="text-white font-semibold">WalletConnect</span>
+                    <p className="text-xs text-gray-500">Scan with mobile wallet</p>
+                  </div>
+                  {isConnecting && selectedWallet === 'walletconnect' && (
+                    <Loader size={20} className="text-primary animate-spin" />
+                  )}
+                </button>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 pb-6 pt-2">
+                <p className="text-center text-xs text-gray-500">
+                  By connecting, you agree to our{' '}
+                  <span className="text-primary hover:underline cursor-pointer">Terms of Service</span>
+                  {' '}and{' '}
+                  <span className="text-primary hover:underline cursor-pointer">Privacy Policy</span>
+                </p>
+              </div>
+
+              {/* Error Display */}
+              {connectionError && (
+                <div className="mx-4 mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
+                  <p className="text-sm text-red-400 text-center">{connectionError}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Connection Error Toast */}
-      {connectionError && (
+      {connectionError && !showWalletModal && (
         <div className="fixed bottom-24 md:bottom-8 left-1/2 transform -translate-x-1/2 z-[150] animate-in slide-in-from-bottom duration-300">
           <div className="bg-red-500/90 backdrop-blur-xl text-white px-6 py-4 rounded-2xl shadow-2xl border border-red-400/30 flex items-center gap-3 max-w-md">
             <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
