@@ -82,7 +82,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
       }
 
       const data = await response.json();
-      setEditAvatar(data.avatarUrl);
+      // Store relative path for cross-deployment compatibility
+      const relativePath = `/uploads/avatars/${data.filename}`;
+      setEditAvatar(relativePath);
     } catch (error) {
       console.error('Upload error:', error);
       setUploadError('Failed to upload image. Please try again.');

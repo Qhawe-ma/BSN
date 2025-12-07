@@ -69,10 +69,31 @@ export const Avatar: React.FC<{ url: string; size?: 'xs' | 'sm' | 'md' | 'lg' | 
     setImgError(false);
   }, [url]);
   
+  // Helper to resolve avatar URL - handles relative paths and old absolute URLs from other domains
+  const resolveAvatarUrl = (avatarUrl: string | undefined): string | null => {
+    if (!avatarUrl) return null;
+    
+    // If it's a relative path (starts with /uploads/), prepend current origin
+    if (avatarUrl.startsWith('/uploads/')) {
+      return `${window.location.origin}${avatarUrl}`;
+    }
+    
+    // If it's an old absolute URL pointing to uploads on a different domain, extract filename and rebuild
+    if (avatarUrl.includes('/uploads/avatars/') && !avatarUrl.startsWith(window.location.origin)) {
+      const filename = avatarUrl.split('/uploads/avatars/').pop();
+      if (filename) {
+        return `${window.location.origin}/uploads/avatars/${filename}`;
+      }
+    }
+    
+    return avatarUrl;
+  };
+  
   const addressBasedUrl = address ? `https://api.dicebear.com/7.x/identicon/svg?seed=${address}&backgroundColor=1e2329` : null;
-  const isDicebearUrl = url?.includes('api.dicebear.com');
-  const isCustomAvatar = url && !isDicebearUrl && !url.includes('identicon');
-  const displayUrl = isCustomAvatar ? url : (addressBasedUrl || url || `https://api.dicebear.com/7.x/identicon/svg?seed=default&backgroundColor=1e2329`);
+  const resolvedUrl = resolveAvatarUrl(url);
+  const isDicebearUrl = resolvedUrl?.includes('api.dicebear.com');
+  const isCustomAvatar = resolvedUrl && !isDicebearUrl && !resolvedUrl.includes('identicon');
+  const displayUrl = isCustomAvatar ? resolvedUrl : (addressBasedUrl || resolvedUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=default&backgroundColor=1e2329`);
   
   return (
     <div className={`${sizes[size]} rounded-full overflow-hidden ${bordered ? 'ring-2 ring-white/10 ring-offset-2 ring-offset-black/50' : ''} bg-gray-800 flex-shrink-0 shadow-lg`}>
