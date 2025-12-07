@@ -77,16 +77,24 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
         !deletedChatIds.has(chat.participant.address.toLowerCase())
       );
       
+      // If a chat is currently active, force its unread count to 0
+      const processedChats = filteredChats.map(chat => {
+        if (activeSessionId && chat.id.toLowerCase() === activeSessionId.toLowerCase()) {
+          return { ...chat, unreadCount: 0 };
+        }
+        return chat;
+      });
+      
       // Merge Firebase chats with local sessions (preserve locally created ones)
       setSessions(prev => {
         // Normalize IDs to lowercase for case-insensitive comparison
-        const firebaseChatIds = new Set(filteredChats.map(c => c.id.toLowerCase()));
+        const firebaseChatIds = new Set(processedChats.map(c => c.id.toLowerCase()));
         // Keep local sessions that aren't in Firebase yet and aren't deleted (case-insensitive check)
         const localOnlySessions = prev.filter(s => 
           !firebaseChatIds.has(s.id.toLowerCase()) && !deletedChatIds.has(s.id.toLowerCase())
         );
         // Combine: Firebase chats + local-only sessions
-        return [...filteredChats, ...localOnlySessions];
+        return [...processedChats, ...localOnlySessions];
       });
       
       // Subscribe to online status for all chat participants
@@ -107,7 +115,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     });
     
     return () => unsubscribe();
-  }, [currentUser, deletedChatIds]);
+  }, [currentUser, deletedChatIds, activeSessionId]);
 
   useEffect(() => {
     if (!activeSessionId || !currentUser) {
