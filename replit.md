@@ -27,6 +27,15 @@ The feed is optimized for fast loading:
 - **Lazy loading images**: LazyImage component with blur placeholder and fade-in transitions
 - **Infinite scroll**: Uses IntersectionObserver to load more posts as user scrolls
 
+## Optimistic Post System
+Posts appear instantly like X.com/Facebook using an optimistic UI pattern:
+- **OptimisticPostService**: Manages pending posts separately from cache, survives feed refreshes
+- **Instant display**: When user creates a post, it appears immediately at the top of the feed with a "Confirming..." indicator
+- **Visual feedback**: Pending posts show at 70% opacity with disabled interactions until blockchain confirms
+- **Automatic confirmation**: When blockchain transaction completes, optimistic post is replaced with the confirmed version (matching by internalId)
+- **Error recovery**: If transaction fails, optimistic post is removed and user is notified
+- **No skeleton regression**: Cache is never invalidated during post creation - avoids 1-2 minute loading states
+
 ## Admin Panel Security
 The admin panel uses two separate passwords:
 - **ADMIN_PASSWORD**: For logging into the admin panel
