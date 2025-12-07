@@ -868,33 +868,58 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
 
       {/* Delete Chat Confirmation Modal */}
       {showDeleteChatConfirm && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-          <div className="bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
-                <Trash2 size={24} className="text-red-400" />
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => setShowDeleteChatConfirm(false)}
+        >
+          <div 
+            className="relative bg-[#12141a] border border-white/10 rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Subtle glow */}
+            <div className="absolute -inset-px bg-gradient-to-b from-white/5 to-transparent rounded-2xl pointer-events-none"></div>
+            
+            {/* Content */}
+            <div className="relative p-6">
+              {/* Icon & Header */}
+              <div className="flex flex-col items-center text-center mb-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl flex items-center justify-center mb-4 border border-white/5 shadow-lg">
+                  <Trash2 size={28} className="text-gray-400" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-1">Delete Conversation</h3>
+                <p className="text-sm text-gray-500">Remove this chat from your list</p>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">Delete Chat?</h3>
-                <p className="text-sm text-gray-400">This cannot be undone</p>
+              
+              {/* Info Box */}
+              <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <ShieldCheck size={16} className="text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-300 font-medium mb-1">Only affects your view</p>
+                    <p className="text-xs text-gray-500 leading-relaxed">
+                      This will hide the conversation from your chat list. {activeSession?.participant.ens || (activeSession && formatAddress(activeSession.participant.address))} will still be able to see the messages.
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-            <p className="text-gray-400 text-sm mb-6">
-              All messages in this conversation will be permanently deleted for both you and {activeSession?.participant.ens || (activeSession && formatAddress(activeSession.participant.address))}.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowDeleteChatConfirm(false)}
-                className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteChat}
-                className="flex-1 px-4 py-3 rounded-xl bg-red-500 text-white font-bold transition-all hover:bg-red-600"
-              >
-                Delete
-              </button>
+              
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteChatConfirm(false)}
+                  className="flex-1 px-4 py-3.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white transition-all font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteChat}
+                  className="flex-1 px-4 py-3.5 rounded-xl bg-primary text-black font-bold transition-all hover:bg-primary/90 shadow-lg shadow-primary/20"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
         </div>
