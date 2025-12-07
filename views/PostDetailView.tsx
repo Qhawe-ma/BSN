@@ -595,7 +595,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
               <div key={comment.id}>
                 <div className="flex gap-3">
                   <div onClick={() => onUserClick(comment.author)} className="cursor-pointer">
-                    <Avatar url={comment.author.avatarUrl} size="sm" />
+                    <Avatar url={comment.author.avatarUrl} size="sm" address={comment.author.address} />
                   </div>
                   <div className="flex-1">
                     <div className="flex justify-between items-baseline mb-1">
@@ -633,7 +633,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                 {organizedComments.repliesMap.get(comment.id)?.map(reply => (
                   <div key={reply.id} className="flex gap-3 ml-10 mt-3 pl-3 border-l-2 border-white/5">
                     <div onClick={() => onUserClick(reply.author)} className="cursor-pointer">
-                      <Avatar url={reply.author.avatarUrl} size="xs" />
+                      <Avatar url={reply.author.avatarUrl} size="xs" address={reply.author.address} />
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between items-baseline mb-1">

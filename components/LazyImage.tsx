@@ -152,9 +152,9 @@ const LazyAvatarComponent: React.FC<LazyAvatarProps> = ({
     xl: 'w-24 h-24'
   };
 
-  const fallbackUrl = address
-    ? `https://api.dicebear.com/7.x/identicon/svg?seed=${address}`
-    : `https://api.dicebear.com/7.x/identicon/svg?seed=${Date.now()}`;
+  // Always use a deterministic seed - use address or extract from URL or use 'default'
+  const seed = address || src?.split('seed=')[1]?.split('&')[0] || 'default';
+  const fallbackUrl = `https://api.dicebear.com/7.x/identicon/svg?seed=${seed}`;
 
   const imgSrc = hasError ? fallbackUrl : (src || fallbackUrl);
 

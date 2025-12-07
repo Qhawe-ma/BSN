@@ -65,9 +65,9 @@ export const Avatar: React.FC<{ url: string; size?: 'xs' | 'sm' | 'md' | 'lg' | 
     xl: "w-24 h-24"
   };
   
-  const fallbackUrl = address 
-    ? `https://api.dicebear.com/7.x/identicon/svg?seed=${address}`
-    : `https://api.dicebear.com/7.x/identicon/svg?seed=${Date.now()}`;
+  // Always use a deterministic seed - use address or extract from URL or use 'default'
+  const seed = address || url?.split('seed=')[1]?.split('&')[0] || 'default';
+  const fallbackUrl = `https://api.dicebear.com/7.x/identicon/svg?seed=${seed}`;
   
   return (
     <div className={`${sizes[size]} rounded-full overflow-hidden ${bordered ? 'ring-2 ring-white/10 ring-offset-2 ring-offset-black/50' : ''} bg-gray-800 flex-shrink-0 shadow-lg`}>
