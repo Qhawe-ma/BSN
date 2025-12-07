@@ -52,9 +52,10 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     const unsubscribe = DataService.subscribeToChats(currentUser.address, (chats) => {
       // Merge Firebase chats with local sessions (preserve locally created ones)
       setSessions(prev => {
-        const firebaseChatIds = new Set(chats.map(c => c.id));
-        // Keep local sessions that aren't in Firebase yet
-        const localOnlySessions = prev.filter(s => !firebaseChatIds.has(s.id));
+        // Normalize IDs to lowercase for case-insensitive comparison
+        const firebaseChatIds = new Set(chats.map(c => c.id.toLowerCase()));
+        // Keep local sessions that aren't in Firebase yet (case-insensitive check)
+        const localOnlySessions = prev.filter(s => !firebaseChatIds.has(s.id.toLowerCase()));
         // Combine: Firebase chats + local-only sessions
         return [...chats, ...localOnlySessions];
       });
@@ -86,7 +87,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     }
     
     const [user1, user2] = activeSessionId.split('_');
-    const otherUserId = user1 === currentUser.address ? user2 : user1;
+    const otherUserId = user1.toLowerCase() === currentUser.address.toLowerCase() ? user2 : user1;
     
     // Subscribe to messages
     const unsubscribe = DataService.subscribeToMessages(
@@ -349,7 +350,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                     </span>
                   </div>
                   <p className={`text-xs truncate flex items-center gap-1 ${activeSessionId === session.id ? 'text-gray-400' : 'text-gray-500 group-hover:text-gray-400'}`}>
-                    {session.lastMessage.sender === currentUser?.address && (
+                    {session.lastMessage.sender?.toLowerCase() === currentUser?.address?.toLowerCase() && (
                       session.lastMessage.isRead ? (
                         <CheckCheck size={12} className="text-blue-400" />
                       ) : (
@@ -462,7 +463,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                 )}
 
                 {messages.map((msg, idx) => {
-                  const isMe = msg.sender === currentUser?.address;
+                  const isMe = msg.sender?.toLowerCase() === currentUser?.address?.toLowerCase();
                   const prevMsg = messages[idx - 1];
                   const nextMsg = messages[idx + 1];
                   
@@ -545,9 +546,9 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                   <Button 
                     type="submit" 
                     disabled={!inputValue.trim()} 
-                    className={`rounded-full w-12 h-12 p-0 flex items-center justify-center shrink-0 transition-all duration-300 shadow-lg ${inputValue.trim() ? 'bg-primary text-black hover:scale-105 hover:shadow-primary/30' : 'bg-white/5 text-gray-600 opacity-50'}`}
+                    className={`rounded-full w-14 h-14 p-0 flex items-center justify-center shrink-0 transition-all duration-300 shadow-lg ${inputValue.trim() ? 'bg-primary text-black hover:scale-105 hover:shadow-primary/30' : 'bg-white/5 text-gray-600 opacity-50'}`}
                   >
-                    <Send size={24} strokeWidth={2} className="ml-0.5" />
+                    <Send size={28} strokeWidth={2.5} className="ml-0.5" />
                   </Button>
                 </form>
               </div>
