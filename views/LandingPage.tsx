@@ -152,7 +152,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
               <span className="bg-gradient-to-r from-primary to-yellow-400 bg-clip-text text-transparent">Any Wallet</span>
               <br />
               <span className="text-white">With </span>
-              <span className="bg-gradient-to-r from-blue-400 to-primary bg-clip-text text-transparent">Full Encryption</span>
+              <span className="text-wave-effect">Full Encryption</span>
             </h1>
             
             <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
