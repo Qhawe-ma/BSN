@@ -263,7 +263,44 @@ const App: React.FC = () => {
     }
     
     try {
-      const connectedUser = await BlockchainService.connectWallet();
+      // Find the specific provider for the selected wallet type
+      const ethereum = (window as any).ethereum;
+      let selectedProvider = ethereum;
+      
+      if (ethereum) {
+        const providers = ethereum.providers || [ethereum];
+        
+        // Map wallet types to their detection properties
+        const walletDetectors: Record<string, (p: any) => boolean> = {
+          'metamask': (p) => p.isMetaMask && !p.isRabby && !p.isPhantom && !p.isBraveWallet,
+          'rabby': (p) => p.isRabby,
+          'trust': (p) => p.isTrust,
+          'coinbase': (p) => p.isCoinbaseWallet,
+          'okx': (p) => p.isOKExWallet || p.isOkxWallet,
+          'phantom': (p) => p.isPhantom,
+          'rainbow': (p) => p.isRainbow,
+          'brave': (p) => p.isBraveWallet,
+        };
+        
+        // Find the matching provider
+        const detector = walletDetectors[walletType];
+        if (detector) {
+          for (const provider of providers) {
+            if (provider && detector(provider)) {
+              selectedProvider = provider;
+              console.log(`✅ Found specific provider for ${walletType}`);
+              break;
+            }
+          }
+          // Also check the main ethereum object
+          if (selectedProvider === ethereum && detector(ethereum)) {
+            selectedProvider = ethereum;
+            console.log(`✅ Using main ethereum provider for ${walletType}`);
+          }
+        }
+      }
+      
+      const connectedUser = await BlockchainService.connectWallet(selectedProvider);
       
       localStorage.setItem('walletAddress', connectedUser.address);
       await FirebaseService.setUserOnline(connectedUser.address, true);

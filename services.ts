@@ -294,15 +294,18 @@ export const BlockchainService = {
     }
   },
 
-  connectWallet: async (): Promise<User> => {
+  connectWallet: async (specificProvider?: any): Promise<User> => {
+    // Use the specific provider if passed, otherwise use window.ethereum
+    const ethereumProvider = specificProvider || window.ethereum;
+    
     // Check if MetaMask or other wallet is installed
-    if (!window.ethereum) {
+    if (!ethereumProvider) {
       throw new Error('Please install MetaMask or another Web3 wallet to connect!');
     }
 
     try {
       // Request account access
-      const accounts = await window.ethereum.request({ 
+      const accounts = await ethereumProvider.request({ 
         method: 'eth_requestAccounts' 
       });
 
@@ -312,14 +315,14 @@ export const BlockchainService = {
 
       // Switch to BSC Mainnet
       try {
-        await window.ethereum.request({
+        await ethereumProvider.request({
           method: 'wallet_switchEthereumChain',
           params: [{ chainId: BSC_MAINNET_CHAIN_ID }],
         });
       } catch (switchError: any) {
         // If BSC network is not added, add it
         if (switchError.code === 4902) {
-          await window.ethereum.request({
+          await ethereumProvider.request({
             method: 'wallet_addEthereumChain',
             params: [BSC_MAINNET_CONFIG]
           });
@@ -329,7 +332,7 @@ export const BlockchainService = {
       }
 
       // Get provider and user address
-      const provider = new BrowserProvider(window.ethereum);
+      const provider = new BrowserProvider(ethereumProvider);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
       
