@@ -55,9 +55,10 @@ export const Badge: React.FC<{ children: React.ReactNode; color?: string; varian
   );
 };
 
-export const Avatar: React.FC<{ url: string; size?: 'sm' | 'md' | 'lg' | 'xl'; bordered?: boolean; address?: string }> = ({ url, size = 'md', bordered = true, address }) => {
+export const Avatar: React.FC<{ url: string; size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'; bordered?: boolean; address?: string }> = ({ url, size = 'md', bordered = true, address }) => {
   const [imgError, setImgError] = React.useState(false);
   const sizes = {
+    xs: "w-6 h-6",
     sm: "w-8 h-8",
     md: "w-11 h-11",
     lg: "w-16 h-16",

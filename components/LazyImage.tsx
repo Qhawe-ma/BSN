@@ -128,7 +128,7 @@ export const LazyImage = memo(LazyImageComponent);
 
 interface LazyAvatarProps {
   src: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   address?: string;
   bordered?: boolean;
   className?: string;
@@ -145,6 +145,7 @@ const LazyAvatarComponent: React.FC<LazyAvatarProps> = ({
   const [hasError, setHasError] = useState(false);
 
   const sizes = {
+    xs: 'w-6 h-6',
     sm: 'w-8 h-8',
     md: 'w-11 h-11',
     lg: 'w-16 h-16',
