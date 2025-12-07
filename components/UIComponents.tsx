@@ -65,6 +65,10 @@ export const Avatar: React.FC<{ url: string; size?: 'xs' | 'sm' | 'md' | 'lg' | 
     xl: "w-24 h-24"
   };
   
+  React.useEffect(() => {
+    setImgError(false);
+  }, [url]);
+  
   const addressBasedUrl = address ? `https://api.dicebear.com/7.x/identicon/svg?seed=${address}&backgroundColor=1e2329` : null;
   const isDicebearUrl = url?.includes('api.dicebear.com');
   const isCustomAvatar = url && !isDicebearUrl && !url.includes('identicon');
@@ -73,6 +77,7 @@ export const Avatar: React.FC<{ url: string; size?: 'xs' | 'sm' | 'md' | 'lg' | 
   return (
     <div className={`${sizes[size]} rounded-full overflow-hidden ${bordered ? 'ring-2 ring-white/10 ring-offset-2 ring-offset-black/50' : ''} bg-gray-800 flex-shrink-0 shadow-lg`}>
       <img 
+        key={url}
         src={imgError ? (addressBasedUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=default&backgroundColor=1e2329`) : displayUrl} 
         alt="" 
         className="w-full h-full object-cover"
