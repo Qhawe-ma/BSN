@@ -28,8 +28,28 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
   const [showChatMenu, setShowChatMenu] = useState(false);
   const [showDeleteChatConfirm, setShowDeleteChatConfirm] = useState(false);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
-  const [deletedChatIds, setDeletedChatIds] = useState<Set<string>>(new Set());
+  const [deletedChatIds, setDeletedChatIds] = useState<Set<string>>(() => {
+    // Load deleted chat IDs from localStorage on mount
+    try {
+      const stored = localStorage.getItem('bsn_deleted_chats');
+      if (stored) {
+        return new Set(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error('Error loading deleted chats from storage:', e);
+    }
+    return new Set();
+  });
   const chatMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Persist deleted chat IDs to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('bsn_deleted_chats', JSON.stringify([...deletedChatIds]));
+    } catch (e) {
+      console.error('Error saving deleted chats to storage:', e);
+    }
+  }, [deletedChatIds]);
   
   // Refs & Responsive
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -51,8 +71,11 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     if (!currentUser) return;
     
     const unsubscribe = DataService.subscribeToChats(currentUser.address, (chats) => {
-      // Filter out deleted chats from Firebase results
-      const filteredChats = chats.filter(chat => !deletedChatIds.has(chat.id.toLowerCase()));
+      // Filter out deleted chats from Firebase results (check both chat ID and participant address)
+      const filteredChats = chats.filter(chat => 
+        !deletedChatIds.has(chat.id.toLowerCase()) && 
+        !deletedChatIds.has(chat.participant.address.toLowerCase())
+      );
       
       // Merge Firebase chats with local sessions (preserve locally created ones)
       setSessions(prev => {
@@ -135,18 +158,54 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     
     const openOrCreateChat = async () => {
       try {
+        const normalizedTarget = initialChatTarget.toLowerCase();
+        
+        // Remove from deleted set if previously deleted (allow re-chatting from profile)
+        setDeletedChatIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(normalizedTarget);
+          for (const id of prev) {
+            if (id.includes(normalizedTarget)) {
+              newSet.delete(id);
+            }
+          }
+          return newSet;
+        });
+        
         // Check if session already exists
         const existingSession = sessions.find(s => 
-          s.participant.address.toLowerCase() === initialChatTarget.toLowerCase()
+          s.participant.address.toLowerCase() === normalizedTarget
         );
 
         if (existingSession) {
+          // Also remove the actual participant address from deleted set
+          const participantAddr = existingSession.participant.address.toLowerCase();
+          setDeletedChatIds(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(participantAddr);
+            newSet.delete(existingSession.id.toLowerCase());
+            return newSet;
+          });
           setActiveSessionId(existingSession.id);
           if (isMobileView) setIsSidebarOpen(false);
           onClearChatTarget?.();
         } else {
           // Create new chat session
           const newSession = await DataService.startNewChat(initialChatTarget);
+          
+          // Remove the actual participant address and chat ID from deleted set
+          const participantAddr = newSession.participant.address.toLowerCase();
+          setDeletedChatIds(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(participantAddr);
+            newSet.delete(newSession.id.toLowerCase());
+            for (const id of prev) {
+              if (id.includes(participantAddr)) {
+                newSet.delete(id);
+              }
+            }
+            return newSet;
+          });
           
           // Add to sessions and set as active
           setSessions(prev => {
@@ -191,19 +250,57 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     if (!newChatAddress) return;
     setIsSearching(true);
     
-    // Check if chat already exists
+    const normalizedAddress = newChatAddress.toLowerCase();
+    
+    // Remove from deleted set if previously deleted (allow re-chatting)
+    setDeletedChatIds(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(normalizedAddress);
+      // Also remove any chat ID variations that might match
+      for (const id of prev) {
+        if (id.includes(normalizedAddress)) {
+          newSet.delete(id);
+        }
+      }
+      return newSet;
+    });
+    
+    // Check if chat already exists (now including previously deleted ones)
     const existingSession = sessions.find(s => 
-        s.participant.address.toLowerCase() === newChatAddress.toLowerCase() || 
-        s.participant.ens?.toLowerCase() === newChatAddress.toLowerCase()
+        s.participant.address.toLowerCase() === normalizedAddress || 
+        s.participant.ens?.toLowerCase() === normalizedAddress
     );
 
     if (existingSession) {
+        // Also remove the actual participant address from deleted set
+        const participantAddr = existingSession.participant.address.toLowerCase();
+        setDeletedChatIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(participantAddr);
+          newSet.delete(existingSession.id.toLowerCase());
+          return newSet;
+        });
         setActiveSessionId(existingSession.id);
         setIsNewChatModalOpen(false);
-        if (isMobileView) setIsSidebarOpen(false); // "Navigate" to chat
+        if (isMobileView) setIsSidebarOpen(false);
     } else {
         // Create new session
         const newSession = await DataService.startNewChat(newChatAddress);
+        
+        // Remove the actual participant address and chat ID from deleted set
+        const participantAddr = newSession.participant.address.toLowerCase();
+        setDeletedChatIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(participantAddr);
+          newSet.delete(newSession.id.toLowerCase());
+          for (const id of prev) {
+            if (id.includes(participantAddr)) {
+              newSet.delete(id);
+            }
+          }
+          return newSet;
+        });
+        
         setSessions(prev => [newSession, ...prev]);
         setActiveSessionId(newSession.id);
         setIsNewChatModalOpen(false);
@@ -228,36 +325,29 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showChatMenu]);
 
-  // Delete entire chat
+  // Delete entire chat (only hides locally - doesn't affect other user)
   const handleDeleteChat = async () => {
     if (!currentUser || !activeSession) return;
-    try {
-      const chatIdToDelete = activeSessionId;
-      
-      // Add to deleted set FIRST to prevent re-adding from Firebase subscription
-      if (chatIdToDelete) {
-        setDeletedChatIds(prev => new Set([...prev, chatIdToDelete.toLowerCase()]));
-      }
-      
-      // Remove from local state immediately
-      setSessions(prev => prev.filter(s => s.id !== chatIdToDelete));
-      setActiveSessionId(null);
-      setShowDeleteChatConfirm(false);
-      setMessages([]);
-      
-      // Then delete from Firebase
-      await FirebaseService.deleteChat(currentUser.address, activeSession.participant.address);
-    } catch (error) {
-      console.error('Error deleting chat:', error);
-      // On error, remove from deleted set so it can reappear
-      if (activeSessionId) {
-        setDeletedChatIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(activeSessionId.toLowerCase());
-          return newSet;
-        });
-      }
+    
+    // Add participant address to deleted set (normalized) - this persists to localStorage
+    const participantAddress = activeSession.participant.address.toLowerCase();
+    setDeletedChatIds(prev => new Set([...prev, participantAddress]));
+    
+    // Also add chat ID variations to prevent any case issues
+    if (activeSessionId) {
+      setDeletedChatIds(prev => new Set([...prev, activeSessionId.toLowerCase()]));
     }
+    
+    // Remove from local state immediately
+    setSessions(prev => prev.filter(s => 
+      s.participant.address.toLowerCase() !== participantAddress
+    ));
+    setActiveSessionId(null);
+    setShowDeleteChatConfirm(false);
+    setMessages([]);
+    
+    // Note: We don't delete from Firebase - the chat stays for the other user
+    console.log('✅ Chat hidden locally for participant:', participantAddress);
   };
 
   // Delete single message
@@ -586,9 +676,9 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                   <Button 
                     type="submit" 
                     disabled={!inputValue.trim()} 
-                    className={`rounded-full w-14 h-14 p-0 flex items-center justify-center shrink-0 transition-all duration-300 shadow-lg ${inputValue.trim() ? 'bg-primary text-black hover:scale-105 hover:shadow-primary/30' : 'bg-white/5 text-gray-600 opacity-50'}`}
+                    className={`rounded-full w-16 h-16 p-0 flex items-center justify-center shrink-0 transition-all duration-300 shadow-xl ${inputValue.trim() ? 'bg-primary text-black hover:scale-110 hover:shadow-primary/40 hover:shadow-2xl' : 'bg-gray-800/80 text-gray-500 border border-white/10'}`}
                   >
-                    <Send size={28} strokeWidth={2.5} className="ml-0.5" />
+                    <Send size={32} strokeWidth={2.5} className="ml-1" />
                   </Button>
                 </form>
               </div>
