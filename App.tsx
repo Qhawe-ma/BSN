@@ -79,8 +79,6 @@ const App: React.FC = () => {
   // Wallet Connection State
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
-  const [showWalletModal, setShowWalletModal] = useState(false);
-  const [selectedWallet, setSelectedWallet] = useState<string | null>(null);
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Chat target for navigating from profile Message button
@@ -245,15 +243,10 @@ const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // --- Wallet Connection ---
-  const handleConnect = () => {
-    setShowWalletModal(true);
-  };
-
-  const handleSelectWallet = async (walletType: string) => {
+  // --- Wallet Connection (Direct EVM wallet - no modal) ---
+  const handleConnect = async () => {
     if (isConnecting) return;
     
-    setSelectedWallet(walletType);
     setIsConnecting(true);
     setConnectionError(null);
     
@@ -263,44 +256,14 @@ const App: React.FC = () => {
     }
     
     try {
-      // Find the specific provider for the selected wallet type
+      // Use the default browser EVM wallet (window.ethereum)
       const ethereum = (window as any).ethereum;
-      let selectedProvider = ethereum;
       
-      if (ethereum) {
-        const providers = ethereum.providers || [ethereum];
-        
-        // Map wallet types to their detection properties
-        const walletDetectors: Record<string, (p: any) => boolean> = {
-          'metamask': (p) => p.isMetaMask && !p.isRabby && !p.isPhantom && !p.isBraveWallet,
-          'rabby': (p) => p.isRabby,
-          'trust': (p) => p.isTrust,
-          'coinbase': (p) => p.isCoinbaseWallet,
-          'okx': (p) => p.isOKExWallet || p.isOkxWallet,
-          'phantom': (p) => p.isPhantom,
-          'rainbow': (p) => p.isRainbow,
-          'brave': (p) => p.isBraveWallet,
-        };
-        
-        // Find the matching provider
-        const detector = walletDetectors[walletType];
-        if (detector) {
-          for (const provider of providers) {
-            if (provider && detector(provider)) {
-              selectedProvider = provider;
-              console.log(`✅ Found specific provider for ${walletType}`);
-              break;
-            }
-          }
-          // Also check the main ethereum object
-          if (selectedProvider === ethereum && detector(ethereum)) {
-            selectedProvider = ethereum;
-            console.log(`✅ Using main ethereum provider for ${walletType}`);
-          }
-        }
+      if (!ethereum) {
+        throw new Error('No EVM wallet detected. Please install a wallet extension like MetaMask.');
       }
       
-      const connectedUser = await BlockchainService.connectWallet(selectedProvider);
+      const connectedUser = await BlockchainService.connectWallet(ethereum);
       
       localStorage.setItem('walletAddress', connectedUser.address);
       await FirebaseService.setUserOnline(connectedUser.address, true);
@@ -318,7 +281,6 @@ const App: React.FC = () => {
       }
       
       console.log('✅ Wallet connected successfully!');
-      setShowWalletModal(false);
     } catch (error: any) {
       console.error('Wallet connection failed:', error);
       
@@ -337,7 +299,6 @@ const App: React.FC = () => {
       }, 5000);
     } finally {
       setIsConnecting(false);
-      setSelectedWallet(null);
     }
   };
 
@@ -893,239 +854,8 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Wallet Selection Modal */}
-      {showWalletModal && (() => {
-        // Detect installed wallets by checking window.ethereum providers
-        const ethereum = (window as any).ethereum;
-        const detectedWallets: string[] = [];
-        
-        // Check for multiple providers (EIP-6963 or providers array)
-        const providers = ethereum?.providers || [ethereum];
-        
-        if (ethereum) {
-          // Check each provider for wallet signatures
-          for (const provider of providers) {
-            if (!provider) continue;
-            if (provider.isMetaMask && !provider.isRabby && !provider.isPhantom) detectedWallets.push('metamask');
-            if (provider.isRabby) detectedWallets.push('rabby');
-            if (provider.isTrust) detectedWallets.push('trust');
-            if (provider.isCoinbaseWallet) detectedWallets.push('coinbase');
-            if (provider.isOKExWallet || provider.isOkxWallet) detectedWallets.push('okx');
-            if (provider.isPhantom) detectedWallets.push('phantom');
-            if (provider.isRainbow) detectedWallets.push('rainbow');
-            if (provider.isBraveWallet) detectedWallets.push('brave');
-          }
-          
-          // Also check the main ethereum object
-          if (ethereum.isMetaMask && !ethereum.isRabby && !ethereum.isPhantom && !detectedWallets.includes('metamask')) detectedWallets.push('metamask');
-          if (ethereum.isRabby && !detectedWallets.includes('rabby')) detectedWallets.push('rabby');
-          if (ethereum.isTrust && !detectedWallets.includes('trust')) detectedWallets.push('trust');
-          if (ethereum.isCoinbaseWallet && !detectedWallets.includes('coinbase')) detectedWallets.push('coinbase');
-          if ((ethereum.isOKExWallet || ethereum.isOkxWallet) && !detectedWallets.includes('okx')) detectedWallets.push('okx');
-          if (ethereum.isPhantom && !detectedWallets.includes('phantom')) detectedWallets.push('phantom');
-          if (ethereum.isRainbow && !detectedWallets.includes('rainbow')) detectedWallets.push('rainbow');
-          if (ethereum.isBraveWallet && !detectedWallets.includes('brave')) detectedWallets.push('brave');
-          
-          // If no specific wallet detected, mark as generic injected
-          if (detectedWallets.length === 0) detectedWallets.push('injected');
-        }
-        
-        // Wallets that appear in DETECTED section (only when installed)
-        const detectableWallets = [
-          { id: 'metamask', name: 'MetaMask', desc: 'Popular browser extension', color: '#f6851b', icon: (
-            <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask" className="w-8 h-8" />
-          )},
-          { id: 'rabby', name: 'Rabby', desc: 'Multi-chain smart wallet', color: '#7C5CFF', icon: (
-            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
-              <rect width="40" height="40" rx="8" fill="#7C5CFF"/>
-              <path d="M28 16c0-4.4-3.6-8-8-8s-8 3.6-8 8c0 2.8 1.4 5.2 3.6 6.6L12 32h16l-3.6-9.4c2.2-1.4 3.6-3.8 3.6-6.6z" fill="white"/>
-              <circle cx="17" cy="15" r="2" fill="#7C5CFF"/>
-              <circle cx="23" cy="15" r="2" fill="#7C5CFF"/>
-            </svg>
-          )},
-          { id: 'phantom', name: 'Phantom', desc: 'Multi-chain crypto wallet', color: '#AB9FF2', icon: (
-            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
-              <rect width="40" height="40" rx="8" fill="url(#phantom-grad)"/>
-              <defs><linearGradient id="phantom-grad" x1="0" y1="0" x2="40" y2="40"><stop stopColor="#534BB1"/><stop offset="1" stopColor="#551BF9"/></linearGradient></defs>
-              <ellipse cx="20" cy="22" rx="12" ry="10" fill="white"/>
-              <circle cx="15" cy="20" r="2.5" fill="#534BB1"/>
-              <circle cx="25" cy="20" r="2.5" fill="#534BB1"/>
-            </svg>
-          )},
-          { id: 'trust', name: 'Trust Wallet', desc: 'Secure mobile wallet', color: '#3375BB', icon: (
-            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
-              <path d="M20 4L6 10v12c0 9.627 6.4 15.333 14 18 7.6-2.667 14-8.373 14-18V10L20 4z" fill="#3375BB"/>
-              <path d="M20 8l-10 4.5v9c0 7.22 4.8 11.5 10.5 13.5 5.7-2 10.5-6.28 10.5-13.5v-9L20 8z" fill="white"/>
-            </svg>
-          )},
-          { id: 'coinbase', name: 'Coinbase Wallet', desc: 'Coinbase browser wallet', color: '#0052FF', icon: (
-            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
-              <circle cx="20" cy="20" r="16" fill="#0052FF"/>
-              <path d="M20 8c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12S26.627 8 20 8zm-2.4 7.2h4.8c.663 0 1.2.537 1.2 1.2v7.2c0 .663-.537 1.2-1.2 1.2h-4.8c-.663 0-1.2-.537-1.2-1.2v-7.2c0-.663.537-1.2 1.2-1.2z" fill="white"/>
-            </svg>
-          )},
-          { id: 'okx', name: 'OKX Wallet', desc: 'OKX exchange wallet', color: '#000000', icon: (
-            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
-              <rect width="40" height="40" rx="8" fill="black"/>
-              <rect x="8" y="8" width="10" height="10" rx="2" fill="white"/>
-              <rect x="22" y="8" width="10" height="10" rx="2" fill="white"/>
-              <rect x="8" y="22" width="10" height="10" rx="2" fill="white"/>
-              <rect x="22" y="22" width="10" height="10" rx="2" fill="white"/>
-            </svg>
-          )},
-          { id: 'rainbow', name: 'Rainbow', desc: 'Fun & easy Ethereum wallet', color: '#FF6B6B', icon: (
-            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
-              <rect width="40" height="40" rx="8" fill="url(#rainbow-grad)"/>
-              <defs><linearGradient id="rainbow-grad" x1="0" y1="0" x2="40" y2="40"><stop stopColor="#FF6B6B"/><stop offset="0.5" stopColor="#FFE66D"/><stop offset="1" stopColor="#4ECDC4"/></linearGradient></defs>
-              <path d="M8 28c0-8.837 7.163-16 16-16" stroke="white" strokeWidth="4" strokeLinecap="round" fill="none"/>
-              <path d="M14 28c0-5.523 4.477-10 10-10" stroke="white" strokeWidth="4" strokeLinecap="round" fill="none"/>
-              <circle cx="24" cy="28" r="4" fill="white"/>
-            </svg>
-          )},
-          { id: 'brave', name: 'Brave Wallet', desc: 'Built into Brave browser', color: '#FB542B', icon: (
-            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
-              <rect width="40" height="40" rx="8" fill="#FB542B"/>
-              <path d="M20 6l-10 6v4l2 10 8 8 8-8 2-10v-4L20 6z" fill="white"/>
-              <path d="M20 10l-6 4v3l1.5 6 4.5 4.5 4.5-4.5 1.5-6v-3L20 10z" fill="#FB542B"/>
-            </svg>
-          )},
-          { id: 'injected', name: 'Browser Wallet', desc: 'Detected wallet extension', color: '#6B7280', icon: (
-            <Wallet size={32} className="text-white" />
-          )},
-        ];
-        
-        // Wallets that ALWAYS appear in "Other Wallets" section (common ones)
-        const alwaysShowWallets = [
-          { id: 'metamask', name: 'MetaMask', desc: 'Popular browser extension', color: '#f6851b', icon: (
-            <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask" className="w-8 h-8" />
-          )},
-          { id: 'trust', name: 'Trust Wallet', desc: 'Secure mobile wallet', color: '#3375BB', icon: (
-            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
-              <path d="M20 4L6 10v12c0 9.627 6.4 15.333 14 18 7.6-2.667 14-8.373 14-18V10L20 4z" fill="#3375BB"/>
-              <path d="M20 8l-10 4.5v9c0 7.22 4.8 11.5 10.5 13.5 5.7-2 10.5-6.28 10.5-13.5v-9L20 8z" fill="white"/>
-            </svg>
-          )},
-          { id: 'coinbase', name: 'Coinbase Wallet', desc: 'Coinbase browser wallet', color: '#0052FF', icon: (
-            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
-              <circle cx="20" cy="20" r="16" fill="#0052FF"/>
-              <path d="M20 8c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12S26.627 8 20 8zm-2.4 7.2h4.8c.663 0 1.2.537 1.2 1.2v7.2c0 .663-.537 1.2-1.2 1.2h-4.8c-.663 0-1.2-.537-1.2-1.2v-7.2c0-.663.537-1.2 1.2-1.2z" fill="white"/>
-            </svg>
-          )},
-          { id: 'walletconnect', name: 'WalletConnect', desc: 'Scan with mobile wallet', color: '#3B99FC', icon: (
-            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
-              <path d="M11.4 15.4c4.7-4.7 12.5-4.7 17.2 0l.6.6c.2.2.2.6 0 .9l-2 2c-.1.1-.3.1-.4 0l-.8-.8c-3.3-3.3-8.7-3.3-12 0l-.9.9c-.1.1-.3.1-.4 0l-2-2c-.2-.2-.2-.6 0-.9l.7-.7zm21.3 4l1.8 1.8c.2.2.2.6 0 .9l-8.1 8.1c-.2.2-.6.2-.9 0l-5.7-5.7c-.1-.1-.2-.1-.2 0l-5.7 5.7c-.2.2-.6.2-.9 0l-8.1-8.1c-.2-.2-.2-.6 0-.9l1.8-1.8c.2-.2.6-.2.9 0l5.7 5.7c.1.1.2.1.2 0l5.7-5.7c.2-.2.6-.2.9 0l5.7 5.7c.1.1.2.1.2 0l5.7-5.7c.3-.2.7-.2.9 0z" fill="#3B99FC"/>
-            </svg>
-          )},
-        ];
-        
-        // Build the detected wallets list
-        const detectedWalletsList = detectableWallets.filter(w => detectedWallets.includes(w.id));
-        
-        // Build the other wallets list (only show common wallets that aren't detected)
-        const otherWalletsList = alwaysShowWallets.filter(w => !detectedWallets.includes(w.id));
-        
-        // Wallet button component
-        const renderWalletButton = (wallet: typeof detectableWallets[0], isDetected: boolean = false) => (
-          <button
-            key={wallet.id}
-            onClick={() => handleSelectWallet(wallet.id)}
-            disabled={isConnecting}
-            className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 ${
-              selectedWallet === wallet.id 
-                ? 'bg-primary/10 border-primary/50' 
-                : isDetected 
-                  ? 'bg-green-500/5 border-green-500/20 hover:bg-green-500/10 hover:border-green-500/30'
-                  : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
-            } ${isConnecting && selectedWallet !== wallet.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${wallet.color}15` }}>
-              {wallet.icon}
-            </div>
-            <div className="flex-1 text-left">
-              <div className="flex items-center gap-2">
-                <span className="text-white font-semibold">{wallet.name}</span>
-                {isDetected && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold bg-green-500/20 text-green-400 rounded-full uppercase tracking-wide">
-                    Detected
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-gray-500">{wallet.desc}</p>
-            </div>
-            {isConnecting && selectedWallet === wallet.id && (
-              <Loader size={20} className="text-primary animate-spin" />
-            )}
-          </button>
-        );
-
-        return (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="w-full max-w-md relative">
-              {/* Glow Effect */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-3xl blur-xl opacity-60"></div>
-              
-              <div className="relative bg-[#12141a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
-                {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-white/5">
-                  <h3 className="text-xl font-bold text-white">Connect Wallet</h3>
-                  <button 
-                    onClick={() => setShowWalletModal(false)}
-                    className="p-2 hover:bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-
-                {/* Wallet Options - Scrollable */}
-                <div className="p-4 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
-                  {/* Detected Wallets Section */}
-                  {detectedWalletsList.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 px-1 mb-3">
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                        <span className="text-xs font-semibold text-green-400 uppercase tracking-wider">Detected Wallets</span>
-                      </div>
-                      {detectedWalletsList.map(wallet => renderWalletButton(wallet, true))}
-                    </div>
-                  )}
-                  
-                  {/* Other Wallets Section */}
-                  {otherWalletsList.length > 0 && (
-                    <div className="space-y-2">
-                      {detectedWalletsList.length > 0 && (
-                        <div className="flex items-center gap-2 px-1 mb-3 mt-4">
-                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Other Wallets</span>
-                        </div>
-                      )}
-                      {otherWalletsList.map(wallet => renderWalletButton(wallet, false))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Footer */}
-                <div className="px-6 pb-6 pt-4 border-t border-white/5">
-                  <p className="text-center text-xs text-gray-500">
-                    By connecting, you agree to our{' '}
-                    <span className="text-primary hover:underline cursor-pointer">Terms of Service</span>
-                    {' '}and{' '}
-                    <span className="text-primary hover:underline cursor-pointer">Privacy Policy</span>
-                  </p>
-                </div>
-
-                {/* Error Display */}
-                {connectionError && (
-                  <div className="mx-4 mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
-                    <p className="text-sm text-red-400 text-center">{connectionError}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* Connection Error Toast */}
-      {connectionError && !showWalletModal && (
+      {connectionError && (
         <div className="fixed bottom-24 md:bottom-8 left-1/2 transform -translate-x-1/2 z-[150] animate-in slide-in-from-bottom duration-300">
           <div className="bg-red-500/90 backdrop-blur-xl text-white px-6 py-4 rounded-2xl shadow-2xl border border-red-400/30 flex items-center gap-3 max-w-md">
             <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
