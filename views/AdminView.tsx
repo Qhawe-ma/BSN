@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Shield, Lock, AlertTriangle, Trash2, Eye, EyeOff, FileText, Plus, Edit, X, Check, Loader, ArrowLeft, Flag, RefreshCw, Upload, Image, Crown, Users, Search, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { GlassCard, Button } from '../components/UIComponents';
+import { GlassCard, Button, Avatar } from '../components/UIComponents';
 import { FirebaseService } from '../firebaseService';
 import { formatAddress, DataService } from '../services';
 import { BadgeType } from '../types';
@@ -1062,11 +1062,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <img
-                        src={user.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${user.address}`}
-                        alt=""
-                        className="w-10 h-10 rounded-full bg-gray-800"
-                      />
+                      <Avatar url={user.avatarUrl || ''} size="md" address={user.address} bordered={false} />
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-white font-medium">{user.ens || formatAddress(user.address)}</span>
@@ -1141,11 +1137,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
             <div className="mb-6">
               <p className="text-gray-400 mb-2">User:</p>
               <div className="flex items-center gap-3 p-3 bg-white/5 rounded-xl">
-                <img
-                  src={selectedUser.avatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${selectedUser.address}`}
-                  alt=""
-                  className="w-10 h-10 rounded-full bg-gray-800"
-                />
+                <Avatar url={selectedUser.avatarUrl || ''} size="md" address={selectedUser.address} bordered={false} />
                 <div>
                   <p className="text-white font-medium">{selectedUser.ens || formatAddress(selectedUser.address)}</p>
                   <p className="text-gray-500 text-sm font-mono">{selectedUser.address.substring(0, 20)}...</p>

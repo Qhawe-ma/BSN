@@ -152,11 +152,12 @@ const LazyAvatarComponent: React.FC<LazyAvatarProps> = ({
     xl: 'w-24 h-24'
   };
 
-  // Always use a deterministic seed - use address or extract from URL or use 'default'
-  const seed = address || src?.split('seed=')[1]?.split('&')[0] || 'default';
-  const fallbackUrl = `https://api.dicebear.com/7.x/identicon/svg?seed=${seed}`;
+  const addressBasedUrl = address ? `https://api.dicebear.com/7.x/identicon/svg?seed=${address}&backgroundColor=1e2329` : null;
+  const isDicebearUrl = src?.includes('api.dicebear.com');
+  const isCustomAvatar = src && !isDicebearUrl && !src.includes('identicon');
+  const displayUrl = isCustomAvatar ? src : (addressBasedUrl || src || `https://api.dicebear.com/7.x/identicon/svg?seed=default&backgroundColor=1e2329`);
 
-  const imgSrc = hasError ? fallbackUrl : (src || fallbackUrl);
+  const imgSrc = hasError ? (addressBasedUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=default&backgroundColor=1e2329`) : displayUrl;
 
   return (
     <div

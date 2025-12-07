@@ -200,7 +200,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
           <div className="flex flex-col md:flex-row justify-between items-end -mt-16 mb-6 gap-4">
             <div className="relative">
                 <div className="p-2 bg-[#0F1115] rounded-full inline-block shadow-xl">
-                   <Avatar url={user.avatarUrl} size="xl" />
+                   <Avatar url={user.avatarUrl} size="xl" address={user.address} />
                 </div>
                 <div className="absolute bottom-3 right-3 w-5 h-5 bg-green-500 border-4 border-[#0F1115] rounded-full"></div>
             </div>
@@ -356,7 +356,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
               onClick={() => onPostClick?.(post.tokenId)}
             >
               <div className="flex gap-3">
-                <Avatar url={post.author.avatarUrl} size="sm" />
+                <Avatar url={post.author.avatarUrl} size="sm" address={post.author.address} />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-bold text-white text-sm">
@@ -439,7 +439,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
                              
                              <div className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/5">
                                 <div className="relative">
-                                  <Avatar url={editAvatar} size="lg" />
+                                  <Avatar url={editAvatar} size="lg" address={user.address} />
                                   {isUploading && (
                                     <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center">
                                       <Loader size={20} className="animate-spin text-primary" />

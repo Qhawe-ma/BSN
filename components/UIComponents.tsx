@@ -65,14 +65,15 @@ export const Avatar: React.FC<{ url: string; size?: 'xs' | 'sm' | 'md' | 'lg' | 
     xl: "w-24 h-24"
   };
   
-  // Always use a deterministic seed - use address or extract from URL or use 'default'
-  const seed = address || url?.split('seed=')[1]?.split('&')[0] || 'default';
-  const fallbackUrl = `https://api.dicebear.com/7.x/identicon/svg?seed=${seed}`;
+  const addressBasedUrl = address ? `https://api.dicebear.com/7.x/identicon/svg?seed=${address}&backgroundColor=1e2329` : null;
+  const isDicebearUrl = url?.includes('api.dicebear.com');
+  const isCustomAvatar = url && !isDicebearUrl && !url.includes('identicon');
+  const displayUrl = isCustomAvatar ? url : (addressBasedUrl || url || `https://api.dicebear.com/7.x/identicon/svg?seed=default&backgroundColor=1e2329`);
   
   return (
     <div className={`${sizes[size]} rounded-full overflow-hidden ${bordered ? 'ring-2 ring-white/10 ring-offset-2 ring-offset-black/50' : ''} bg-gray-800 flex-shrink-0 shadow-lg`}>
       <img 
-        src={imgError ? fallbackUrl : (url || fallbackUrl)} 
+        src={imgError ? (addressBasedUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=default&backgroundColor=1e2329`) : displayUrl} 
         alt="" 
         className="w-full h-full object-cover"
         onError={() => setImgError(true)}

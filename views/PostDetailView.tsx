@@ -428,7 +428,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
           <div className="flex justify-between items-start mb-4">
             <div className="flex gap-3">
               <div onClick={() => onUserClick(post.author)} className="cursor-pointer hover:opacity-80 transition-opacity">
-                <Avatar url={post.author.avatarUrl} size="md" />
+                <Avatar url={post.author.avatarUrl} size="md" address={post.author.address} />
               </div>
               <div className="flex flex-col justify-center">
                 <div className="flex items-center gap-2">
@@ -559,7 +559,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
               </div>
             )}
             <div className="flex gap-3 items-center">
-              <Avatar url={currentUser.avatarUrl} size="sm" />
+              <Avatar url={currentUser.avatarUrl} size="sm" address={currentUser.address} />
               <div className="flex-1 relative flex items-center gap-2">
                 <input type="file" ref={commentImageInputRef} onChange={handleCommentImageSelect} accept="image/*" className="hidden" />
                 <button onClick={() => commentImageInputRef.current?.click()} className="p-2 text-gray-400 hover:text-primary hover:bg-white/5 rounded-full transition-all" title="Add image">
@@ -686,7 +686,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                 
                 <div className="bg-black/40 rounded-xl p-4 border border-white/5">
                   <div className="flex items-center gap-3 mb-2">
-                    <Avatar url={post.author.avatarUrl} size="sm" />
+                    <Avatar url={post.author.avatarUrl} size="sm" address={post.author.address} />
                     <span className="text-sm font-semibold text-white">
                       {post.author.ens || formatAddress(post.author.address)}
                     </span>

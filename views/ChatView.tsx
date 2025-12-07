@@ -324,7 +324,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                 }`}
               >
                 <div className="relative flex-shrink-0">
-                   <Avatar url={session.participant.avatarUrl} size="md" bordered={activeSessionId !== session.id} />
+                   <Avatar url={session.participant.avatarUrl} size="md" bordered={activeSessionId !== session.id} address={session.participant.address} />
                    {onlineUsers.has(session.participant.address) && (
                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#131417]"></div>
                    )}
@@ -388,7 +388,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                     )}
 
                     <div onClick={() => activeSession && onUserClick(activeSession.participant)} className="cursor-pointer hover:opacity-80 transition-opacity">
-                        <Avatar url={activeSession?.participant.avatarUrl || ""} size="md" />
+                        <Avatar url={activeSession?.participant.avatarUrl || ""} size="md" address={activeSession?.participant.address} />
                     </div>
                     <div className="flex flex-col">
                         <h3 
