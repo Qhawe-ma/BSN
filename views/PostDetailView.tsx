@@ -45,39 +45,97 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
 
   useEffect(() => {
     const loadPost = async () => {
-      setIsLoading(true);
       setError(null);
       
       try {
-        // Try cached feed first for instant load, fall back to fresh fetch
+        // FAST LOADING: Try cached feed first for instant render
         let posts = DataService.getCachedFeed();
-        if (!posts) {
-          posts = await DataService.getFeed(false);
-        }
-        const foundPost = posts.find(p => p.tokenId === postId);
+        let foundPost = posts?.find(p => p.tokenId === postId);
         
         if (foundPost) {
+          // Instant render with cached data
           setPost(foundPost);
           setLikesCount(foundPost.likes);
           setCommentsCount(foundPost.commentsCount);
           setRepostsCount(foundPost.repostsCount || 0);
+          setIsLoading(false);
           
-          const fetchedComments = await DataService.getComments(foundPost.internalId);
+          // Parallel fetch: fresh author profile, comments, and user interactions
+          const [freshAuthorProfile, fetchedComments] = await Promise.all([
+            FirebaseService.getUserProfile(foundPost.author.address),
+            DataService.getComments(foundPost.internalId)
+          ]);
+          
+          // Update post with fresh author data (avatar, badge)
+          if (freshAuthorProfile) {
+            const updatedPost = {
+              ...foundPost,
+              author: {
+                ...foundPost.author,
+                avatarUrl: freshAuthorProfile.avatarUrl || foundPost.author.avatarUrl,
+                activeBadge: freshAuthorProfile.activeBadge,
+                ens: freshAuthorProfile.ens || foundPost.author.ens
+              }
+            };
+            setPost(updatedPost);
+          }
+          
           setComments(fetchedComments);
           
+          // Fetch user interactions in parallel
           if (currentUser) {
-            const liked = await DataService.isPostLiked(foundPost.internalId, currentUser.address);
+            const [liked, reposted] = await Promise.all([
+              DataService.isPostLiked(foundPost.internalId, currentUser.address),
+              FirebaseService.hasReposted(foundPost.internalId, currentUser.address)
+            ]);
             setIsLiked(liked);
-            const reposted = await FirebaseService.hasReposted(foundPost.internalId, currentUser.address);
             setHasReposted(reposted);
           }
         } else {
-          setError('Post not found');
+          // No cache, fetch fresh
+          setIsLoading(true);
+          posts = await DataService.getFeed(false);
+          foundPost = posts.find(p => p.tokenId === postId);
+          
+          if (foundPost) {
+            // Fetch fresh author profile
+            const freshAuthorProfile = await FirebaseService.getUserProfile(foundPost.author.address);
+            if (freshAuthorProfile) {
+              foundPost = {
+                ...foundPost,
+                author: {
+                  ...foundPost.author,
+                  avatarUrl: freshAuthorProfile.avatarUrl || foundPost.author.avatarUrl,
+                  activeBadge: freshAuthorProfile.activeBadge,
+                  ens: freshAuthorProfile.ens || foundPost.author.ens
+                }
+              };
+            }
+            
+            setPost(foundPost);
+            setLikesCount(foundPost.likes);
+            setCommentsCount(foundPost.commentsCount);
+            setRepostsCount(foundPost.repostsCount || 0);
+            
+            const fetchedComments = await DataService.getComments(foundPost.internalId);
+            setComments(fetchedComments);
+            
+            if (currentUser) {
+              const [liked, reposted] = await Promise.all([
+                DataService.isPostLiked(foundPost.internalId, currentUser.address),
+                FirebaseService.hasReposted(foundPost.internalId, currentUser.address)
+              ]);
+              setIsLiked(liked);
+              setHasReposted(reposted);
+            }
+          } else {
+            setError('Post not found');
+          }
+          setIsLoading(false);
         }
       } catch (err) {
         console.error('Error loading post:', err);
         setError('Failed to load post');
-      } finally {
         setIsLoading(false);
       }
     };
@@ -490,12 +548,17 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                 </div>
                 <div className="flex-1">
                   <div className="flex justify-between items-baseline mb-1">
-                    <span 
-                      onClick={() => onUserClick(comment.author)}
-                      className="text-sm font-bold text-gray-200 cursor-pointer hover:text-primary"
-                    >
-                      {comment.author.ens || formatAddress(comment.author.address)}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span 
+                        onClick={() => onUserClick(comment.author)}
+                        className="text-sm font-bold text-gray-200 cursor-pointer hover:text-primary"
+                      >
+                        {comment.author.ens || formatAddress(comment.author.address)}
+                      </span>
+                      {comment.author.activeBadge && comment.author.activeBadge.status === 'active' && (
+                        <BadgeIcon badgeType={comment.author.activeBadge.badgeType} size="sm" />
+                      )}
+                    </div>
                     <span className="text-xs text-gray-600">{timeAgo(comment.timestamp)}</span>
                   </div>
                   {comment.content && <p className="text-sm text-gray-400">{comment.content}</p>}
