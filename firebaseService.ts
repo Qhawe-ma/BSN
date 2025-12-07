@@ -711,7 +711,7 @@ export const FirebaseService = {
   /**
    * Post a comment
    */
-  postComment: async (postId: string, content: string, author: User, imageUrl?: string): Promise<Comment> => {
+  postComment: async (postId: string, content: string, author: User, imageUrl?: string, parentId?: string): Promise<Comment> => {
     try {
       const commentsRef = ref(database, `comments/${postId}`);
       const newCommentRef = push(commentsRef);
@@ -722,7 +722,8 @@ export const FirebaseService = {
         author,
         content,
         timestamp: Date.now(),
-        ...(imageUrl && { imageUrl })
+        ...(imageUrl && { imageUrl }),
+        ...(parentId && { parentId })
       };
 
       await set(newCommentRef, comment);

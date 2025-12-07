@@ -55,6 +55,8 @@ export interface Comment {
   content: string;
   timestamp: number;
   imageUrl?: string;
+  parentId?: string;
+  replies?: Comment[];
 }
 
 export interface Message {

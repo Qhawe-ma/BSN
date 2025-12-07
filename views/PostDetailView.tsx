@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { ArrowLeft, MessageSquare, Heart, Share2, Repeat, ShieldCheck, Send, Loader, X, Check, ImagePlus } from 'lucide-react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { ArrowLeft, MessageSquare, Heart, Share2, Repeat, ShieldCheck, Send, Loader, X, Check, ImagePlus, Reply, CornerDownRight } from 'lucide-react';
 import { Post, Comment, User } from '../types';
 import { DataService, BlockchainService, formatAddress } from '../services';
 import { GlassCard, Button, Avatar } from '../components/UIComponents';
@@ -42,6 +42,8 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
   const [commentImage, setCommentImage] = useState<File | null>(null);
   const [commentImagePreview, setCommentImagePreview] = useState<string | null>(null);
   const commentImageInputRef = useRef<HTMLInputElement>(null);
+  const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
+  const replyInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const loadPost = async () => {
@@ -163,6 +165,32 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
     return () => unsubscribe();
   }, [post?.internalId]);
 
+  // Organize comments into nested structure (top-level + replies)
+  const organizedComments = useMemo(() => {
+    const topLevel = comments.filter(c => !c.parentId);
+    const repliesMap = new Map<string, Comment[]>();
+    
+    comments.filter(c => c.parentId).forEach(reply => {
+      const existing = repliesMap.get(reply.parentId!) || [];
+      existing.push(reply);
+      repliesMap.set(reply.parentId!, existing);
+    });
+    
+    // Sort replies by timestamp
+    repliesMap.forEach((replies) => {
+      replies.sort((a, b) => a.timestamp - b.timestamp);
+    });
+    
+    return { topLevel, repliesMap };
+  }, [comments]);
+
+  // Focus reply input when replying
+  useEffect(() => {
+    if (replyingTo && replyInputRef.current) {
+      replyInputRef.current.focus();
+    }
+  }, [replyingTo]);
+
   const handleLike = async () => {
     if (!currentUser || !post || isLiking) return;
     
@@ -208,7 +236,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
     if (commentImageInputRef.current) commentImageInputRef.current.value = '';
   };
 
-  const handlePostComment = async () => {
+  const handlePostComment = async (parentId?: string) => {
     if ((!newComment.trim() && !commentImage) || !currentUser || !post) return;
     
     const commentText = newComment.trim();
@@ -220,7 +248,8 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
       author: currentUser,
       content: commentText,
       timestamp: Date.now(),
-      imageUrl: commentImagePreview || undefined
+      imageUrl: commentImagePreview || undefined,
+      ...(parentId && { parentId })
     };
     
     setComments(prev => [...prev, optimisticComment]);
@@ -229,6 +258,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
     clearCommentImage();
     setCommentsCount(prev => prev + 1);
     setIsPostingComment(true);
+    setReplyingTo(null);
     
     try {
       let imageUrl: string | undefined;
@@ -239,7 +269,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
         const data = await response.json();
         if (data.success) imageUrl = data.imageUrl;
       }
-      const comment = await DataService.postComment(post.internalId, commentText, currentUser, imageUrl);
+      const comment = await DataService.postComment(post.internalId, commentText, currentUser, imageUrl, parentId);
       setComments(prev => prev.map(c => c.id === tempId ? comment : c));
     } catch (error) {
       console.error('Error posting comment:', error);
@@ -248,6 +278,16 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
     } finally {
       setIsPostingComment(false);
     }
+  };
+
+  const handleReplyClick = (comment: Comment) => {
+    setReplyingTo(comment);
+    setNewComment('');
+  };
+
+  const cancelReply = () => {
+    setReplyingTo(null);
+    setNewComment('');
   };
 
   const handleShare = async () => {
@@ -501,6 +541,15 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
         
         {currentUser && (
           <div className="mb-4 pb-4 border-b border-white/5">
+            {replyingTo && (
+              <div className="mb-2 flex items-center gap-2 text-xs text-gray-400 bg-white/5 rounded-lg px-3 py-2">
+                <CornerDownRight size={14} className="text-primary" />
+                <span>Replying to <span className="text-primary font-medium">{replyingTo.author.ens || formatAddress(replyingTo.author.address)}</span></span>
+                <button onClick={cancelReply} className="ml-auto text-gray-500 hover:text-white transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
             {commentImagePreview && (
               <div className="mb-3 relative inline-block">
                 <img src={commentImagePreview} alt="Preview" className="max-h-32 rounded-xl border border-white/10" />
@@ -517,16 +566,17 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                   <ImagePlus size={18} />
                 </button>
                 <input 
+                  ref={replyInputRef}
                   type="text" 
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handlePostComment()}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handlePostComment(replyingTo?.id)}
                   disabled={isPostingComment}
-                  placeholder="Write a comment..." 
+                  placeholder={replyingTo ? `Reply to ${replyingTo.author.ens || formatAddress(replyingTo.author.address)}...` : "Write a comment..."} 
                   className="flex-1 bg-white/5 border border-white/10 rounded-full pl-4 pr-12 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
                 />
                 <button 
-                  onClick={handlePostComment}
+                  onClick={() => handlePostComment(replyingTo?.id)}
                   disabled={(!newComment.trim() && !commentImage) || isPostingComment}
                   className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-black rounded-full disabled:opacity-50"
                 >
@@ -541,33 +591,74 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
           {comments.length === 0 ? (
             <p className="text-gray-500 text-center py-4 text-sm">No comments yet. Be the first to comment!</p>
           ) : (
-            comments.map(comment => (
-              <div key={comment.id} className="flex gap-3">
-                <div onClick={() => onUserClick(comment.author)} className="cursor-pointer">
-                  <Avatar url={comment.author.avatarUrl} size="sm" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-baseline mb-1">
-                    <div className="flex items-center gap-1.5">
-                      <span 
-                        onClick={() => onUserClick(comment.author)}
-                        className="text-sm font-bold text-gray-200 cursor-pointer hover:text-primary"
+            organizedComments.topLevel.map(comment => (
+              <div key={comment.id}>
+                <div className="flex gap-3">
+                  <div onClick={() => onUserClick(comment.author)} className="cursor-pointer">
+                    <Avatar url={comment.author.avatarUrl} size="sm" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-baseline mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <span 
+                          onClick={() => onUserClick(comment.author)}
+                          className="text-sm font-bold text-gray-200 cursor-pointer hover:text-primary"
+                        >
+                          {comment.author.ens || formatAddress(comment.author.address)}
+                        </span>
+                        {comment.author.activeBadge && comment.author.activeBadge.status === 'active' && (
+                          <BadgeIcon badgeType={comment.author.activeBadge.badgeType} size="sm" />
+                        )}
+                      </div>
+                      <span className="text-xs text-gray-600">{timeAgo(comment.timestamp)}</span>
+                    </div>
+                    {comment.content && <p className="text-sm text-gray-400">{comment.content}</p>}
+                    {comment.imageUrl && (
+                      <div className="mt-2 rounded-xl overflow-hidden border border-white/5 max-w-xs">
+                        <LazyImage src={comment.imageUrl} alt="Comment attachment" className="w-full h-auto" />
+                      </div>
+                    )}
+                    {currentUser && (
+                      <button 
+                        onClick={() => handleReplyClick(comment)}
+                        className="mt-1.5 flex items-center gap-1 text-xs text-gray-500 hover:text-primary transition-colors"
                       >
-                        {comment.author.ens || formatAddress(comment.author.address)}
-                      </span>
-                      {comment.author.activeBadge && comment.author.activeBadge.status === 'active' && (
-                        <BadgeIcon badgeType={comment.author.activeBadge.badgeType} size="sm" />
+                        <Reply size={12} />
+                        <span>Reply</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                {organizedComments.repliesMap.get(comment.id)?.map(reply => (
+                  <div key={reply.id} className="flex gap-3 ml-10 mt-3 pl-3 border-l-2 border-white/5">
+                    <div onClick={() => onUserClick(reply.author)} className="cursor-pointer">
+                      <Avatar url={reply.author.avatarUrl} size="xs" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-baseline mb-1">
+                        <div className="flex items-center gap-1.5">
+                          <span 
+                            onClick={() => onUserClick(reply.author)}
+                            className="text-xs font-bold text-gray-300 cursor-pointer hover:text-primary"
+                          >
+                            {reply.author.ens || formatAddress(reply.author.address)}
+                          </span>
+                          {reply.author.activeBadge && reply.author.activeBadge.status === 'active' && (
+                            <BadgeIcon badgeType={reply.author.activeBadge.badgeType} size="sm" />
+                          )}
+                        </div>
+                        <span className="text-[10px] text-gray-600">{timeAgo(reply.timestamp)}</span>
+                      </div>
+                      {reply.content && <p className="text-xs text-gray-400">{reply.content}</p>}
+                      {reply.imageUrl && (
+                        <div className="mt-2 rounded-xl overflow-hidden border border-white/5 max-w-[200px]">
+                          <LazyImage src={reply.imageUrl} alt="Reply attachment" className="w-full h-auto" />
+                        </div>
                       )}
                     </div>
-                    <span className="text-xs text-gray-600">{timeAgo(comment.timestamp)}</span>
                   </div>
-                  {comment.content && <p className="text-sm text-gray-400">{comment.content}</p>}
-                  {comment.imageUrl && (
-                    <div className="mt-2 rounded-xl overflow-hidden border border-white/5 max-w-xs">
-                      <LazyImage src={comment.imageUrl} alt="Comment attachment" className="w-full h-auto" />
-                    </div>
-                  )}
-                </div>
+                ))}
               </div>
             ))
           )}
