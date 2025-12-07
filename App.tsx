@@ -592,11 +592,19 @@ const App: React.FC = () => {
             className="flex items-center text-white hover:opacity-80 transition-opacity cursor-pointer"
             title="Back to Landing Page"
           >
-              <img 
-                src="/check/logoo.svg" 
-                alt="BSN" 
-                className={`transition-all duration-300 ${isSidebarCollapsed ? 'h-10 w-10' : 'h-14'}`}
-              />
+              {isSidebarCollapsed ? (
+                <img 
+                  src="/check/iconnns.svg" 
+                  alt="BSN" 
+                  className="h-10 w-10 transition-all duration-300"
+                />
+              ) : (
+                <img 
+                  src="/check/logoo.svg" 
+                  alt="BSN" 
+                  className="h-14 transition-all duration-300"
+                />
+              )}
           </button>
 
           {/* Toggle Button */}
