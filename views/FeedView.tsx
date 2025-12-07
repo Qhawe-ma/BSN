@@ -302,8 +302,18 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
     return new Date(timestamp).toLocaleDateString();
   };
 
+  const isOptimistic = post.isOptimistic === true;
+  const optimisticStatus = post.optimisticStatus;
+
   return (
-    <GlassCard className="mb-4 md:mb-6 hover:border-white/10 transition-all duration-300 cursor-pointer" onClick={() => onPostClick(post.tokenId)}>
+    <GlassCard className={`mb-4 md:mb-6 hover:border-white/10 transition-all duration-300 cursor-pointer ${isOptimistic ? 'relative overflow-hidden' : ''}`} onClick={() => !isOptimistic && onPostClick(post.tokenId)}>
+      {/* Optimistic Post Indicator - Shows "Posting..." status */}
+      {isOptimistic && (
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none z-0">
+          <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-primary via-yellow-400 to-primary animate-pulse w-full"></div>
+        </div>
+      )}
+      
       {/* Repost Indicator */}
       {post.isRepost && post.originalAuthor && (
         <div className="px-4 md:px-6 pt-3 flex items-center gap-2 text-gray-500 text-xs">
@@ -350,7 +360,16 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
                 {post.author.activeBadge && post.author.activeBadge.status === 'active' && (
                   <BadgeIcon badgeType={post.author.activeBadge.badgeType} size="sm" />
                 )}
-                <span className="text-gray-500 text-xs md:text-sm">· {timeAgo(post.timestamp)}</span>
+                <span className="text-gray-500 text-xs md:text-sm">
+                  {isOptimistic ? (
+                    <span className="inline-flex items-center gap-1 text-primary">
+                      <Loader size={12} className="animate-spin" />
+                      {optimisticStatus === 'confirming' ? 'Confirming...' : 'Posting...'}
+                    </span>
+                  ) : (
+                    <>· {timeAgo(post.timestamp)}</>
+                  )}
+                </span>
               </div>
               <span className="text-gray-500 text-xs font-mono">{formatAddress(post.author.address)}</span>
             </div>
@@ -397,29 +416,39 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
             </div>
           )}
 
-          {/* Token Metadata (Subtle) */}
-          <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 text-[10px] font-mono text-gray-600" onClick={(e) => e.stopPropagation()}>
-             <a 
-               href={post.txHash 
-                 ? `https://bscscan.com/tx/${post.txHash}#eventlog`
-                 : `https://bscscan.com/token/${post.contractAddress || import.meta.env.VITE_BSC_CONTRACT_ADDRESS}?a=${post.tokenId}#inventory`
-               } 
-               target="_blank" 
-               rel="noreferrer" 
-               className="bg-white/5 px-2 py-1 rounded-md border border-white/5 hover:text-primary hover:border-primary/30 transition-colors"
-             >
-               Token ID: #{post.tokenId}
-             </a>
-             <span className="flex items-center gap-1 text-green-500/60 ml-auto">
-               <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-               On-Chain
-             </span>
-          </div>
+          {/* Token Metadata (Subtle) - Hidden for optimistic posts */}
+          {!isOptimistic ? (
+            <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 text-[10px] font-mono text-gray-600" onClick={(e) => e.stopPropagation()}>
+               <a 
+                 href={post.txHash 
+                   ? `https://bscscan.com/tx/${post.txHash}#eventlog`
+                   : `https://bscscan.com/token/${post.contractAddress || import.meta.env.VITE_BSC_CONTRACT_ADDRESS}?a=${post.tokenId}#inventory`
+                 } 
+                 target="_blank" 
+                 rel="noreferrer" 
+                 className="bg-white/5 px-2 py-1 rounded-md border border-white/5 hover:text-primary hover:border-primary/30 transition-colors"
+               >
+                 Token ID: #{post.tokenId}
+               </a>
+               <span className="flex items-center gap-1 text-green-500/60 ml-auto">
+                 <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                 On-Chain
+               </span>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 text-[10px] font-mono">
+              <span className="flex items-center gap-2 text-primary/80 bg-primary/10 px-2 py-1 rounded-md border border-primary/20">
+                <Loader size={10} className="animate-spin" />
+                Minting to blockchain...
+              </span>
+            </div>
+          )}
 
-          {/* Actions */}
-          <div className="flex items-center justify-between text-gray-400 max-w-md mt-2" onClick={(e) => e.stopPropagation()}>
+          {/* Actions - Disabled for optimistic posts */}
+          <div className={`flex items-center justify-between text-gray-400 max-w-md mt-2 ${isOptimistic ? 'opacity-50 pointer-events-none' : ''}`} onClick={(e) => e.stopPropagation()}>
             <button 
               onClick={toggleComments}
+              disabled={isOptimistic}
               className="group flex items-center gap-2 hover:text-blue-400 transition-colors text-sm"
             >
               <div className="p-2 rounded-full group-hover:bg-blue-400/10 transition-colors -ml-2">
@@ -430,7 +459,7 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
             
             <button 
               onClick={handleRepostClick}
-              disabled={isReposting || hasReposted}
+              disabled={isReposting || hasReposted || isOptimistic}
               className={`group flex items-center gap-2 transition-colors text-sm ${
                 hasReposted ? 'text-green-400' : 'hover:text-green-400'
               } ${isReposting ? 'opacity-50 cursor-wait' : ''}`}
@@ -447,6 +476,7 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
 
             <button 
               onClick={handleLike}
+              disabled={isOptimistic}
               className={`group flex items-center gap-2 transition-colors text-sm ${isLiked ? 'text-pink-500' : 'hover:text-pink-500'}`}
             >
                <div className="p-2 rounded-full group-hover:bg-pink-500/10 transition-colors">
@@ -457,6 +487,7 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
 
             <button 
               onClick={handleShare}
+              disabled={isOptimistic}
               className={`group flex items-center gap-2 transition-colors text-sm ${
                 shareStatus !== 'idle' ? 'text-primary' : 'hover:text-primary'
               }`}

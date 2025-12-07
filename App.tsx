@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Home, MessageCircle, PlusSquare, User as UserIcon, BarChart2, LogOut, Wallet, X, Feather, Image as ImageIcon, Loader, ChevronLeft, ChevronRight, BookOpen, Crown } from 'lucide-react';
 import { User, ViewState } from './types';
-import { BlockchainService, DataService } from './services';
+import { BlockchainService, DataService, OptimisticPostService } from './services';
 import { FirebaseService } from './firebaseService';
 import { Button, GlassCard, Avatar } from './components/UIComponents';
 
@@ -409,40 +409,72 @@ const App: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // --- Create Post Logic ---
+  // --- Create Post Logic with Optimistic Updates (Like X.com - Instant Display) ---
   const handleCreatePost = async () => {
     if (!postContent && !selectedImage) return;
+    if (!user) {
+      alert('Please connect your wallet first');
+      return;
+    }
+    
+    // Step 1: Create optimistic post and show IMMEDIATELY (X.com style)
+    const optimisticPost = OptimisticPostService.createOptimisticPost(
+      postContent,
+      user,
+      undefined,
+      imagePreview || undefined
+    );
+    
+    // Add to feed instantly - user sees their post right away!
+    OptimisticPostService.addOptimisticPost(optimisticPost);
+    
+    // Close modal and navigate to feed immediately
+    const savedContent = postContent;
+    const savedImage = selectedImage;
+    setPostContent("");
+    removeImage();
+    setIsCreating(false);
+    setView(ViewState.FEED);
+    
+    // Step 2: Update status to show "uploading" indicator on the post
+    setMintingStatus('uploading');
+    OptimisticPostService.updateOptimisticPost(optimisticPost.optimisticId!, {
+      optimisticStatus: 'pending'
+    });
     
     try {
-      // Step 1: Upload to IPFS (Simulated)
-      setMintingStatus('uploading');
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Step 2: Blockchain Confirmation
-      setMintingStatus('confirming');
-      await BlockchainService.mintPost(postContent, selectedImage || undefined);
+      // Step 3: Mint on blockchain in background (user can browse while this happens)
+      OptimisticPostService.updateOptimisticPost(optimisticPost.optimisticId!, {
+        optimisticStatus: 'confirming'
+      });
       
-      // Step 3: Success
+      const confirmedPost = await BlockchainService.mintPost(savedContent, savedImage || undefined);
+      
+      // Step 4: Replace optimistic post with real confirmed post
+      OptimisticPostService.confirmOptimisticPost(optimisticPost.optimisticId!, confirmedPost);
+      
       setMintingStatus('success');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Reset
-      setMintingStatus('idle');
-      setPostContent("");
-      removeImage();
-      setIsCreating(false);
-      setView(ViewState.FEED);
+      console.log('🎉 Post confirmed on blockchain!');
+      
+      // Reset status after brief success indicator
+      setTimeout(() => {
+        setMintingStatus('idle');
+      }, 2000);
+      
     } catch (error: any) {
-      // Handle errors gracefully
+      // Handle error - remove the optimistic post
       console.error('Minting error:', error);
+      
+      // Remove the optimistic post from feed
+      OptimisticPostService.removeOptimisticPost(optimisticPost.optimisticId!);
+      
       setMintingStatus('error');
       
-      // Show error for 5 seconds then reset
+      // Show error notification to user
       setTimeout(() => {
         setMintingStatus('idle');
       }, 5000);
       
-      // Display error to user
       alert(error.message || 'Failed to mint post. Please try again.');
     }
   };

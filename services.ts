@@ -83,6 +83,145 @@ export const FeedEvents = {
 
 export const getStreamState = () => streamState;
 
+// --- Optimistic Posts Management (Like X.com - Instant Post Display) ---
+let optimisticPosts: Map<string, Post> = new Map();
+let confirmedTokenIds: Set<string> = new Set();
+
+const mergeOptimisticPostsWithCache = (): void => {
+  if (!feedCache) return;
+  
+  const activeOptimistic = Array.from(optimisticPosts.values()).filter(
+    op => !confirmedTokenIds.has(op.optimisticId!)
+  );
+  
+  if (activeOptimistic.length === 0) return;
+  
+  const nonOptimisticPosts = feedCache.posts.filter(p => !p.isOptimistic);
+  feedCache.posts = [...activeOptimistic, ...nonOptimisticPosts];
+  feedCache.posts.sort((a, b) => b.timestamp - a.timestamp);
+};
+
+export const OptimisticPostService = {
+  addOptimisticPost: (post: Post): void => {
+    optimisticPosts.set(post.optimisticId!, post);
+    console.log('⚡ Added optimistic post:', post.optimisticId);
+    
+    if (feedCache) {
+      feedCache.posts = [post, ...feedCache.posts.filter(p => p.optimisticId !== post.optimisticId)];
+    } else {
+      feedCache = {
+        posts: [post],
+        timestamp: Date.now(),
+        ttl: CACHE_TTL,
+        staleTime: STALE_TIME
+      };
+    }
+    
+    FeedEvents.emit();
+    FeedEvents.emitStream(feedCache.posts, streamState);
+  },
+
+  updateOptimisticPost: (optimisticId: string, updates: Partial<Post>): void => {
+    const existingPost = optimisticPosts.get(optimisticId);
+    if (existingPost) {
+      const updatedPost = { ...existingPost, ...updates };
+      optimisticPosts.set(optimisticId, updatedPost);
+      
+      if (feedCache) {
+        feedCache.posts = feedCache.posts.map(p => 
+          p.optimisticId === optimisticId ? updatedPost : p
+        );
+        
+        FeedEvents.emit();
+        FeedEvents.emitStream(feedCache.posts, streamState);
+      }
+    }
+  },
+
+  confirmOptimisticPost: (optimisticId: string, confirmedPost: Post): void => {
+    console.log('✅ Confirming optimistic post:', optimisticId, 'with tokenId:', confirmedPost.tokenId);
+    
+    confirmedTokenIds.add(optimisticId);
+    
+    const confirmedWithCleanup: Post = {
+      ...confirmedPost,
+      isOptimistic: false,
+      optimisticId: undefined,
+      optimisticStatus: undefined
+    };
+    
+    optimisticPosts.delete(optimisticId);
+    
+    if (feedCache) {
+      feedCache.posts = feedCache.posts
+        .filter(p => p.optimisticId !== optimisticId)
+        .filter(p => p.tokenId !== confirmedPost.tokenId);
+      
+      feedCache.posts = [confirmedWithCleanup, ...feedCache.posts];
+      feedCache.posts.sort((a, b) => b.timestamp - a.timestamp);
+      
+      FeedEvents.emit();
+      FeedEvents.emitStream(feedCache.posts, streamState);
+    }
+    
+    setTimeout(() => {
+      confirmedTokenIds.delete(optimisticId);
+    }, 60000);
+  },
+
+  removeOptimisticPost: (optimisticId: string): void => {
+    console.log('❌ Removing failed optimistic post:', optimisticId);
+    optimisticPosts.delete(optimisticId);
+    
+    if (feedCache) {
+      feedCache.posts = feedCache.posts.filter(p => p.optimisticId !== optimisticId);
+      
+      FeedEvents.emit();
+      FeedEvents.emitStream(feedCache.posts, streamState);
+    }
+  },
+
+  getOptimisticPosts: (): Post[] => {
+    return Array.from(optimisticPosts.values());
+  },
+
+  hasOptimisticPost: (optimisticId: string): boolean => {
+    return optimisticPosts.has(optimisticId);
+  },
+
+  reapplyOptimisticPosts: (): void => {
+    mergeOptimisticPostsWithCache();
+    if (feedCache) {
+      FeedEvents.emitStream(feedCache.posts, streamState);
+    }
+  },
+
+  createOptimisticPost: (content: string, author: User, attachmentUrl?: string, imagePreview?: string): Post => {
+    const optimisticId = `optimistic_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = Date.now();
+    
+    const post: Post = {
+      id: now,
+      tokenId: optimisticId,
+      internalId: optimisticId,
+      author,
+      content,
+      timestamp: now,
+      likes: 0,
+      commentsCount: 0,
+      repostsCount: 0,
+      ipfsHash: '',
+      txHash: '',
+      attachmentUrl: imagePreview || attachmentUrl,
+      isOptimistic: true,
+      optimisticId,
+      optimisticStatus: 'pending'
+    };
+    
+    return post;
+  }
+};
+
 // --- Helper: Get Provider (works without wallet) ---
 const getReadOnlyProvider = () => {
   return new JsonRpcProvider(PUBLIC_RPC_URLS[0]);
@@ -704,11 +843,12 @@ const refreshFeedInBackground = async (): Promise<void> => {
       staleTime: STALE_TIME
     };
 
+    OptimisticPostService.reapplyOptimisticPosts();
+
     console.log(`✅ Background refresh complete: ${allPosts.length} posts`);
-    FeedEvents.emit(); // Notify subscribers of new data
+    FeedEvents.emit();
   } catch (error) {
     console.error('Background refresh failed:', error);
-    // Don't update cache on error - keep serving stale data
   }
 };
 

@@ -46,6 +46,9 @@ export interface Post {
   originalPostId?: string; // Token ID of original post if this is a repost
   originalAuthor?: User; // Original author if this is a repost
   contractAddress?: string; // The contract address this post was minted on
+  isOptimistic?: boolean; // True if post is pending blockchain confirmation
+  optimisticId?: string; // Temporary ID for optimistic posts
+  optimisticStatus?: 'pending' | 'confirming' | 'confirmed' | 'failed'; // Status of optimistic post
 }
 
 export interface Comment {
