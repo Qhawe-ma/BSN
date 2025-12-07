@@ -96,6 +96,7 @@ export const FirebaseService = {
 
   /**
    * Get messages for a chat in real-time
+   * Subscribes to all possible chat ID variations (legacy mixed-case and normalized lowercase)
    */
   subscribeToMessages: (
     senderId: string, 
@@ -105,20 +106,56 @@ export const FirebaseService = {
     // Normalize addresses to lowercase for consistent chat IDs
     const normalizedSenderId = senderId.toLowerCase();
     const normalizedRecipientId = recipientId.toLowerCase();
-    const chatId = [normalizedSenderId, normalizedRecipientId].sort().join('_');
-    const messagesRef = ref(database, `chats/${chatId}/messages`);
-    const messagesQuery = query(messagesRef, orderByChild('timestamp'), limitToLast(100));
-
-    const unsubscribe = onValue(messagesQuery, (snapshot) => {
-      const messages: Message[] = [];
+    const normalizedChatId = [normalizedSenderId, normalizedRecipientId].sort().join('_');
+    
+    // Also check original case chat ID (for legacy data)
+    const originalChatId = [senderId, recipientId].sort().join('_');
+    
+    const unsubscribes: (() => void)[] = [];
+    const allMessages = new Map<string, Message>();
+    
+    const emitMergedMessages = () => {
+      const messagesArray = Array.from(allMessages.values());
+      messagesArray.sort((a, b) => a.timestamp - b.timestamp);
+      callback(messagesArray);
+    };
+    
+    // Subscribe to normalized chat ID
+    const normalizedMessagesRef = ref(database, `chats/${normalizedChatId}/messages`);
+    const normalizedQuery = query(normalizedMessagesRef, orderByChild('timestamp'), limitToLast(100));
+    
+    const unsubNormalized = onValue(normalizedQuery, (snapshot) => {
       snapshot.forEach((childSnapshot) => {
-        messages.push(childSnapshot.val());
+        const msg = childSnapshot.val();
+        if (msg && msg.id) {
+          allMessages.set(msg.id, msg);
+        }
       });
-      callback(messages);
+      emitMergedMessages();
     });
+    unsubscribes.push(() => off(normalizedMessagesRef));
+    
+    // If original case is different, also subscribe to legacy chat
+    if (originalChatId.toLowerCase() !== normalizedChatId) {
+      const originalMessagesRef = ref(database, `chats/${originalChatId}/messages`);
+      const originalQuery = query(originalMessagesRef, orderByChild('timestamp'), limitToLast(100));
+      
+      const unsubOriginal = onValue(originalQuery, (snapshot) => {
+        snapshot.forEach((childSnapshot) => {
+          const msg = childSnapshot.val();
+          if (msg && msg.id) {
+            allMessages.set(msg.id, msg);
+          }
+        });
+        emitMergedMessages();
+      });
+      unsubscribes.push(() => off(originalMessagesRef));
+    }
 
-    // Return unsubscribe function
-    return () => off(messagesRef);
+    // Return combined unsubscribe function
+    return () => {
+      unsubscribes.forEach(unsub => unsub());
+    };
   },
 
   /**
@@ -188,15 +225,41 @@ export const FirebaseService = {
         }
       });
       
+      // Deduplicate chats by participant address (case-insensitive)
+      // This handles legacy chats with different case formats
+      const deduplicatedChats = new Map<string, ChatSession>();
+      chatSessions.forEach(session => {
+        const normalizedParticipant = session.participant.address.toLowerCase();
+        const existing = deduplicatedChats.get(normalizedParticipant);
+        
+        if (!existing) {
+          // First chat with this participant
+          deduplicatedChats.set(normalizedParticipant, session);
+        } else {
+          // Merge: keep the one with most recent message, combine unread counts
+          if (session.lastMessage.timestamp > existing.lastMessage.timestamp) {
+            // New session has more recent message, use it but add unread count
+            session.unreadCount = (session.unreadCount || 0) + (existing.unreadCount || 0);
+            deduplicatedChats.set(normalizedParticipant, session);
+          } else {
+            // Existing has more recent message, just add unread count
+            existing.unreadCount = (existing.unreadCount || 0) + (session.unreadCount || 0);
+          }
+        }
+      });
+      
+      const uniqueChatSessions = Array.from(deduplicatedChats.values());
+      const uniqueParticipantAddresses = uniqueChatSessions.map(s => s.participant.address);
+      
       // Fetch full user profiles (including badges) for all participants
       try {
-        const profilePromises = participantAddresses.map(address => 
+        const profilePromises = uniqueParticipantAddresses.map(address => 
           FirebaseService.getUserProfile(address)
         );
         const profiles = await Promise.all(profilePromises);
         
         // Merge profile data (including badges) into chat sessions
-        chatSessions.forEach((session, index) => {
+        uniqueChatSessions.forEach((session, index) => {
           const profile = profiles[index];
           if (profile) {
             session.participant = {
@@ -215,8 +278,8 @@ export const FirebaseService = {
       }
       
       // Sort by last message timestamp
-      chatSessions.sort((a, b) => b.lastMessage.timestamp - a.lastMessage.timestamp);
-      callback(chatSessions);
+      uniqueChatSessions.sort((a, b) => b.lastMessage.timestamp - a.lastMessage.timestamp);
+      callback(uniqueChatSessions);
     });
 
     return () => off(chatsRef);
