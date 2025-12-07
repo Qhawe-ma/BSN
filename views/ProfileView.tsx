@@ -91,49 +91,46 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
     }
   };
 
-  // Fetch fresh profile counts from Firebase and check follow status
+  // Load all profile data in parallel for faster loading
   useEffect(() => {
     setIsFollowing(false);
+    setIsLoadingPosts(true);
     
-    const loadProfileData = async () => {
+    const loadAllData = async () => {
       try {
-        const freshProfile = await FirebaseService.getUserProfile(user.address);
+        const promises: Promise<any>[] = [
+          DataService.getPostsByOwner(user.address),
+          FirebaseService.getUserProfile(user.address)
+        ];
+        
+        if (currentUser && !isOwnProfile) {
+          promises.push(FirebaseService.isFollowing(currentUser.address, user.address));
+        }
+        
+        const results = await Promise.all(promises);
+        
+        const userPosts = results[0] || [];
+        setPosts(userPosts);
+        
+        const freshProfile = results[1];
         if (freshProfile) {
           setFollowersCount(freshProfile.followers || 0);
           setFollowingCount(freshProfile.following || 0);
         }
         
-        if (currentUser && !isOwnProfile) {
-          console.log('🔍 Checking follow status:', currentUser.address, '->', user.address);
-          const following = await FirebaseService.isFollowing(currentUser.address, user.address);
-          console.log('✅ Follow status result:', following);
-          setIsFollowing(following);
+        if (results[2] !== undefined) {
+          setIsFollowing(results[2]);
         }
       } catch (error) {
         console.error('Error loading profile data:', error);
-      }
-    };
-    
-    loadProfileData();
-  }, [currentUser?.address, user.address, isOwnProfile]);
-
-  // Load posts for this user's profile
-  useEffect(() => {
-    const loadPosts = async () => {
-      setIsLoadingPosts(true);
-      try {
-        const userPosts = await DataService.getPostsByOwner(user.address);
-        setPosts(userPosts);
-      } catch (error) {
-        console.error('Error loading profile posts:', error);
         setPosts([]);
       } finally {
         setIsLoadingPosts(false);
       }
     };
     
-    loadPosts();
-  }, [user.address]);
+    loadAllData();
+  }, [currentUser?.address, user.address, isOwnProfile]);
   
   const handleFollow = async () => {
     if (!currentUser || isFollowLoading) return;
@@ -315,81 +312,76 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
       </GlassCard>
 
       {/* Content Grid Controls */}
-      <div className="flex items-center gap-6 border-b border-white/10 mb-6 px-2">
+      <div className="flex items-center gap-6 border-b border-white/10 mb-4 px-2">
           <button className="pb-3 text-white font-bold text-sm border-b-2 border-primary flex items-center gap-2">
-              <Grid size={18} />
+              <Grid size={16} />
               Posts
-          </button>
-          <button className="pb-3 text-gray-500 hover:text-white transition-colors font-medium text-sm flex items-center gap-2">
-              <Badge color="bg-gray-500" variant="outline">NFTs</Badge>
-              Collection
           </button>
       </div>
 
       {/* Content Grid */}
       {isLoadingPosts ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <Loader size={32} className="text-primary animate-spin mb-4" />
-          <p className="text-gray-400">Loading posts...</p>
+        <div className="flex items-center justify-center py-12">
+          <Loader size={24} className="text-primary animate-spin" />
         </div>
       ) : posts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20">
+        <div className="flex flex-col items-center justify-center py-12">
           <div className="text-center">
-            <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-4">
-              <ImageIcon size={24} className="text-gray-500" />
+            <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-3">
+              <ImageIcon size={18} className="text-gray-500" />
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">No Posts Yet</h3>
-            <p className="text-gray-400 text-sm max-w-sm">
+            <h3 className="text-sm font-semibold text-white mb-1">No Posts Yet</h3>
+            <p className="text-gray-500 text-xs max-w-xs">
               {isOwnProfile ? 
-                "Start minting your first post to see it here as an NFT!" : 
-                "This user hasn't minted any posts yet."
+                "Start minting your first post!" : 
+                "This user hasn't posted yet."
               }
             </p>
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-3">
           {posts.map((post) => (
-            <GlassCard 
+            <div 
               key={post.tokenId} 
-              className="p-4 hover:border-white/10 transition-all cursor-pointer hover:bg-white/5"
+              className="p-3 bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-white/10 rounded-xl transition-all cursor-pointer"
               onClick={() => onPostClick?.(post.tokenId)}
             >
-              <div className="flex gap-3">
-                <Avatar url={post.author.avatarUrl} size="sm" address={post.author.address} />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-white text-sm">
+              <div className="flex gap-2.5">
+                <Avatar url={post.author.avatarUrl} size="xs" address={post.author.address} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="font-semibold text-white text-xs truncate">
                       {post.author.ens || formatAddress(post.author.address)}
                     </span>
                     {post.author.activeBadge && post.author.activeBadge.status === 'active' && (
                       <BadgeIcon badgeType={post.author.activeBadge.badgeType} size="sm" />
                     )}
-                    <span className="text-gray-500 text-xs">
+                    <span className="text-gray-600 text-[10px]">
                       {new Date(post.timestamp).toLocaleDateString()}
                     </span>
                   </div>
-                  <p className="text-gray-300 text-sm mb-3">{post.content}</p>
+                  <p className="text-gray-300 text-xs line-clamp-2 mb-2">{post.content}</p>
                   {post.attachmentUrl && (
                     <img 
                       src={post.attachmentUrl} 
-                      alt="Post attachment" 
-                      className="rounded-xl w-full h-auto object-contain mb-3"
+                      alt="" 
+                      className="rounded-lg w-full max-h-40 object-cover mb-2"
                     />
                   )}
-                  <div className="flex items-center gap-4 text-gray-500 text-xs">
+                  <div className="flex items-center gap-3 text-gray-500 text-[10px]">
                     <div className="flex items-center gap-1">
-                      <Heart size={14} />
+                      <Heart size={12} />
                       <span>{post.likes}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <MessageSquare size={14} />
+                      <MessageSquare size={12} />
                       <span>{post.commentsCount}</span>
                     </div>
                   </div>
                 </div>
               </div>
-            </GlassCard>
+            </div>
           ))}
         </div>
       )}
