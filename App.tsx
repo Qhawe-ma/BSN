@@ -44,11 +44,23 @@ const App: React.FC = () => {
     if (pathname.startsWith('/post/') || pathname === '/admin' || pathname.startsWith('/blog')) {
       return false;
     }
-    // Always show landing page on root URL for every session
+    // Check if user has already passed landing page this session
+    const hasPassedLanding = sessionStorage.getItem('bsn_passed_landing');
+    if (hasPassedLanding === 'true') {
+      return false;
+    }
+    // Always show landing page on root URL for new sessions
     return pathname === '/' || pathname === '';
   });
   const [user, setUser] = useState<User | null>(null);
-  const [view, setView] = useState<ViewState>(ViewState.FEED);
+  const [view, setView] = useState<ViewState>(() => {
+    // Restore last view from sessionStorage
+    const savedView = sessionStorage.getItem('bsn_current_view');
+    if (savedView && Object.values(ViewState).includes(savedView as ViewState)) {
+      return savedView as ViewState;
+    }
+    return ViewState.FEED;
+  });
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [viewingProfileUser, setViewingProfileUser] = useState<User | null>(null);
   
@@ -600,7 +612,13 @@ const App: React.FC = () => {
 
   const handleLaunchApp = () => {
     setShowLanding(false);
+    sessionStorage.setItem('bsn_passed_landing', 'true');
   };
+
+  // Save current view to sessionStorage when it changes
+  useEffect(() => {
+    sessionStorage.setItem('bsn_current_view', view);
+  }, [view]);
 
   if (showLanding) {
     return <LandingPage onLaunchApp={handleLaunchApp} />;

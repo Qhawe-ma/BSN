@@ -40,6 +40,20 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     }
     return new Set();
   });
+  
+  // Track which chats have been read locally (persisted to localStorage)
+  const [readChatIds, setReadChatIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('bsn_read_chats');
+      if (stored) {
+        return new Set(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error('Error loading read chats from storage:', e);
+    }
+    return new Set();
+  });
+  
   const chatMenuRef = useRef<HTMLDivElement>(null);
   
   // Persist deleted chat IDs to localStorage
@@ -50,6 +64,15 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
       console.error('Error saving deleted chats to storage:', e);
     }
   }, [deletedChatIds]);
+  
+  // Persist read chat IDs to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('bsn_read_chats', JSON.stringify([...readChatIds]));
+    } catch (e) {
+      console.error('Error saving read chats to storage:', e);
+    }
+  }, [readChatIds]);
   
   // Refs & Responsive
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -77,9 +100,17 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
         !deletedChatIds.has(chat.participant.address.toLowerCase())
       );
       
-      // If a chat is currently active, force its unread count to 0
+      // Force unread count to 0 for active chat OR any chat that's been read locally
       const processedChats = filteredChats.map(chat => {
-        if (activeSessionId && chat.id.toLowerCase() === activeSessionId.toLowerCase()) {
+        const chatIdLower = chat.id.toLowerCase();
+        const participantLower = chat.participant.address.toLowerCase();
+        
+        // Check if this chat is active or has been read locally
+        if (
+          (activeSessionId && chatIdLower === activeSessionId.toLowerCase()) ||
+          readChatIds.has(chatIdLower) ||
+          readChatIds.has(participantLower)
+        ) {
           return { ...chat, unreadCount: 0 };
         }
         return chat;
@@ -115,7 +146,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     });
     
     return () => unsubscribe();
-  }, [currentUser, deletedChatIds, activeSessionId]);
+  }, [currentUser, deletedChatIds, activeSessionId, readChatIds]);
 
   useEffect(() => {
     if (!activeSessionId || !currentUser) {
@@ -137,15 +168,24 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     );
     
     // Mark messages as read when opening chat and clear unread count locally
-    FirebaseService.markAsRead(currentUser.address, otherUserId).then(() => {
-      // Force update the session's unread count to 0 immediately in local state
-      setSessions(prev => prev.map(session => {
-        if (session.id === activeSessionId) {
-          return { ...session, unreadCount: 0 };
-        }
-        return session;
-      }));
+    // Add to read chats set immediately for persistent tracking
+    setReadChatIds(prev => {
+      const newSet = new Set(prev);
+      newSet.add(activeSessionId.toLowerCase());
+      newSet.add(otherUserId.toLowerCase());
+      return newSet;
     });
+    
+    // Force update the session's unread count to 0 immediately in local state
+    setSessions(prev => prev.map(session => {
+      if (session.id === activeSessionId) {
+        return { ...session, unreadCount: 0 };
+      }
+      return session;
+    }));
+    
+    // Also mark as read in Firebase (background)
+    FirebaseService.markAsRead(currentUser.address, otherUserId);
     
     // Subscribe to other user's online status
     const unsubscribePresence = FirebaseService.subscribeToUserPresence(
@@ -706,7 +746,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                     disabled={!inputValue.trim()} 
                     className={`p-2 flex items-center justify-center shrink-0 transition-all duration-300 ${inputValue.trim() ? 'text-primary hover:scale-110 hover:text-primary/80' : 'text-gray-600 cursor-not-allowed'}`}
                   >
-                    <Send size={38} strokeWidth={2.5} />
+                    <Send size={28} strokeWidth={2.5} />
                   </button>
                 </form>
               </div>
