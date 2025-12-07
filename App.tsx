@@ -39,12 +39,13 @@ const ConnectWalletPrompt: React.FC<{ onConnect: () => void, isConnecting?: bool
 
 const App: React.FC = () => {
   const [showLanding, setShowLanding] = useState(() => {
-    const hasVisited = localStorage.getItem('hasVisitedApp');
     const pathname = window.location.pathname;
+    // Skip landing page for direct links to posts, admin, or blog
     if (pathname.startsWith('/post/') || pathname === '/admin' || pathname.startsWith('/blog')) {
       return false;
     }
-    return !hasVisited;
+    // Always show landing page on root URL for every session
+    return pathname === '/' || pathname === '';
   });
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState<ViewState>(ViewState.FEED);
@@ -566,7 +567,6 @@ const App: React.FC = () => {
   );
 
   const handleLaunchApp = () => {
-    localStorage.setItem('hasVisitedApp', 'true');
     setShowLanding(false);
   };
 
