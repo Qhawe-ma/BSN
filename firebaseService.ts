@@ -62,14 +62,17 @@ export const FirebaseService = {
    */
   sendMessage: async (senderId: string, recipientId: string, content: string): Promise<Message> => {
     try {
-      const chatId = [senderId, recipientId].sort().join('_');
+      // Normalize addresses to lowercase for consistent chat IDs
+      const normalizedSenderId = senderId.toLowerCase();
+      const normalizedRecipientId = recipientId.toLowerCase();
+      const chatId = [normalizedSenderId, normalizedRecipientId].sort().join('_');
       const messagesRef = ref(database, `chats/${chatId}/messages`);
       const newMessageRef = push(messagesRef);
       
       const message: Message = {
         id: newMessageRef.key || `msg_${Date.now()}`,
-        sender: senderId,
-        recipient: recipientId,
+        sender: normalizedSenderId,
+        recipient: normalizedRecipientId,
         content,
         timestamp: Date.now(),
         isRead: false
@@ -99,7 +102,10 @@ export const FirebaseService = {
     recipientId: string, 
     callback: (messages: Message[]) => void
   ): (() => void) => {
-    const chatId = [senderId, recipientId].sort().join('_');
+    // Normalize addresses to lowercase for consistent chat IDs
+    const normalizedSenderId = senderId.toLowerCase();
+    const normalizedRecipientId = recipientId.toLowerCase();
+    const chatId = [normalizedSenderId, normalizedRecipientId].sort().join('_');
     const messagesRef = ref(database, `chats/${chatId}/messages`);
     const messagesQuery = query(messagesRef, orderByChild('timestamp'), limitToLast(100));
 
@@ -153,11 +159,11 @@ export const FirebaseService = {
             const lastMessage = metadata?.lastMessage;
             
             if (lastMessage) {
-              // Calculate unread count
+              // Calculate unread count (case-insensitive comparison)
               let unreadCount = 0;
               const messages = chatData.messages || {};
               Object.values(messages).forEach((msg: any) => {
-                if (msg.recipient === userId && !msg.isRead) {
+                if (msg.recipient?.toLowerCase() === normalizedUserId && !msg.isRead) {
                   unreadCount++;
                 }
               });
@@ -221,7 +227,10 @@ export const FirebaseService = {
    */
   markAsRead: async (currentUserId: string, otherUserId: string): Promise<void> => {
     try {
-      const chatId = [currentUserId, otherUserId].sort().join('_');
+      // Normalize addresses to lowercase for consistent chat IDs
+      const normalizedCurrentUserId = currentUserId.toLowerCase();
+      const normalizedOtherUserId = otherUserId.toLowerCase();
+      const chatId = [normalizedCurrentUserId, normalizedOtherUserId].sort().join('_');
       const messagesRef = ref(database, `chats/${chatId}/messages`);
       
       onValue(messagesRef, (snapshot) => {
@@ -229,8 +238,8 @@ export const FirebaseService = {
         
         snapshot.forEach((childSnapshot) => {
           const message = childSnapshot.val();
-          // Mark as read if: message was sent TO me (currentUserId) and not yet read
-          if (message.recipient === currentUserId && !message.isRead) {
+          // Mark as read if: message was sent TO me (currentUserId) and not yet read (case-insensitive check)
+          if (message.recipient?.toLowerCase() === normalizedCurrentUserId && !message.isRead) {
             const messageRef = ref(database, `chats/${chatId}/messages/${childSnapshot.key}`);
             const updatedMessage = { ...message, isRead: true };
             set(messageRef, updatedMessage);
@@ -245,12 +254,12 @@ export const FirebaseService = {
           onValue(chatMetadataRef, (metaSnapshot) => {
             const metadata = metaSnapshot.val();
             if (metadata && metadata.lastMessage) {
-              // Update lastMessage isRead status in metadata
+              // Update lastMessage isRead status in metadata (case-insensitive check)
               const updatedMetadata = {
                 ...metadata,
                 lastMessage: {
                   ...metadata.lastMessage,
-                  isRead: metadata.lastMessage.recipient === currentUserId ? true : metadata.lastMessage.isRead
+                  isRead: metadata.lastMessage.recipient?.toLowerCase() === normalizedCurrentUserId ? true : metadata.lastMessage.isRead
                 }
               };
               set(chatMetadataRef, updatedMetadata);
@@ -268,7 +277,10 @@ export const FirebaseService = {
    */
   deleteMessage: async (senderId: string, recipientId: string, messageId: string): Promise<void> => {
     try {
-      const chatId = [senderId, recipientId].sort().join('_');
+      // Normalize addresses to lowercase for consistent chat IDs
+      const normalizedSenderId = senderId.toLowerCase();
+      const normalizedRecipientId = recipientId.toLowerCase();
+      const chatId = [normalizedSenderId, normalizedRecipientId].sort().join('_');
       const messageRef = ref(database, `chats/${chatId}/messages/${messageId}`);
       await remove(messageRef);
       console.log('✅ Message deleted:', messageId);
@@ -283,7 +295,10 @@ export const FirebaseService = {
    */
   deleteChat: async (userId: string, otherUserId: string): Promise<void> => {
     try {
-      const chatId = [userId, otherUserId].sort().join('_');
+      // Normalize addresses to lowercase for consistent chat IDs
+      const normalizedUserId = userId.toLowerCase();
+      const normalizedOtherUserId = otherUserId.toLowerCase();
+      const chatId = [normalizedUserId, normalizedOtherUserId].sort().join('_');
       const chatRef = ref(database, `chats/${chatId}`);
       await remove(chatRef);
       console.log('✅ Chat deleted:', chatId);
@@ -298,7 +313,9 @@ export const FirebaseService = {
    */
   setUserOnline: async (userId: string, isOnline: boolean): Promise<void> => {
     try {
-      const presenceRef = ref(database, `presence/${userId}`);
+      // Normalize address to lowercase for consistent presence paths
+      const normalizedUserId = userId.toLowerCase();
+      const presenceRef = ref(database, `presence/${normalizedUserId}`);
       await set(presenceRef, {
         online: isOnline,
         lastSeen: Date.now()
@@ -312,7 +329,9 @@ export const FirebaseService = {
    * Subscribe to user online status
    */
   subscribeToUserPresence: (userId: string, callback: (isOnline: boolean) => void): (() => void) => {
-    const presenceRef = ref(database, `presence/${userId}`);
+    // Normalize address to lowercase for consistent presence paths
+    const normalizedUserId = userId.toLowerCase();
+    const presenceRef = ref(database, `presence/${normalizedUserId}`);
     
     onValue(presenceRef, (snapshot) => {
       const data = snapshot.val();

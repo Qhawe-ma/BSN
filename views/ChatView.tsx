@@ -28,6 +28,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
   const [showChatMenu, setShowChatMenu] = useState(false);
   const [showDeleteChatConfirm, setShowDeleteChatConfirm] = useState(false);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
+  const [deletedChatIds, setDeletedChatIds] = useState<Set<string>>(new Set());
   const chatMenuRef = useRef<HTMLDivElement>(null);
   
   // Refs & Responsive
@@ -50,25 +51,31 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     if (!currentUser) return;
     
     const unsubscribe = DataService.subscribeToChats(currentUser.address, (chats) => {
+      // Filter out deleted chats from Firebase results
+      const filteredChats = chats.filter(chat => !deletedChatIds.has(chat.id.toLowerCase()));
+      
       // Merge Firebase chats with local sessions (preserve locally created ones)
       setSessions(prev => {
         // Normalize IDs to lowercase for case-insensitive comparison
-        const firebaseChatIds = new Set(chats.map(c => c.id.toLowerCase()));
-        // Keep local sessions that aren't in Firebase yet (case-insensitive check)
-        const localOnlySessions = prev.filter(s => !firebaseChatIds.has(s.id.toLowerCase()));
+        const firebaseChatIds = new Set(filteredChats.map(c => c.id.toLowerCase()));
+        // Keep local sessions that aren't in Firebase yet and aren't deleted (case-insensitive check)
+        const localOnlySessions = prev.filter(s => 
+          !firebaseChatIds.has(s.id.toLowerCase()) && !deletedChatIds.has(s.id.toLowerCase())
+        );
         // Combine: Firebase chats + local-only sessions
-        return [...chats, ...localOnlySessions];
+        return [...filteredChats, ...localOnlySessions];
       });
       
       // Subscribe to online status for all chat participants
-      chats.forEach(chat => {
-        FirebaseService.subscribeToUserPresence(chat.participant.address, (isOnline) => {
+      filteredChats.forEach(chat => {
+        const normalizedAddress = chat.participant.address.toLowerCase();
+        FirebaseService.subscribeToUserPresence(normalizedAddress, (isOnline) => {
           setOnlineUsers(prev => {
             const newSet = new Set(prev);
             if (isOnline) {
-              newSet.add(chat.participant.address);
+              newSet.add(normalizedAddress);
             } else {
-              newSet.delete(chat.participant.address);
+              newSet.delete(normalizedAddress);
             }
             return newSet;
           });
@@ -77,7 +84,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     });
     
     return () => unsubscribe();
-  }, [currentUser]);
+  }, [currentUser, deletedChatIds]);
 
   useEffect(() => {
     if (!activeSessionId || !currentUser) {
@@ -225,12 +232,31 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
   const handleDeleteChat = async () => {
     if (!currentUser || !activeSession) return;
     try {
-      await FirebaseService.deleteChat(currentUser.address, activeSession.participant.address);
-      setSessions(prev => prev.filter(s => s.id !== activeSessionId));
+      const chatIdToDelete = activeSessionId;
+      
+      // Add to deleted set FIRST to prevent re-adding from Firebase subscription
+      if (chatIdToDelete) {
+        setDeletedChatIds(prev => new Set([...prev, chatIdToDelete.toLowerCase()]));
+      }
+      
+      // Remove from local state immediately
+      setSessions(prev => prev.filter(s => s.id !== chatIdToDelete));
       setActiveSessionId(null);
       setShowDeleteChatConfirm(false);
+      setMessages([]);
+      
+      // Then delete from Firebase
+      await FirebaseService.deleteChat(currentUser.address, activeSession.participant.address);
     } catch (error) {
       console.error('Error deleting chat:', error);
+      // On error, remove from deleted set so it can reappear
+      if (activeSessionId) {
+        setDeletedChatIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(activeSessionId.toLowerCase());
+          return newSet;
+        });
+      }
     }
   };
 
@@ -326,7 +352,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
               >
                 <div className="relative flex-shrink-0">
                    <Avatar url={session.participant.avatarUrl} size="md" bordered={activeSessionId !== session.id} address={session.participant.address} />
-                   {onlineUsers.has(session.participant.address) && (
+                   {onlineUsers.has(session.participant.address.toLowerCase()) && (
                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#131417]"></div>
                    )}
                    {session.unreadCount > 0 && (
