@@ -4,6 +4,58 @@ import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage
 import { Message, ChatSession, User, Comment, PremiumBadge, BadgeType, BadgeStatus } from './types';
 import { generateAvatar } from './services';
 
+// Profile cache for comment author enrichment (30 second TTL)
+const profileCache = new Map<string, { profile: User; timestamp: number }>();
+const PROFILE_CACHE_TTL = 30000;
+
+const getCachedProfile = async (address: string, fetchFn: (addr: string) => Promise<User | null>): Promise<User | null> => {
+  const normalizedAddr = address.toLowerCase();
+  const cached = profileCache.get(normalizedAddr);
+  const now = Date.now();
+  
+  if (cached && (now - cached.timestamp) < PROFILE_CACHE_TTL) {
+    return cached.profile;
+  }
+  
+  const profile = await fetchFn(normalizedAddr);
+  if (profile) {
+    profileCache.set(normalizedAddr, { profile, timestamp: now });
+  }
+  return profile;
+};
+
+// Helper to enrich comments with fresh profiles
+const enrichCommentsWithProfiles = async (comments: Comment[], getUserProfile: (addr: string) => Promise<User | null>): Promise<Comment[]> => {
+  if (comments.length === 0) return comments;
+  
+  const uniqueAddresses = [...new Set(comments.map(c => c.author.address.toLowerCase()))];
+  const profilePromises = uniqueAddresses.map(addr => getCachedProfile(addr, getUserProfile));
+  const profiles = await Promise.all(profilePromises);
+  
+  const profileMap = new Map<string, User>();
+  profiles.forEach((profile, index) => {
+    if (profile) {
+      profileMap.set(uniqueAddresses[index], profile);
+    }
+  });
+  
+  return comments.map(comment => {
+    const freshProfile = profileMap.get(comment.author.address.toLowerCase());
+    if (freshProfile) {
+      return {
+        ...comment,
+        author: {
+          ...comment.author,
+          avatarUrl: freshProfile.avatarUrl || comment.author.avatarUrl,
+          activeBadge: freshProfile.activeBadge,
+          ens: freshProfile.ens || comment.author.ens
+        }
+      };
+    }
+    return comment;
+  });
+};
+
 export const FirebaseService = {
   /**
    * Send a message to a chat
@@ -621,7 +673,7 @@ export const FirebaseService = {
   // ============ COMMENTS SYSTEM ============
 
   /**
-   * Get comments for a post
+   * Get comments for a post with fresh user profiles
    */
   getComments: async (postId: string): Promise<Comment[]> => {
     try {
@@ -629,12 +681,25 @@ export const FirebaseService = {
       const commentsQuery = query(commentsRef, orderByChild('timestamp'));
       
       return new Promise((resolve) => {
-        onValue(commentsQuery, (snapshot) => {
-          const comments: Comment[] = [];
-          snapshot.forEach((childSnapshot) => {
-            comments.push(childSnapshot.val());
-          });
-          resolve(comments);
+        onValue(commentsQuery, async (snapshot) => {
+          try {
+            const comments: Comment[] = [];
+            snapshot.forEach((childSnapshot) => {
+              comments.push(childSnapshot.val());
+            });
+            
+            // Enrich with fresh profiles (using cache)
+            const enrichedComments = await enrichCommentsWithProfiles(comments, FirebaseService.getUserProfile);
+            resolve(enrichedComments);
+          } catch (enrichError) {
+            console.error('Error enriching comments with profiles:', enrichError);
+            // Fall back to raw comments without enrichment
+            const comments: Comment[] = [];
+            snapshot.forEach((childSnapshot) => {
+              comments.push(childSnapshot.val());
+            });
+            resolve(comments);
+          }
         }, { onlyOnce: true });
       });
     } catch (error) {
@@ -1385,13 +1450,22 @@ export const FirebaseService = {
   ): (() => void) => {
     const commentsRef = ref(database, `comments/${postId}`);
     const commentsQuery = query(commentsRef, orderByChild('timestamp'));
+    let latestSnapshotId = 0;
 
-    const unsubscribe = onValue(commentsQuery, (snapshot) => {
+    const unsubscribe = onValue(commentsQuery, async (snapshot) => {
+      const currentSnapshotId = ++latestSnapshotId;
       const comments: Comment[] = [];
       snapshot.forEach((childSnapshot) => {
         comments.push(childSnapshot.val());
       });
-      callback(comments);
+      
+      // Enrich with fresh profiles (using cache)
+      const enrichedComments = await enrichCommentsWithProfiles(comments, FirebaseService.getUserProfile);
+      
+      // Only update if this is still the latest snapshot (prevents race conditions)
+      if (currentSnapshotId === latestSnapshotId) {
+        callback(enrichedComments);
+      }
     });
 
     return () => off(commentsRef);
