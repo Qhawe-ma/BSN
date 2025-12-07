@@ -40,16 +40,20 @@ const ConnectWalletPrompt: React.FC<{ onConnect: () => void, isConnecting?: bool
 const App: React.FC = () => {
   const [showLanding, setShowLanding] = useState(() => {
     const pathname = window.location.pathname;
-    // Skip landing page for direct links to posts, admin, or blog
-    if (pathname.startsWith('/post/') || pathname === '/admin' || pathname.startsWith('/blog')) {
+    // Skip landing page for direct links to posts, admin, blog, or premium
+    if (pathname.startsWith('/post/') || pathname === '/admin' || pathname.startsWith('/blog') || pathname.startsWith('/premium')) {
       return false;
     }
-    // Check if user has already passed landing page this session
+    // Check if user has already passed landing page this session OR has a saved wallet
     const hasPassedLanding = sessionStorage.getItem('bsn_passed_landing');
-    if (hasPassedLanding === 'true') {
+    const hasSavedWallet = localStorage.getItem('walletAddress');
+    const hasSavedView = sessionStorage.getItem('bsn_current_view');
+    
+    // If user has passed landing, has a wallet, or has a saved view - skip landing
+    if (hasPassedLanding === 'true' || hasSavedWallet || hasSavedView) {
       return false;
     }
-    // Always show landing page on root URL for new sessions
+    // Only show landing page on first visit (no session data)
     return pathname === '/' || pathname === '';
   });
   const [user, setUser] = useState<User | null>(null);
@@ -854,25 +858,46 @@ const App: React.FC = () => {
 
       {/* Wallet Selection Modal */}
       {showWalletModal && (() => {
-        // Detect installed wallets
+        // Detect installed wallets by checking window.ethereum providers
         const ethereum = (window as any).ethereum;
         const detectedWallets: string[] = [];
         
+        // Check for multiple providers (EIP-6963 or providers array)
+        const providers = ethereum?.providers || [ethereum];
+        
         if (ethereum) {
-          if (ethereum.isRabby) detectedWallets.push('rabby');
-          if (ethereum.isMetaMask && !ethereum.isRabby) detectedWallets.push('metamask');
-          if (ethereum.isTrust) detectedWallets.push('trust');
-          if (ethereum.isCoinbaseWallet) detectedWallets.push('coinbase');
-          if (ethereum.isOKExWallet || ethereum.isOkxWallet) detectedWallets.push('okx');
-          if (ethereum.isPhantom) detectedWallets.push('phantom');
-          if (ethereum.isRainbow) detectedWallets.push('rainbow');
-          if (ethereum.isBraveWallet) detectedWallets.push('brave');
-          // If ethereum exists but no specific wallet detected, it's likely a generic injected wallet
+          // Check each provider for wallet signatures
+          for (const provider of providers) {
+            if (!provider) continue;
+            if (provider.isMetaMask && !provider.isRabby && !provider.isPhantom) detectedWallets.push('metamask');
+            if (provider.isRabby) detectedWallets.push('rabby');
+            if (provider.isTrust) detectedWallets.push('trust');
+            if (provider.isCoinbaseWallet) detectedWallets.push('coinbase');
+            if (provider.isOKExWallet || provider.isOkxWallet) detectedWallets.push('okx');
+            if (provider.isPhantom) detectedWallets.push('phantom');
+            if (provider.isRainbow) detectedWallets.push('rainbow');
+            if (provider.isBraveWallet) detectedWallets.push('brave');
+          }
+          
+          // Also check the main ethereum object
+          if (ethereum.isMetaMask && !ethereum.isRabby && !ethereum.isPhantom && !detectedWallets.includes('metamask')) detectedWallets.push('metamask');
+          if (ethereum.isRabby && !detectedWallets.includes('rabby')) detectedWallets.push('rabby');
+          if (ethereum.isTrust && !detectedWallets.includes('trust')) detectedWallets.push('trust');
+          if (ethereum.isCoinbaseWallet && !detectedWallets.includes('coinbase')) detectedWallets.push('coinbase');
+          if ((ethereum.isOKExWallet || ethereum.isOkxWallet) && !detectedWallets.includes('okx')) detectedWallets.push('okx');
+          if (ethereum.isPhantom && !detectedWallets.includes('phantom')) detectedWallets.push('phantom');
+          if (ethereum.isRainbow && !detectedWallets.includes('rainbow')) detectedWallets.push('rainbow');
+          if (ethereum.isBraveWallet && !detectedWallets.includes('brave')) detectedWallets.push('brave');
+          
+          // If no specific wallet detected, mark as generic injected
           if (detectedWallets.length === 0) detectedWallets.push('injected');
         }
         
-        // All available wallets
-        const allWallets = [
+        // Wallets that appear in DETECTED section (only when installed)
+        const detectableWallets = [
+          { id: 'metamask', name: 'MetaMask', desc: 'Popular browser extension', color: '#f6851b', icon: (
+            <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask" className="w-8 h-8" />
+          )},
           { id: 'rabby', name: 'Rabby', desc: 'Multi-chain smart wallet', color: '#7C5CFF', icon: (
             <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
               <rect width="40" height="40" rx="8" fill="#7C5CFF"/>
@@ -881,8 +906,14 @@ const App: React.FC = () => {
               <circle cx="23" cy="15" r="2" fill="#7C5CFF"/>
             </svg>
           )},
-          { id: 'metamask', name: 'MetaMask', desc: 'Popular browser extension', color: '#f6851b', icon: (
-            <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask" className="w-8 h-8" />
+          { id: 'phantom', name: 'Phantom', desc: 'Multi-chain crypto wallet', color: '#AB9FF2', icon: (
+            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
+              <rect width="40" height="40" rx="8" fill="url(#phantom-grad)"/>
+              <defs><linearGradient id="phantom-grad" x1="0" y1="0" x2="40" y2="40"><stop stopColor="#534BB1"/><stop offset="1" stopColor="#551BF9"/></linearGradient></defs>
+              <ellipse cx="20" cy="22" rx="12" ry="10" fill="white"/>
+              <circle cx="15" cy="20" r="2.5" fill="#534BB1"/>
+              <circle cx="25" cy="20" r="2.5" fill="#534BB1"/>
+            </svg>
           )},
           { id: 'trust', name: 'Trust Wallet', desc: 'Secure mobile wallet', color: '#3375BB', icon: (
             <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
@@ -905,15 +936,6 @@ const App: React.FC = () => {
               <rect x="22" y="22" width="10" height="10" rx="2" fill="white"/>
             </svg>
           )},
-          { id: 'phantom', name: 'Phantom', desc: 'Multi-chain crypto wallet', color: '#AB9FF2', icon: (
-            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
-              <rect width="40" height="40" rx="8" fill="url(#phantom-grad)"/>
-              <defs><linearGradient id="phantom-grad" x1="0" y1="0" x2="40" y2="40"><stop stopColor="#534BB1"/><stop offset="1" stopColor="#551BF9"/></linearGradient></defs>
-              <ellipse cx="20" cy="22" rx="12" ry="10" fill="white"/>
-              <circle cx="15" cy="20" r="2.5" fill="#534BB1"/>
-              <circle cx="25" cy="20" r="2.5" fill="#534BB1"/>
-            </svg>
-          )},
           { id: 'rainbow', name: 'Rainbow', desc: 'Fun & easy Ethereum wallet', color: '#FF6B6B', icon: (
             <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
               <rect width="40" height="40" rx="8" fill="url(#rainbow-grad)"/>
@@ -930,21 +952,45 @@ const App: React.FC = () => {
               <path d="M20 10l-6 4v3l1.5 6 4.5 4.5 4.5-4.5 1.5-6v-3L20 10z" fill="#FB542B"/>
             </svg>
           )},
-          { id: 'walletconnect', name: 'WalletConnect', desc: 'Scan with mobile wallet', color: '#3B99FC', icon: (
-            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
-              <path d="M11.4 15.4c4.7-4.7 12.5-4.7 17.2 0l.6.6c.2.2.2.6 0 .9l-2 2c-.1.1-.3.1-.4 0l-.8-.8c-3.3-3.3-8.7-3.3-12 0l-.9.9c-.1.1-.3.1-.4 0l-2-2c-.2-.2-.2-.6 0-.9l.7-.7zm21.3 4l1.8 1.8c.2.2.2.6 0 .9l-8.1 8.1c-.2.2-.6.2-.9 0l-5.7-5.7c-.1-.1-.2-.1-.2 0l-5.7 5.7c-.2.2-.6.2-.9 0l-8.1-8.1c-.2-.2-.2-.6 0-.9l1.8-1.8c.2-.2.6-.2.9 0l5.7 5.7c.1.1.2.1.2 0l5.7-5.7c.2-.2.6-.2.9 0l5.7 5.7c.1.1.2.1.2 0l5.7-5.7c.3-.2.7-.2.9 0z" fill="#3B99FC"/>
-            </svg>
-          )},
           { id: 'injected', name: 'Browser Wallet', desc: 'Detected wallet extension', color: '#6B7280', icon: (
             <Wallet size={32} className="text-white" />
           )},
         ];
         
-        const detectedWalletsList = allWallets.filter(w => detectedWallets.includes(w.id));
-        const otherWalletsList = allWallets.filter(w => !detectedWallets.includes(w.id) && w.id !== 'injected');
+        // Wallets that ALWAYS appear in "Other Wallets" section (common ones)
+        const alwaysShowWallets = [
+          { id: 'metamask', name: 'MetaMask', desc: 'Popular browser extension', color: '#f6851b', icon: (
+            <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask" className="w-8 h-8" />
+          )},
+          { id: 'trust', name: 'Trust Wallet', desc: 'Secure mobile wallet', color: '#3375BB', icon: (
+            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
+              <path d="M20 4L6 10v12c0 9.627 6.4 15.333 14 18 7.6-2.667 14-8.373 14-18V10L20 4z" fill="#3375BB"/>
+              <path d="M20 8l-10 4.5v9c0 7.22 4.8 11.5 10.5 13.5 5.7-2 10.5-6.28 10.5-13.5v-9L20 8z" fill="white"/>
+            </svg>
+          )},
+          { id: 'coinbase', name: 'Coinbase Wallet', desc: 'Coinbase browser wallet', color: '#0052FF', icon: (
+            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
+              <circle cx="20" cy="20" r="16" fill="#0052FF"/>
+              <path d="M20 8c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12S26.627 8 20 8zm-2.4 7.2h4.8c.663 0 1.2.537 1.2 1.2v7.2c0 .663-.537 1.2-1.2 1.2h-4.8c-.663 0-1.2-.537-1.2-1.2v-7.2c0-.663.537-1.2 1.2-1.2z" fill="white"/>
+            </svg>
+          )},
+          { id: 'walletconnect', name: 'WalletConnect', desc: 'Scan with mobile wallet', color: '#3B99FC', icon: (
+            <svg viewBox="0 0 40 40" className="w-8 h-8" fill="none">
+              <path d="M11.4 15.4c4.7-4.7 12.5-4.7 17.2 0l.6.6c.2.2.2.6 0 .9l-2 2c-.1.1-.3.1-.4 0l-.8-.8c-3.3-3.3-8.7-3.3-12 0l-.9.9c-.1.1-.3.1-.4 0l-2-2c-.2-.2-.2-.6 0-.9l.7-.7zm21.3 4l1.8 1.8c.2.2.2.6 0 .9l-8.1 8.1c-.2.2-.6.2-.9 0l-5.7-5.7c-.1-.1-.2-.1-.2 0l-5.7 5.7c-.2.2-.6.2-.9 0l-8.1-8.1c-.2-.2-.2-.6 0-.9l1.8-1.8c.2-.2.6-.2.9 0l5.7 5.7c.1.1.2.1.2 0l5.7-5.7c.2-.2.6-.2.9 0l5.7 5.7c.1.1.2.1.2 0l5.7-5.7c.3-.2.7-.2.9 0z" fill="#3B99FC"/>
+            </svg>
+          )},
+        ];
         
-        const WalletButton = ({ wallet, isDetected = false }: { wallet: typeof allWallets[0], isDetected?: boolean }) => (
+        // Build the detected wallets list
+        const detectedWalletsList = detectableWallets.filter(w => detectedWallets.includes(w.id));
+        
+        // Build the other wallets list (only show common wallets that aren't detected)
+        const otherWalletsList = alwaysShowWallets.filter(w => !detectedWallets.includes(w.id));
+        
+        // Wallet button component
+        const renderWalletButton = (wallet: typeof detectableWallets[0], isDetected: boolean = false) => (
           <button
+            key={wallet.id}
             onClick={() => handleSelectWallet(wallet.id)}
             disabled={isConnecting}
             className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 ${
@@ -1002,23 +1048,21 @@ const App: React.FC = () => {
                         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                         <span className="text-xs font-semibold text-green-400 uppercase tracking-wider">Detected Wallets</span>
                       </div>
-                      {detectedWalletsList.map(wallet => (
-                        <WalletButton key={wallet.id} wallet={wallet} isDetected />
-                      ))}
+                      {detectedWalletsList.map(wallet => renderWalletButton(wallet, true))}
                     </div>
                   )}
                   
                   {/* Other Wallets Section */}
-                  <div className="space-y-2">
-                    {detectedWalletsList.length > 0 && (
-                      <div className="flex items-center gap-2 px-1 mb-3 mt-4">
-                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Other Wallets</span>
-                      </div>
-                    )}
-                    {otherWalletsList.map(wallet => (
-                      <WalletButton key={wallet.id} wallet={wallet} />
-                    ))}
-                  </div>
+                  {otherWalletsList.length > 0 && (
+                    <div className="space-y-2">
+                      {detectedWalletsList.length > 0 && (
+                        <div className="flex items-center gap-2 px-1 mb-3 mt-4">
+                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Other Wallets</span>
+                        </div>
+                      )}
+                      {otherWalletsList.map(wallet => renderWalletButton(wallet, false))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Footer */}
