@@ -514,39 +514,53 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                         
                         <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in ${!isSequence ? 'mt-3' : 'mt-1'}`}>
                           <div 
-                            className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[75%] md:max-w-[60%] cursor-pointer select-none`}
+                            className={`flex ${isMe ? 'flex-row-reverse' : 'flex-row'} gap-2 max-w-[75%] md:max-w-[60%] cursor-pointer select-none`}
                             onContextMenu={(e) => handleMessageContextMenu(e, msg.id)}
                             onTouchStart={() => handleMessageLongPressStart(msg.id)}
                             onTouchEnd={handleMessageLongPressEnd}
                             onTouchCancel={handleMessageLongPressEnd}
                           >
-                            
-                            <div className={`
-                              px-4 py-2.5 text-[15px] leading-relaxed shadow-sm transition-all relative
-                              ${isMe 
-                                  ? `bg-primary text-black rounded-2xl ${isSequence ? 'rounded-tr-md' : 'rounded-tr-sm'}` 
-                                  : `bg-[#1E2025] text-gray-100 border border-white/5 rounded-2xl ${isSequence ? 'rounded-tl-md' : 'rounded-tl-sm'}`
-                              }
-                            `}>
-                              {msg.content}
-                            </div>
-                            
-                            {isLastInSequence && (
-                              <div className="flex items-center gap-1.5 mt-1.5 px-1">
-                                <span className="text-[10px] text-gray-500 font-mono">
-                                  {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                </span>
-                                {isMe && (
-                                  <span className="flex items-center">
-                                    {msg.isRead ? (
-                                      <CheckCheck size={14} className="text-blue-400" />
-                                    ) : (
-                                      <Check size={14} className="text-gray-500" />
-                                    )}
-                                  </span>
-                                )}
+                            {!isMe && !isSequence && (
+                              <div className="flex-shrink-0 mt-1">
+                                <Avatar 
+                                  url={activeSession?.participant.avatarUrl || ''} 
+                                  address={activeSession?.participant.address}
+                                  size="sm" 
+                                />
                               </div>
                             )}
+                            {!isMe && isSequence && (
+                              <div className="w-8 flex-shrink-0"></div>
+                            )}
+                            
+                            <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                              <div className={`
+                                px-4 py-2.5 text-[15px] leading-relaxed shadow-sm transition-all relative
+                                ${isMe 
+                                    ? `bg-primary text-black rounded-2xl ${isSequence ? 'rounded-tr-md' : 'rounded-tr-sm'}` 
+                                    : `bg-[#1E2025] text-gray-100 border border-white/5 rounded-2xl ${isSequence ? 'rounded-tl-md' : 'rounded-tl-sm'}`
+                                }
+                              `}>
+                                {msg.content}
+                              </div>
+                              
+                              {isLastInSequence && (
+                                <div className="flex items-center gap-1.5 mt-1.5 px-1">
+                                  <span className="text-[10px] text-gray-500 font-mono">
+                                    {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                  </span>
+                                  {isMe && (
+                                    <span className="flex items-center">
+                                      {msg.isRead ? (
+                                        <CheckCheck size={14} className="text-blue-400" />
+                                      ) : (
+                                        <Check size={14} className="text-gray-500" />
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                     </React.Fragment>

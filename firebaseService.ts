@@ -286,50 +286,58 @@ export const FirebaseService = {
   },
 
   /**
-   * Mark messages as read
+   * Mark messages as read - handles both normalized and legacy chat IDs
    */
   markAsRead: async (currentUserId: string, otherUserId: string): Promise<void> => {
     try {
-      // Normalize addresses to lowercase for consistent chat IDs
       const normalizedCurrentUserId = currentUserId.toLowerCase();
       const normalizedOtherUserId = otherUserId.toLowerCase();
-      const chatId = [normalizedCurrentUserId, normalizedOtherUserId].sort().join('_');
-      const messagesRef = ref(database, `chats/${chatId}/messages`);
+      const normalizedChatId = [normalizedCurrentUserId, normalizedOtherUserId].sort().join('_');
+      const originalChatId = [currentUserId, otherUserId].sort().join('_');
       
-      onValue(messagesRef, (snapshot) => {
-        let lastUpdatedMessage: Message | null = null;
+      // Get all chat IDs to check (normalized + original if different)
+      const chatIdsToCheck = [normalizedChatId];
+      if (originalChatId.toLowerCase() !== normalizedChatId) {
+        chatIdsToCheck.push(originalChatId);
+      }
+      
+      // Mark messages as read in all chat ID variations using one-time reads
+      for (const chatId of chatIdsToCheck) {
+        const messagesRef = ref(database, `chats/${chatId}/messages`);
+        const messagesSnapshot = await get(messagesRef);
         
-        snapshot.forEach((childSnapshot) => {
+        if (!messagesSnapshot.exists()) continue;
+        
+        let markedAny = false;
+        const updates: Record<string, any> = {};
+        
+        messagesSnapshot.forEach((childSnapshot) => {
           const message = childSnapshot.val();
-          // Mark as read if: message was sent TO me (currentUserId) and not yet read (case-insensitive check)
           if (message.recipient?.toLowerCase() === normalizedCurrentUserId && !message.isRead) {
-            const messageRef = ref(database, `chats/${chatId}/messages/${childSnapshot.key}`);
-            const updatedMessage = { ...message, isRead: true };
-            set(messageRef, updatedMessage);
-            lastUpdatedMessage = updatedMessage;
-            console.log('✅ Marked message as read:', childSnapshot.key);
+            updates[`${childSnapshot.key}/isRead`] = true;
+            markedAny = true;
+            console.log('✅ Marking message as read:', childSnapshot.key, 'in chat:', chatId);
           }
         });
         
-        // Update chat metadata if we marked any messages as read
-        if (lastUpdatedMessage) {
+        // Batch update all messages at once
+        if (markedAny && Object.keys(updates).length > 0) {
+          await update(messagesRef, updates);
+          
+          // Update metadata
           const chatMetadataRef = ref(database, `chats/${chatId}/metadata`);
-          onValue(chatMetadataRef, (metaSnapshot) => {
+          const metaSnapshot = await get(chatMetadataRef);
+          
+          if (metaSnapshot.exists()) {
             const metadata = metaSnapshot.val();
-            if (metadata && metadata.lastMessage) {
-              // Update lastMessage isRead status in metadata (case-insensitive check)
-              const updatedMetadata = {
-                ...metadata,
-                lastMessage: {
-                  ...metadata.lastMessage,
-                  isRead: metadata.lastMessage.recipient?.toLowerCase() === normalizedCurrentUserId ? true : metadata.lastMessage.isRead
-                }
-              };
-              set(chatMetadataRef, updatedMetadata);
+            if (metadata.lastMessage?.recipient?.toLowerCase() === normalizedCurrentUserId) {
+              await update(chatMetadataRef, {
+                'lastMessage/isRead': true
+              });
             }
-          }, { onlyOnce: true });
+          }
         }
-      }, { onlyOnce: true });
+      }
     } catch (error) {
       console.error('Error marking messages as read:', error);
     }
