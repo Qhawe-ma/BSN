@@ -97,11 +97,13 @@ export const FirebaseService = {
   /**
    * Get messages for a chat in real-time
    * Subscribes to all possible chat ID variations (legacy mixed-case and normalized lowercase)
+   * Filters out messages before the user's deletion timestamp
    */
   subscribeToMessages: (
     senderId: string, 
     recipientId: string, 
-    callback: (messages: Message[]) => void
+    callback: (messages: Message[]) => void,
+    deletionTimestamp?: number | null
   ): (() => void) => {
     // Normalize addresses to lowercase for consistent chat IDs
     const normalizedSenderId = senderId.toLowerCase();
@@ -115,7 +117,13 @@ export const FirebaseService = {
     const allMessages = new Map<string, Message>();
     
     const emitMergedMessages = () => {
-      const messagesArray = Array.from(allMessages.values());
+      let messagesArray = Array.from(allMessages.values());
+      
+      // Filter out messages before deletion timestamp if provided
+      if (deletionTimestamp) {
+        messagesArray = messagesArray.filter(msg => msg.timestamp > deletionTimestamp);
+      }
+      
       messagesArray.sort((a, b) => a.timestamp - b.timestamp);
       callback(messagesArray);
     };
@@ -362,7 +370,7 @@ export const FirebaseService = {
   },
 
   /**
-   * Delete an entire chat conversation
+   * Delete an entire chat conversation (removes for both users)
    */
   deleteChat: async (userId: string, otherUserId: string): Promise<void> => {
     try {
@@ -376,6 +384,63 @@ export const FirebaseService = {
     } catch (error) {
       console.error('Error deleting chat:', error);
       throw new Error('Failed to delete chat');
+    }
+  },
+
+  /**
+   * Hide chat for a specific user (stores deletion timestamp)
+   * Messages before this timestamp will be filtered out for this user
+   */
+  hideChatForUser: async (userId: string, otherUserId: string): Promise<void> => {
+    try {
+      const normalizedUserId = userId.toLowerCase();
+      const normalizedOtherUserId = otherUserId.toLowerCase();
+      const chatId = [normalizedUserId, normalizedOtherUserId].sort().join('_');
+      const deletionRef = ref(database, `chatDeletions/${normalizedUserId}/${chatId}`);
+      await set(deletionRef, {
+        deletedAt: Date.now(),
+        otherUser: normalizedOtherUserId
+      });
+      console.log('✅ Chat hidden for user:', normalizedUserId, 'chatId:', chatId);
+    } catch (error) {
+      console.error('Error hiding chat for user:', error);
+      throw new Error('Failed to hide chat');
+    }
+  },
+
+  /**
+   * Get chat deletion timestamp for a user
+   */
+  getChatDeletionTime: async (userId: string, otherUserId: string): Promise<number | null> => {
+    try {
+      const normalizedUserId = userId.toLowerCase();
+      const normalizedOtherUserId = otherUserId.toLowerCase();
+      const chatId = [normalizedUserId, normalizedOtherUserId].sort().join('_');
+      const deletionRef = ref(database, `chatDeletions/${normalizedUserId}/${chatId}`);
+      const snapshot = await get(deletionRef);
+      if (snapshot.exists()) {
+        return snapshot.val().deletedAt;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting chat deletion time:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Clear chat deletion record (when user starts new conversation)
+   */
+  clearChatDeletion: async (userId: string, otherUserId: string): Promise<void> => {
+    try {
+      const normalizedUserId = userId.toLowerCase();
+      const normalizedOtherUserId = otherUserId.toLowerCase();
+      const chatId = [normalizedUserId, normalizedOtherUserId].sort().join('_');
+      const deletionRef = ref(database, `chatDeletions/${normalizedUserId}/${chatId}`);
+      await remove(deletionRef);
+      console.log('✅ Chat deletion record cleared for user:', normalizedUserId);
+    } catch (error) {
+      console.error('Error clearing chat deletion:', error);
     }
   },
 

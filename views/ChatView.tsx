@@ -158,14 +158,24 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     const [user1, user2] = activeSessionId.split('_');
     const otherUserId = user1.toLowerCase() === currentUser.address.toLowerCase() ? user2 : user1;
     
-    // Subscribe to messages
-    const unsubscribe = DataService.subscribeToMessages(
-      currentUser.address,
-      otherUserId,
-      (messages) => {
-        setMessages(messages);
-      }
-    );
+    let unsubscribeMessages: (() => void) | null = null;
+    
+    // Fetch deletion timestamp and then subscribe to messages
+    const setupMessageSubscription = async () => {
+      const deletionTime = await DataService.getChatDeletionTime(currentUser.address, otherUserId);
+      
+      // Subscribe to messages with deletion timestamp filter
+      unsubscribeMessages = DataService.subscribeToMessages(
+        currentUser.address,
+        otherUserId,
+        (messages) => {
+          setMessages(messages);
+        },
+        deletionTime
+      );
+    };
+    
+    setupMessageSubscription();
     
     // Mark messages as read when opening chat and clear unread count locally
     // Add to read chats set immediately for persistent tracking
@@ -196,7 +206,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     );
     
     return () => {
-      unsubscribe();
+      if (unsubscribeMessages) unsubscribeMessages();
       unsubscribePresence();
     };
   }, [activeSessionId, currentUser]);
@@ -381,40 +391,45 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showChatMenu]);
 
-  // Delete entire chat (only hides locally - doesn't affect other user)
+  // Delete entire chat (hides for current user only - saves deletion timestamp to Firebase)
   const handleDeleteChat = async () => {
     if (!currentUser || !activeSession) return;
     
-    // Add participant address to deleted set (normalized) - this persists to localStorage
     const participantAddress = activeSession.participant.address.toLowerCase();
     const chatId = activeSessionId?.toLowerCase() || '';
     
-    // Create comprehensive deleted set with all variations
-    setDeletedChatIds(prev => {
-      const newSet = new Set(prev);
-      newSet.add(participantAddress);
-      if (chatId) {
-        newSet.add(chatId);
-      }
-      // Also add reversed chat ID pattern
-      const parts = chatId.split('_');
-      if (parts.length === 2) {
-        newSet.add(`${parts[1]}_${parts[0]}`);
-      }
-      return newSet;
-    });
-    
-    // Remove from local state immediately and clear everything
-    setSessions(prev => prev.filter(s => 
-      s.participant.address.toLowerCase() !== participantAddress &&
-      s.id.toLowerCase() !== chatId
-    ));
-    setActiveSessionId(null);
-    setShowDeleteChatConfirm(false);
-    setMessages([]);
-    
-    // Note: We don't delete from Firebase - the chat stays for the other user
-    console.log('✅ Chat hidden locally for participant:', participantAddress);
+    try {
+      // Save deletion timestamp to Firebase (so messages before this time are hidden)
+      await DataService.hideChatForUser(currentUser.address, participantAddress);
+      
+      // Add participant address to deleted set (normalized) - this persists to localStorage
+      setDeletedChatIds(prev => {
+        const newSet = new Set(prev);
+        newSet.add(participantAddress);
+        if (chatId) {
+          newSet.add(chatId);
+        }
+        // Also add reversed chat ID pattern
+        const parts = chatId.split('_');
+        if (parts.length === 2) {
+          newSet.add(`${parts[1]}_${parts[0]}`);
+        }
+        return newSet;
+      });
+      
+      // Remove from local state immediately and clear everything
+      setSessions(prev => prev.filter(s => 
+        s.participant.address.toLowerCase() !== participantAddress &&
+        s.id.toLowerCase() !== chatId
+      ));
+      setActiveSessionId(null);
+      setShowDeleteChatConfirm(false);
+      setMessages([]);
+      
+      console.log('✅ Chat hidden for user, deletion timestamp saved:', participantAddress);
+    } catch (error) {
+      console.error('Error hiding chat:', error);
+    }
   };
 
   // Delete single message

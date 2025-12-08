@@ -1187,11 +1187,13 @@ export const DataService = {
 
   /**
    * Subscribe to real-time messages (with automatic decryption)
+   * Filters out messages before the user's deletion timestamp
    */
   subscribeToMessages: (
     senderId: string,
     recipientId: string,
-    callback: (messages: Message[]) => void
+    callback: (messages: Message[]) => void,
+    deletionTimestamp?: number | null
   ): (() => void) => {
     return FirebaseService.subscribeToMessages(senderId, recipientId, async (encryptedMessages) => {
       const decryptedMessages = await Promise.all(
@@ -1208,7 +1210,21 @@ export const DataService = {
         })
       );
       callback(decryptedMessages);
-    });
+    }, deletionTimestamp);
+  },
+
+  /**
+   * Get chat deletion timestamp for a user
+   */
+  getChatDeletionTime: async (userId: string, otherUserId: string): Promise<number | null> => {
+    return FirebaseService.getChatDeletionTime(userId, otherUserId);
+  },
+
+  /**
+   * Hide chat for a specific user (preserves messages for other user)
+   */
+  hideChatForUser: async (userId: string, otherUserId: string): Promise<void> => {
+    return FirebaseService.hideChatForUser(userId, otherUserId);
   },
 
   /**
