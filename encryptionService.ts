@@ -59,7 +59,10 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 export const EncryptionService = {
   encrypt: async (plaintext: string, senderId: string, recipientId: string): Promise<string> => {
     try {
-      const chatId = [senderId, recipientId].sort().join('_');
+      // Normalize addresses to lowercase for consistent encryption keys
+      const normalizedSenderId = senderId.toLowerCase();
+      const normalizedRecipientId = recipientId.toLowerCase();
+      const chatId = [normalizedSenderId, normalizedRecipientId].sort().join('_');
       const key = await deriveSharedKey(chatId);
       
       const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
@@ -93,7 +96,10 @@ export const EncryptionService = {
         return encryptedData;
       }
       
-      const chatId = [senderId, recipientId].sort().join('_');
+      // Normalize addresses to lowercase for consistent decryption keys
+      const normalizedSenderId = senderId.toLowerCase();
+      const normalizedRecipientId = recipientId.toLowerCase();
+      const chatId = [normalizedSenderId, normalizedRecipientId].sort().join('_');
       const key = await deriveSharedKey(chatId);
       
       const combined = new Uint8Array(base64ToArrayBuffer(encryptedData.slice(4)));
