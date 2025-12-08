@@ -32,6 +32,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
   const [showEncryptionInfo, setShowEncryptionInfo] = useState(false);
   const [sampleEncryptedText, setSampleEncryptedText] = useState<string | null>(null);
   const [showRawEncryption, setShowRawEncryption] = useState(false);
+  const [selectedMessageForProof, setSelectedMessageForProof] = useState<Message | null>(null);
   const [deletedChatIds, setDeletedChatIds] = useState<Set<string>>(() => {
     // Load deleted chat IDs from localStorage on mount
     try {
@@ -730,17 +731,38 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                             
                             <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                               <div className={`
-                                px-4 py-2.5 text-[15px] leading-relaxed shadow-sm transition-all relative
+                                px-4 py-2.5 text-[15px] leading-relaxed shadow-sm transition-all relative group/msg
                                 ${isMe 
                                     ? `bg-primary text-black rounded-2xl ${isSequence ? 'rounded-tr-md' : 'rounded-tr-sm'}` 
                                     : `bg-[#1E2025] text-gray-100 border border-white/5 rounded-2xl ${isSequence ? 'rounded-tl-md' : 'rounded-tl-sm'}`
                                 }
                               `}>
                                 {msg.content}
+                                {msg.encryptedContent && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedMessageForProof(msg);
+                                    }}
+                                    className={`absolute -bottom-1 ${isMe ? '-left-6' : '-right-6'} opacity-0 group-hover/msg:opacity-100 transition-opacity p-1 rounded-full ${isMe ? 'bg-black/20 hover:bg-black/40' : 'bg-white/10 hover:bg-white/20'}`}
+                                    title="View encryption proof"
+                                  >
+                                    <Lock size={12} className={isMe ? 'text-black/60' : 'text-gray-400'} />
+                                  </button>
+                                )}
                               </div>
                               
                               {isLastInSequence && (
                                 <div className="flex items-center gap-1.5 mt-1.5 px-1">
+                                  {msg.encryptedContent && (
+                                    <button
+                                      onClick={() => setSelectedMessageForProof(msg)}
+                                      className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-primary transition-colors"
+                                      title="View encryption proof"
+                                    >
+                                      <Lock size={10} />
+                                    </button>
+                                  )}
                                   <span className="text-[10px] text-gray-500 font-mono">
                                     {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                   </span>
@@ -1126,6 +1148,109 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
               <p className="text-[10px] text-gray-600 text-center">
                 All messages in this chat are protected with military-grade encryption
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedMessageForProof && (
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => setSelectedMessageForProof(null)}
+        >
+          <div 
+            className="relative bg-[#12141a] border border-white/10 rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="absolute -inset-px bg-gradient-to-b from-green-500/20 to-transparent rounded-2xl pointer-events-none"></div>
+            
+            <div className="relative p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-500/20 to-primary/20 rounded-xl flex items-center justify-center border border-green-500/20">
+                    <ShieldCheck size={24} className="text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white">Encryption Proof</h3>
+                    <p className="text-xs text-gray-500">This message is end-to-end encrypted</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedMessageForProof(null)}
+                  className="p-2 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-black/30 rounded-xl border border-white/5 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-xs text-gray-400 font-mono uppercase tracking-wider">Your Message (Decrypted)</span>
+                  </div>
+                  <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                    <p className="text-sm text-green-400 font-medium break-words">{selectedMessageForProof.content}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 px-4">
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
+                  <div className="flex items-center gap-2 text-primary">
+                    <Key size={14} />
+                    <span className="text-[10px] font-mono uppercase tracking-widest">AES-256-GCM</span>
+                  </div>
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
+                </div>
+
+                <div className="bg-black/30 rounded-xl border border-white/5 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                    <span className="text-xs text-gray-400 font-mono uppercase tracking-wider">Stored on Server (Encrypted)</span>
+                  </div>
+                  {selectedMessageForProof.encryptedContent ? (
+                    <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 overflow-hidden">
+                      <code className="text-[11px] text-primary font-mono break-all leading-relaxed block">
+                        {selectedMessageForProof.encryptedContent}
+                      </code>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-500/10 border border-gray-500/20 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 italic">Encrypted data not available for this message (legacy or unencrypted message)</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-white/[0.02] rounded-xl border border-white/5">
+                  <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Info size={16} className="text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 leading-relaxed">
+                      The server only stores the encrypted version shown above. Without the unique key derived from your wallet addresses, this data is unreadable - proving your message is truly private.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Lock size={12} className="text-gray-500" />
+                  <span className="text-[10px] text-gray-500 font-mono">
+                    Sent {new Date(selectedMessageForProof.timestamp).toLocaleString()}
+                  </span>
+                </div>
+                {selectedMessageForProof.encryptedContent && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedMessageForProof.encryptedContent!);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-xs text-gray-400 hover:text-white"
+                  >
+                    Copy Encrypted
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

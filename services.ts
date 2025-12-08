@@ -1204,7 +1204,7 @@ export const DataService = {
               msg.sender,
               msg.recipient
             );
-            return { ...msg, content: decryptedContent };
+            return { ...msg, content: decryptedContent, encryptedContent: msg.content };
           }
           return msg;
         })
