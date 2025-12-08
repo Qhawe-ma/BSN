@@ -69,6 +69,7 @@ export interface Message {
   content: string;
   timestamp: number;
   isRead: boolean;
+  encryptedContent?: string; // Raw encrypted content for proof display
 }
 
 export interface ChatSession {
