@@ -730,39 +730,44 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                             )}
                             
                             <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                              <div className={`
-                                px-4 py-2.5 text-[15px] leading-relaxed shadow-sm transition-all relative group/msg
-                                ${isMe 
-                                    ? `bg-primary text-black rounded-2xl ${isSequence ? 'rounded-tr-md' : 'rounded-tr-sm'}` 
-                                    : `bg-[#1E2025] text-gray-100 border border-white/5 rounded-2xl ${isSequence ? 'rounded-tl-md' : 'rounded-tl-sm'}`
-                                }
-                              `}>
-                                {msg.content}
-                                {msg.encryptedContent && (
+                              <div className="flex items-end gap-1.5">
+                                {msg.encryptedContent && !isMe && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setSelectedMessageForProof(msg);
                                     }}
-                                    className={`absolute -bottom-1 ${isMe ? '-left-6' : '-right-6'} opacity-0 group-hover/msg:opacity-100 transition-opacity p-1 rounded-full ${isMe ? 'bg-black/20 hover:bg-black/40' : 'bg-white/10 hover:bg-white/20'}`}
+                                    className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-all opacity-60 hover:opacity-100"
                                     title="View encryption proof"
                                   >
-                                    <Lock size={12} className={isMe ? 'text-black/60' : 'text-gray-400'} />
+                                    <Lock size={10} className="text-gray-400" />
+                                  </button>
+                                )}
+                                <div className={`
+                                  px-4 py-2.5 text-[15px] leading-relaxed shadow-sm transition-all relative
+                                  ${isMe 
+                                      ? `bg-primary text-black rounded-2xl ${isSequence ? 'rounded-tr-md' : 'rounded-tr-sm'}` 
+                                      : `bg-[#1E2025] text-gray-100 border border-white/5 rounded-2xl ${isSequence ? 'rounded-tl-md' : 'rounded-tl-sm'}`
+                                  }
+                                `}>
+                                  {msg.content}
+                                </div>
+                                {msg.encryptedContent && isMe && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedMessageForProof(msg);
+                                    }}
+                                    className="p-1.5 rounded-full bg-black/10 hover:bg-black/20 transition-all opacity-60 hover:opacity-100"
+                                    title="View encryption proof"
+                                  >
+                                    <Lock size={10} className="text-black/50" />
                                   </button>
                                 )}
                               </div>
                               
                               {isLastInSequence && (
                                 <div className="flex items-center gap-1.5 mt-1.5 px-1">
-                                  {msg.encryptedContent && (
-                                    <button
-                                      onClick={() => setSelectedMessageForProof(msg)}
-                                      className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-primary transition-colors"
-                                      title="View encryption proof"
-                                    >
-                                      <Lock size={10} />
-                                    </button>
-                                  )}
                                   <span className="text-[10px] text-gray-500 font-mono">
                                     {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                   </span>
