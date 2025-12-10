@@ -606,6 +606,7 @@ const App: React.FC = () => {
   );
 
   const handleLaunchApp = () => {
+    window.scrollTo(0, 0);
     setShowLanding(false);
     sessionStorage.setItem('bsn_passed_landing', 'true');
   };
