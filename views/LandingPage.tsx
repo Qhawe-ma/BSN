@@ -202,8 +202,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
             </div>
             
             {/* Video Title */}
-            <h2 className="text-2xl md:text-3xl font-bold text-center mb-6 text-white">
-              The new era of social media
+            <h2 className="text-3xl md:text-4xl font-bold text-center mb-6">
+              The new era of <span className="bg-gradient-to-r from-primary to-yellow-400 bg-clip-text text-transparent">social media</span>
             </h2>
             
             {/* Video Section */}
