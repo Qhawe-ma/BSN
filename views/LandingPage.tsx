@@ -332,8 +332,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
           </div>
 
           {/* Tokenomics Section */}
-          <div className="mt-24 mb-24 relative overflow-hidden rounded-3xl" style={{ background: 'linear-gradient(90deg, rgba(34,80,34,0.4) 0%, rgba(15,15,15,1) 50%, rgba(80,60,20,0.4) 100%)' }}>
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-amber-900/20 pointer-events-none" />
+          <div className="mt-24 mb-24 relative overflow-hidden rounded-3xl bg-black">
+            {/* Subtle green glow on left */}
+            <div className="absolute left-0 top-0 bottom-0 w-1/3 bg-gradient-to-r from-green-900/20 to-transparent pointer-events-none" />
+            {/* Subtle yellow glow on right */}
+            <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-yellow-700/15 to-transparent pointer-events-none" />
+            {/* Bottom warm glow */}
+            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-amber-900/20 to-transparent pointer-events-none" />
             
             <div className="relative z-10 py-16 px-8">
               <h2 className="text-3xl md:text-4xl font-bold text-center mb-8 text-white">
