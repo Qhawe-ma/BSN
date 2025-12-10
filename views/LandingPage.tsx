@@ -202,7 +202,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
             </div>
             
             {/* Video Section */}
-            <div className="relative w-full max-w-3xl mx-auto mb-8 rounded-2xl overflow-hidden border border-white/10 shadow-2xl" style={{ aspectRatio: '16/9' }}>
+            <div className="relative w-full max-w-5xl mx-auto mb-12 rounded-3xl overflow-hidden" style={{ aspectRatio: '16/9' }}>
               <iframe 
                 src="https://go.screenpal.com/player/cTl6e2nY2iS?ff=1&title=0&controls=0&autoplay=1&loop=1&mute=1"
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
