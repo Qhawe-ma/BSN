@@ -201,26 +201,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
               </button>
             </div>
             
-            {/* Video Title */}
-            <h2 className="text-2xl md:text-3xl font-bold text-center mb-8 text-white">
-              The new era of social media
-            </h2>
-            
-            {/* Video Section */}
-            <div className="relative w-full mx-auto mb-16 rounded-3xl overflow-hidden px-4" style={{ aspectRatio: '16/9', maxWidth: '1200px' }}>
-              <iframe 
-                src="https://go.screenpal.com/player/cTl6e2nY2iS?ff=1&title=0&controls=0&autoplay=1&loop=1&mute=1"
-                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
-                allow="autoplay; encrypted-media"
-                allowFullScreen
-              />
-            </div>
-            
-            {/* Message Preview Title */}
-            <h3 className="text-2xl md:text-3xl font-bold text-center mb-8 text-white">
-              Fully Encrypted Messages Between Wallets
-            </h3>
-            
             <div className="rounded-3xl bg-[#0D1117] border border-white/10 shadow-2xl overflow-hidden">
               <div className="bg-[#161B22] border-b border-white/5 px-5 py-4">
                 <div className="flex items-center gap-2 mb-4">
