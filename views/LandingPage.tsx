@@ -186,18 +186,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
               <span className="text-gray-500 text-sm font-mono">CA:</span>
               <button 
                 onClick={() => {
-                  navigator.clipboard.writeText('TBA');
+                  navigator.clipboard.writeText('0x521c0f93731f515759aafe3e7e573720446f4444');
                   const btn = document.getElementById('ca-copy-btn');
                   if (btn) {
                     btn.textContent = 'Copied!';
-                    setTimeout(() => { btn.textContent = 'TBA'; }, 1500);
+                    setTimeout(() => { btn.textContent = '0x521c0f93731f515759aafe3e7e573720446f4444'; }, 1500);
                   }
                 }}
                 id="ca-copy-btn"
                 className="text-primary text-sm font-mono hover:text-yellow-300 transition-colors cursor-pointer"
                 title="Click to copy"
               >
-                TBA
+                0x521c0f93731f515759aafe3e7e573720446f4444
               </button>
             </div>
             
