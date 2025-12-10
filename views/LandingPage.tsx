@@ -341,18 +341,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
       </main>
 
       <footer className="relative z-20 border-t border-white/5 py-8 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <img 
-              src="/check/logoo.svg" 
-              alt="BSN" 
-              className="h-8"
-            />
-            <span className="text-gray-500 text-sm">Binance Social Network</span>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-3">
+              <img 
+                src="/check/logoo.svg" 
+                alt="BSN" 
+                className="h-8"
+              />
+              <span className="text-gray-500 text-sm">Binance Social Network</span>
+            </div>
+            <p className="text-gray-500 text-sm">
+              Powered by BSC - Built with Privacy in Mind
+            </p>
           </div>
-          <p className="text-gray-500 text-sm">
-            Powered by BSC - Built with Privacy in Mind
-          </p>
+          <div className="text-center pt-4 border-t border-white/5">
+            <p className="text-gray-600 text-xs max-w-2xl mx-auto">
+              BSN is a decentralized social platform. We never ask for your private keys or seed phrases. 
+              Wallet connections are handled securely through your browser extension. 
+              Always verify you are on the official site before connecting.
+            </p>
+          </div>
         </div>
       </footer>
     </div>
