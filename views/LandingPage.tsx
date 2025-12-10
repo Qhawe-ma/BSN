@@ -200,6 +200,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
                 TBA
               </button>
             </div>
+            
+            {/* Video Section */}
+            <div className="relative w-full max-w-3xl mx-auto mb-8 rounded-2xl overflow-hidden border border-white/10 shadow-2xl" style={{ aspectRatio: '1.797753' }}>
+              <iframe 
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
+                scrolling="no" 
+                src="https://go.screenpal.com/player/cTl6e2nY2iS?ff=1&title=0&autoplay=1&loop=1"
+                allowFullScreen={true}
+              />
+            </div>
+            
             <div className="rounded-3xl bg-[#0D1117] border border-white/10 shadow-2xl overflow-hidden">
               <div className="bg-[#161B22] border-b border-white/5 px-5 py-4">
                 <div className="flex items-center gap-2 mb-4">
