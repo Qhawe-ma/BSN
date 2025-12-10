@@ -208,7 +208,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
                 loop 
                 muted 
                 playsInline
-                className="w-full h-auto"
+                controls={false}
+                className="w-full h-auto pointer-events-none"
               >
                 <source src="/uploads/comments/BSN NEW FINAL.mp4" type="video/mp4" />
               </video>
