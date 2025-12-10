@@ -113,7 +113,6 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
   const features = [
     { icon: <Zap size={20} />, title: 'Verified Status', desc: 'Stand out with a premium badge' },
     { icon: <Shield size={20} />, title: 'Priority Support', desc: '24/7 dedicated help' },
-    { icon: <Star size={20} />, title: 'Exclusive Access', desc: 'Early access to new features' },
     { icon: <Sparkles size={20} />, title: '30-Day Duration', desc: 'Badge valid for 30 days' },
   ];
 
@@ -348,7 +347,7 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
               </div>
 
               <ul className="space-y-3 mb-6">
-                {['Gold verification badge', 'Top priority in feed', 'Exclusive gold features', '30-day duration'].map((item, i) => (
+                {['Gold verification badge', 'Top priority in feed', '30-day duration'].map((item, i) => (
                   <li key={i} className="flex items-center gap-3 text-gray-300 text-sm">
                     <Check size={16} className="text-yellow-400" />
                     <span>{item}</span>
