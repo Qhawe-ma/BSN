@@ -251,7 +251,7 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
         </div>
 
         {/* Features */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+        <div className="grid grid-cols-3 gap-4 mb-12 max-w-2xl mx-auto">
           {features.map((feature, index) => (
             <GlassCard key={index} className="p-4 text-center">
               <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary mx-auto mb-3">
