@@ -202,9 +202,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
             </div>
             
             {/* Video Title */}
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-8 text-white">
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-center mb-8 leading-tight text-white">
               The new era of social media
-            </h2>
+            </h1>
             
             {/* Video Section */}
             <div className="relative w-full mx-auto mb-16 rounded-3xl overflow-hidden px-4" style={{ aspectRatio: '16/9', maxWidth: '1200px' }}>
