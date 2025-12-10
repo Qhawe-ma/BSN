@@ -201,6 +201,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
               </button>
             </div>
             
+            {/* Video Title */}
+            <h2 className="text-2xl md:text-3xl font-bold text-center mb-6 text-white">
+              The new era of social media
+            </h2>
+            
             {/* Video Section */}
             <div className="relative w-full mx-auto mb-12 rounded-3xl overflow-hidden px-4" style={{ aspectRatio: '16/9', maxWidth: '1200px' }}>
               <iframe 
@@ -323,6 +328,56 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
                   </p>
                 </GlassCard>
               ))}
+            </div>
+          </div>
+
+          {/* Tokenomics Section */}
+          <div className="mt-24 mb-24">
+            <h2 className="text-3xl md:text-4xl font-bold text-center mb-8 text-white">
+              Tokenomics
+            </h2>
+            
+            <div className="max-w-4xl mx-auto">
+              <div className="flex justify-center mb-12">
+                <div className="px-8 py-3 rounded-full border border-white/20 bg-white/5">
+                  <span className="text-white font-medium">1,000,000,000 Total $bsn Supply</span>
+                </div>
+              </div>
+              
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-8">
+                  <div className="p-6 rounded-2xl bg-gradient-to-br from-green-900/30 to-transparent border border-green-500/20">
+                    <h3 className="text-white font-semibold mb-2">Team Allocation: 5% (50M, Locked 3-Months, 1% Unlocked Quarterly)</h3>
+                  </div>
+                  <div className="p-6 rounded-2xl bg-gradient-to-br from-green-900/30 to-transparent border border-green-500/20">
+                    <h3 className="text-white font-semibold mb-2">Community Incentives: 15% (150M, Paid out monthly)</h3>
+                  </div>
+                  <div className="p-6 rounded-2xl bg-gradient-to-br from-green-900/30 to-transparent border border-green-500/20">
+                    <h3 className="text-white font-semibold mb-2">Market-Owned & Public Distribution via Fair Launch: 80% (800M)</h3>
+                  </div>
+                </div>
+                
+                <div className="space-y-8">
+                  <div className="p-6 rounded-2xl bg-gradient-to-br from-yellow-900/30 to-transparent border border-yellow-500/20">
+                    <p className="text-gray-300">Long term vesting & lock ensures decentralization & trust</p>
+                  </div>
+                  <div className="p-6 rounded-2xl bg-gradient-to-br from-yellow-900/30 to-transparent border border-yellow-500/20">
+                    <p className="text-gray-300">Compromised of $bsn early adopter airdrops, content revenue rewards and ecosystem partnerships</p>
+                  </div>
+                  <div className="p-6 rounded-2xl bg-gradient-to-br from-yellow-900/30 to-transparent border border-yellow-500/20">
+                    <p className="text-gray-300">Deployment via Four.meme, LP pool locked.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-16 text-center">
+                <p className="text-lg text-gray-300 mb-2">
+                  Users earn $bsn for posting, engagement and driving attention on-chain.
+                </p>
+                <p className="text-sm text-gray-500">
+                  When Community Incentive tokens are fully depleted, Ad-Revenue from partners is utilized to ensure creator reward payouts and sustainability in the future.*
+                </p>
+              </div>
             </div>
           </div>
 
