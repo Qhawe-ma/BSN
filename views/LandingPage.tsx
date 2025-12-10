@@ -336,9 +336,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
             {/* Subtle green glow on left */}
             <div className="absolute left-0 top-0 bottom-0 w-1/3 bg-gradient-to-r from-green-900/20 to-transparent pointer-events-none" />
             {/* Subtle yellow glow on right */}
-            <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-yellow-700/15 to-transparent pointer-events-none" />
-            {/* Bottom warm glow */}
-            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-amber-900/20 to-transparent pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-yellow-500/15 to-transparent pointer-events-none" />
+            {/* Bottom yellow glow */}
+            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-yellow-600/15 to-transparent pointer-events-none" />
             
             <div className="relative z-10 py-16 px-8">
               <h2 className="text-3xl md:text-4xl font-bold text-center mb-8 text-white">
