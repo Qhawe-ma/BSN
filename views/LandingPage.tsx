@@ -332,45 +332,68 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
           </div>
 
           {/* Tokenomics Section */}
-          <div className="mt-24 mb-24">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-8 text-white">
-              Tokenomics
-            </h2>
+          <div className="mt-24 mb-24 relative overflow-hidden rounded-3xl" style={{ background: 'linear-gradient(90deg, rgba(34,80,34,0.4) 0%, rgba(15,15,15,1) 50%, rgba(80,60,20,0.4) 100%)' }}>
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-amber-900/20 pointer-events-none" />
             
-            <div className="max-w-4xl mx-auto">
-              <div className="flex justify-center mb-12">
-                <div className="px-8 py-3 rounded-full border border-white/20 bg-white/5">
+            <div className="relative z-10 py-16 px-8">
+              <h2 className="text-3xl md:text-4xl font-bold text-center mb-8 text-white">
+                Tokenomics
+              </h2>
+              
+              <div className="flex justify-center mb-16">
+                <div className="px-8 py-3 rounded-full border border-white/30 bg-black/30">
                   <span className="text-white font-medium">1,000,000,000 Total $bsn Supply</span>
                 </div>
               </div>
               
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="space-y-8">
-                  <div className="p-6 rounded-2xl bg-gradient-to-br from-green-900/30 to-transparent border border-green-500/20">
-                    <h3 className="text-white font-semibold mb-2">Team Allocation: 5% (50M, Locked 3-Months, 1% Unlocked Quarterly)</h3>
+              <div className="max-w-5xl mx-auto space-y-12">
+                {/* Row 1 */}
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1 text-left">
+                    <p className="text-white font-medium">Team Allocation: 5% (50M, Locked 3-Months, 1% Unlocked Quarterly)</p>
                   </div>
-                  <div className="p-6 rounded-2xl bg-gradient-to-br from-green-900/30 to-transparent border border-green-500/20">
-                    <h3 className="text-white font-semibold mb-2">Community Incentives: 15% (150M, Paid out monthly)</h3>
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="w-full border-t border-dotted border-gray-500 relative">
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-gray-500" />
+                    </div>
                   </div>
-                  <div className="p-6 rounded-2xl bg-gradient-to-br from-green-900/30 to-transparent border border-green-500/20">
-                    <h3 className="text-white font-semibold mb-2">Market-Owned & Public Distribution via Fair Launch: 80% (800M)</h3>
+                  <div className="flex-1 text-right">
+                    <p className="text-gray-300">Long term vesting & lock ensures decentralization & trust</p>
                   </div>
                 </div>
                 
-                <div className="space-y-8">
-                  <div className="p-6 rounded-2xl bg-gradient-to-br from-yellow-900/30 to-transparent border border-yellow-500/20">
-                    <p className="text-gray-300">Long term vesting & lock ensures decentralization & trust</p>
+                {/* Row 2 */}
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1 text-left">
+                    <p className="text-white font-medium">Community Incentives: 15% (150M, Paid out monthly)</p>
                   </div>
-                  <div className="p-6 rounded-2xl bg-gradient-to-br from-yellow-900/30 to-transparent border border-yellow-500/20">
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="w-full border-t border-dotted border-gray-500 relative">
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-gray-500" />
+                    </div>
+                  </div>
+                  <div className="flex-1 text-right">
                     <p className="text-gray-300">Compromised of $bsn early adopter airdrops, content revenue rewards and ecosystem partnerships</p>
                   </div>
-                  <div className="p-6 rounded-2xl bg-gradient-to-br from-yellow-900/30 to-transparent border border-yellow-500/20">
+                </div>
+                
+                {/* Row 3 */}
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1 text-left">
+                    <p className="text-white font-medium">Market-Owned & Public Distribution via Fair Launch: 80% (800M)</p>
+                  </div>
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="w-full border-t border-dotted border-gray-500 relative">
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-gray-500" />
+                    </div>
+                  </div>
+                  <div className="flex-1 text-right">
                     <p className="text-gray-300">Deployment via Four.meme, LP pool locked.</p>
                   </div>
                 </div>
               </div>
               
-              <div className="mt-16 text-center">
+              <div className="mt-20 text-center">
                 <p className="text-lg text-gray-300 mb-2">
                   Users earn $bsn for posting, engagement and driving attention on-chain.
                 </p>
