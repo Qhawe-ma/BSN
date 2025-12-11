@@ -123,7 +123,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
         </div>
         <div className="flex items-center gap-3">
           <a 
-            href="https://x.com" 
+            href="https://x.com/bsn_app" 
             target="_blank" 
             rel="noopener noreferrer"
             className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
