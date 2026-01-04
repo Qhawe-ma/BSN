@@ -21,14 +21,14 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
   const [showRepostConfirm, setShowRepostConfirm] = useState(false);
   const [hasReposted, setHasReposted] = useState(false);
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle');
-  
+
   // Comment Input State
   const [newComment, setNewComment] = useState("");
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [commentImage, setCommentImage] = useState<File | null>(null);
   const [commentImagePreview, setCommentImagePreview] = useState<string | null>(null);
   const commentImageInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Menu and Report State
   const [showMenu, setShowMenu] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -66,13 +66,13 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
 
   const handleLike = async () => {
     if (!currentUser || isLiking) return;
-    
+
     // Optimistic update - instant UI response
     const wasLiked = isLiked;
     const prevCount = likesCount;
     setIsLiked(!wasLiked);
     setLikesCount(wasLiked ? prevCount - 1 : prevCount + 1);
-    
+
     setIsLiking(true);
     try {
       const result = await DataService.toggleLike(post.internalId, currentUser.address);
@@ -121,12 +121,12 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
 
   const handlePostComment = async () => {
     if ((!newComment.trim() && !commentImage) || !currentUser) return;
-    
+
     const commentText = newComment.trim();
     const tempId = `temp_${Date.now()}`;
     const savedImage = commentImage;
     const savedPreview = commentImagePreview;
-    
+
     const optimisticComment: Comment = {
       id: tempId,
       postId: parseInt(post.tokenId),
@@ -135,27 +135,27 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
       timestamp: Date.now(),
       imageUrl: savedPreview || undefined
     };
-    
+
     setComments(prev => [...prev, optimisticComment]);
     setNewComment("");
     clearCommentImage();
     setCommentsCount(prev => prev + 1);
     setIsPostingComment(true);
-    
+
     try {
       let imageUrl: string | undefined;
-      
+
       // Upload image first if present
       if (savedImage) {
         try {
           const formData = new FormData();
           formData.append('image', savedImage);
-          
-          const response = await fetch('/api/upload/comment-image', { 
-            method: 'POST', 
-            body: formData 
+
+          const response = await fetch('/api/upload/comment-image', {
+            method: 'POST',
+            body: formData
           });
-          
+
           // Safely parse response
           const contentType = response.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {
@@ -173,7 +173,7 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
           // Still post comment without image if upload fails
         }
       }
-      
+
       const comment = await DataService.postComment(post.internalId, commentText, currentUser, imageUrl);
       setComments(prev => prev.map(c => c.id === tempId ? { ...comment, imageUrl: imageUrl || comment.imageUrl } : c));
     } catch (error) {
@@ -187,12 +187,12 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
 
   const handleShare = async () => {
     const postUrl = `${window.location.origin}/post/${post.tokenId}`;
-    const shareText = `Check out this post by ${post.author.ens || formatAddress(post.author.address)} on BSC Social`;
-    
+    const shareText = `Check out this post by ${post.author.ens || formatAddress(post.author.address)} on Solana Social`;
+
     try {
       if (navigator.share) {
         await navigator.share({
-          title: 'BSC Social Post',
+          title: 'Solana Social Post',
           text: shareText,
           url: postUrl
         });
@@ -201,7 +201,7 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
         await navigator.clipboard.writeText(postUrl);
         setShareStatus('copied');
       }
-      
+
       setTimeout(() => setShareStatus('idle'), 2000);
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
@@ -221,18 +221,18 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
       alert('Please connect your wallet to repost');
       return;
     }
-    
+
     if (hasReposted) {
       alert('You have already reposted this post');
       return;
     }
-    
+
     setShowRepostConfirm(true);
   };
 
   const handleConfirmRepost = async () => {
     if (!currentUser || isReposting) return;
-    
+
     setIsReposting(true);
     try {
       await BlockchainService.repostPost(post);
@@ -254,11 +254,11 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
         setShowMenu(false);
       }
     };
-    
+
     if (showMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     }
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
@@ -267,7 +267,7 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
   // Handle report submission
   const handleReport = async () => {
     if (!reportReason.trim()) return;
-    
+
     setIsReporting(true);
     try {
       await FirebaseService.reportPost(
@@ -313,14 +313,14 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
           <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-primary via-yellow-400 to-primary animate-pulse w-full"></div>
         </div>
       )}
-      
+
       {/* Repost Indicator */}
       {post.isRepost && post.originalAuthor && (
         <div className="px-4 md:px-6 pt-3 flex items-center gap-2 text-gray-500 text-xs">
           <Repeat size={12} />
           <span className="flex items-center gap-1 flex-wrap">
-            <span 
-              onClick={(e) => { e.stopPropagation(); onUserClick(post.author); }} 
+            <span
+              onClick={(e) => { e.stopPropagation(); onUserClick(post.author); }}
               className="font-semibold hover:underline cursor-pointer inline-flex items-center gap-1"
             >
               {post.author.ens || formatAddress(post.author.address)}
@@ -329,8 +329,8 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
               )}
             </span>
             {' '}reposted from{' '}
-            <span 
-              onClick={(e) => { e.stopPropagation(); onUserClick(post.originalAuthor!); }} 
+            <span
+              onClick={(e) => { e.stopPropagation(); onUserClick(post.originalAuthor!); }}
               className="font-semibold hover:underline cursor-pointer inline-flex items-center gap-1"
             >
               {post.originalAuthor.ens || formatAddress(post.originalAuthor.address)}
@@ -341,7 +341,7 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
           </span>
         </div>
       )}
-      
+
       <div className="p-4 md:p-6">
         {/* Header */}
         <div className="flex justify-between items-start mb-4">
@@ -351,7 +351,7 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
             </div>
             <div className="flex flex-col justify-center">
               <div className="flex items-center gap-2">
-                <span 
+                <span
                   onClick={(e) => { e.stopPropagation(); onUserClick(post.author); }}
                   className="font-bold text-white text-sm md:text-base hover:underline cursor-pointer hover:text-primary transition-colors"
                 >
@@ -375,13 +375,13 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
             </div>
           </div>
           <div className="relative" ref={menuRef}>
-            <button 
+            <button
               onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
               className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/5"
             >
               <MoreHorizontal size={20} />
             </button>
-            
+
             {showMenu && (
               <div className="absolute right-0 top-8 w-48 bg-gray-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
                 <button
@@ -407,9 +407,9 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
 
           {post.attachmentUrl && (
             <div className="mb-4 rounded-2xl overflow-hidden border border-white/5 shadow-lg hover:border-white/10 transition-colors">
-              <LazyImage 
-                src={post.attachmentUrl} 
-                alt="Attachment" 
+              <LazyImage
+                src={post.attachmentUrl}
+                alt="Attachment"
                 className="w-full h-auto min-h-[100px]"
                 placeholderColor="bg-white/5"
               />
@@ -419,21 +419,21 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
           {/* Token Metadata (Subtle) - Hidden for optimistic posts */}
           {!isOptimistic ? (
             <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 text-[10px] font-mono text-gray-600" onClick={(e) => e.stopPropagation()}>
-               <a 
-                 href={post.txHash 
-                   ? `https://bscscan.com/tx/${post.txHash}#eventlog`
-                   : `https://bscscan.com/token/${post.contractAddress || import.meta.env.VITE_BSC_CONTRACT_ADDRESS}?a=${post.tokenId}#inventory`
-                 } 
-                 target="_blank" 
-                 rel="noreferrer" 
-                 className="bg-white/5 px-2 py-1 rounded-md border border-white/5 hover:text-primary hover:border-primary/30 transition-colors"
-               >
-                 Token ID: #{post.tokenId}
-               </a>
-               <span className="flex items-center gap-1 text-green-500/60 ml-auto">
-                 <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                 On-Chain
-               </span>
+              <a
+                href={post.txHash
+                  ? `https://solscan.io/tx/${post.txHash}`
+                  : `https://solscan.io/token/${post.tokenId}#metadata_metadata`
+                }
+                target="_blank"
+                rel="noreferrer"
+                className="bg-white/5 px-2 py-1 rounded-md border border-white/5 hover:text-primary hover:border-primary/30 transition-colors"
+              >
+                Token ID: #{post.tokenId}
+              </a>
+              <span className="flex items-center gap-1 text-green-500/60 ml-auto">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                On-Chain
+              </span>
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 text-[10px] font-mono">
@@ -446,7 +446,7 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
 
           {/* Actions - Disabled for optimistic posts */}
           <div className={`flex items-center justify-between text-gray-400 max-w-md mt-2 ${isOptimistic ? 'opacity-50 pointer-events-none' : ''}`} onClick={(e) => e.stopPropagation()}>
-            <button 
+            <button
               onClick={toggleComments}
               disabled={isOptimistic}
               className="group flex items-center gap-2 hover:text-blue-400 transition-colors text-sm"
@@ -456,15 +456,14 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
               </div>
               <span>{commentsCount || ''}</span>
             </button>
-            
-            <button 
+
+            <button
               onClick={handleRepostClick}
               disabled={isReposting || hasReposted || isOptimistic}
-              className={`group flex items-center gap-2 transition-colors text-sm ${
-                hasReposted ? 'text-green-400' : 'hover:text-green-400'
-              } ${isReposting ? 'opacity-50 cursor-wait' : ''}`}
+              className={`group flex items-center gap-2 transition-colors text-sm ${hasReposted ? 'text-green-400' : 'hover:text-green-400'
+                } ${isReposting ? 'opacity-50 cursor-wait' : ''}`}
             >
-               <div className="p-2 rounded-full group-hover:bg-green-400/10 transition-colors">
+              <div className="p-2 rounded-full group-hover:bg-green-400/10 transition-colors">
                 {isReposting ? (
                   <Loader size={18} className="animate-spin" />
                 ) : (
@@ -474,25 +473,24 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
               <span>{repostsCount || ''}</span>
             </button>
 
-            <button 
+            <button
               onClick={handleLike}
               disabled={isOptimistic}
               className={`group flex items-center gap-2 transition-colors text-sm ${isLiked ? 'text-pink-500' : 'hover:text-pink-500'}`}
             >
-               <div className="p-2 rounded-full group-hover:bg-pink-500/10 transition-colors">
+              <div className="p-2 rounded-full group-hover:bg-pink-500/10 transition-colors">
                 <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
               </div>
               <span>{likesCount || ''}</span>
             </button>
 
-            <button 
+            <button
               onClick={handleShare}
               disabled={isOptimistic}
-              className={`group flex items-center gap-2 transition-colors text-sm ${
-                shareStatus !== 'idle' ? 'text-primary' : 'hover:text-primary'
-              }`}
+              className={`group flex items-center gap-2 transition-colors text-sm ${shareStatus !== 'idle' ? 'text-primary' : 'hover:text-primary'
+                }`}
             >
-               <div className="p-2 rounded-full group-hover:bg-primary/10 transition-colors">
+              <div className="p-2 rounded-full group-hover:bg-primary/10 transition-colors">
                 {shareStatus === 'copied' || shareStatus === 'shared' ? (
                   <Check size={18} />
                 ) : (
@@ -512,19 +510,19 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
             <div className="bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-white">Confirm Repost</h3>
-                <button 
+                <button
                   onClick={() => setShowRepostConfirm(false)}
                   className="text-gray-400 hover:text-white transition-colors"
                 >
                   <X size={20} />
                 </button>
               </div>
-              
+
               <div className="mb-6">
                 <p className="text-gray-300 mb-4">
                   Reposting will mint a new post on the blockchain. This action requires a wallet transaction and gas fees.
                 </p>
-                
+
                 <div className="bg-black/40 rounded-xl p-4 border border-white/5">
                   <div className="flex items-center gap-3 mb-2">
                     <Avatar url={post.author.avatarUrl} size="sm" address={post.author.address} />
@@ -537,7 +535,7 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
                   <p className="text-sm text-gray-400 line-clamp-3">{post.content}</p>
                 </div>
               </div>
-              
+
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowRepostConfirm(false)}
@@ -590,7 +588,7 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
                       </div>
                       <h3 className="text-lg font-bold text-white">Report Post</h3>
                     </div>
-                    <button 
+                    <button
                       onClick={() => {
                         setShowReportModal(false);
                         setReportReason('');
@@ -600,28 +598,27 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
                       <X size={20} />
                     </button>
                   </div>
-                  
+
                   <div className="mb-4">
                     <p className="text-gray-400 text-sm mb-4">
                       Why are you reporting this post? Your report will be reviewed by our moderation team.
                     </p>
-                    
+
                     <div className="space-y-2 mb-4">
                       {['Spam or misleading', 'Harassment or hate speech', 'Inappropriate content', 'Scam or fraud', 'Other'].map((reason) => (
                         <button
                           key={reason}
                           onClick={() => setReportReason(reason)}
-                          className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${
-                            reportReason === reason 
-                              ? 'bg-red-500/20 border-red-500/50 text-white' 
-                              : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
-                          }`}
+                          className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${reportReason === reason
+                            ? 'bg-red-500/20 border-red-500/50 text-white'
+                            : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                            }`}
                         >
                           {reason}
                         </button>
                       ))}
                     </div>
-                    
+
                     {reportReason === 'Other' && (
                       <textarea
                         value={reportReason === 'Other' ? '' : reportReason}
@@ -631,7 +628,7 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
                       />
                     )}
                   </div>
-                  
+
                   <div className="flex gap-3">
                     <button
                       onClick={() => {
@@ -682,71 +679,71 @@ const PostItemComponent: React.FC<{ post: Post; onUserClick: (user: User) => voi
                     <Avatar url={comment.author.avatarUrl} size="sm" bordered={false} address={comment.author.address} />
                   </div>
                   <div className="flex-1">
-                      <div className="flex justify-between items-baseline mb-1">
-                         <div className="flex items-center gap-1.5">
-                           <span 
-                            onClick={() => onUserClick(comment.author)}
-                            className="text-sm font-bold text-gray-200 cursor-pointer hover:text-primary hover:underline"
-                           >
-                              {comment.author.ens || formatAddress(comment.author.address)}
-                           </span>
-                           {comment.author.activeBadge && comment.author.activeBadge.status === 'active' && (
-                             <BadgeIcon badgeType={comment.author.activeBadge.badgeType} size="sm" />
-                           )}
-                         </div>
-                         <span className="text-[10px] text-gray-600">{timeAgo(comment.timestamp)}</span>
+                    <div className="flex justify-between items-baseline mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          onClick={() => onUserClick(comment.author)}
+                          className="text-sm font-bold text-gray-200 cursor-pointer hover:text-primary hover:underline"
+                        >
+                          {comment.author.ens || formatAddress(comment.author.address)}
+                        </span>
+                        {comment.author.activeBadge && comment.author.activeBadge.status === 'active' && (
+                          <BadgeIcon badgeType={comment.author.activeBadge.badgeType} size="sm" />
+                        )}
                       </div>
-                      {comment.content && <p className="text-sm text-gray-400">{comment.content}</p>}
-                      {comment.imageUrl && (
-                        <div className="mt-2 rounded-xl overflow-hidden border border-white/5 max-w-xs">
-                          <LazyImage src={comment.imageUrl} alt="Comment attachment" className="w-full h-auto" />
-                        </div>
-                      )}
+                      <span className="text-[10px] text-gray-600">{timeAgo(comment.timestamp)}</span>
+                    </div>
+                    {comment.content && <p className="text-sm text-gray-400">{comment.content}</p>}
+                    {comment.imageUrl && (
+                      <div className="mt-2 rounded-xl overflow-hidden border border-white/5 max-w-xs">
+                        <LazyImage src={comment.imageUrl} alt="Comment attachment" className="w-full h-auto" />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
-              
+
               {/* Comment Input */}
               {currentUser ? (
-                  <div className="pt-4">
-                    {commentImagePreview && (
-                      <div className="mb-3 relative inline-block">
-                        <img src={commentImagePreview} alt="Preview" className="max-h-32 rounded-xl border border-white/10" />
-                        <button onClick={clearCommentImage} className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600">
-                          <X size={12} />
-                        </button>
-                      </div>
-                    )}
-                    <div className="flex gap-3 items-center">
-                       <Avatar url={currentUser.avatarUrl} size="sm" address={currentUser.address} />
-                       <div className="relative flex-1 group flex items-center gap-2">
-                         <input type="file" ref={commentImageInputRef} onChange={handleCommentImageSelect} accept="image/*" className="hidden" />
-                         <button onClick={() => commentImageInputRef.current?.click()} className="p-2 text-gray-400 hover:text-primary hover:bg-white/5 rounded-full transition-all" title="Add image">
-                           <ImagePlus size={18} />
-                         </button>
-                         <input 
-                            type="text" 
-                            value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handlePostComment()}
-                            disabled={isPostingComment}
-                            placeholder="Write your reply..." 
-                            className="flex-1 bg-white/5 border border-white/10 rounded-full pl-4 pr-12 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 transition-all"
-                         />
-                         <button 
-                           onClick={handlePostComment}
-                           disabled={(!newComment.trim() && !commentImage) || isPostingComment}
-                           className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-black rounded-full hover:shadow-lg hover:shadow-primary/20 disabled:opacity-0 disabled:pointer-events-none transition-all"
-                         >
-                            {isPostingComment ? <Loader size={14} className="animate-spin" /> : <Send size={14} />}
-                         </button>
-                       </div>
+                <div className="pt-4">
+                  {commentImagePreview && (
+                    <div className="mb-3 relative inline-block">
+                      <img src={commentImagePreview} alt="Preview" className="max-h-32 rounded-xl border border-white/10" />
+                      <button onClick={clearCommentImage} className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600">
+                        <X size={12} />
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex gap-3 items-center">
+                    <Avatar url={currentUser.avatarUrl} size="sm" address={currentUser.address} />
+                    <div className="relative flex-1 group flex items-center gap-2">
+                      <input type="file" ref={commentImageInputRef} onChange={handleCommentImageSelect} accept="image/*" className="hidden" />
+                      <button onClick={() => commentImageInputRef.current?.click()} className="p-2 text-gray-400 hover:text-primary hover:bg-white/5 rounded-full transition-all" title="Add image">
+                        <ImagePlus size={18} />
+                      </button>
+                      <input
+                        type="text"
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handlePostComment()}
+                        disabled={isPostingComment}
+                        placeholder="Write your reply..."
+                        className="flex-1 bg-white/5 border border-white/10 rounded-full pl-4 pr-12 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 transition-all"
+                      />
+                      <button
+                        onClick={handlePostComment}
+                        disabled={(!newComment.trim() && !commentImage) || isPostingComment}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-black rounded-full hover:shadow-lg hover:shadow-primary/20 disabled:opacity-0 disabled:pointer-events-none transition-all"
+                      >
+                        {isPostingComment ? <Loader size={14} className="animate-spin" /> : <Send size={14} />}
+                      </button>
                     </div>
                   </div>
+                </div>
               ) : (
-                  <div className="pt-4 text-center">
-                      <p className="text-sm text-gray-500">Connect wallet to reply</p>
-                  </div>
+                <div className="pt-4 text-center">
+                  <p className="text-sm text-gray-500">Connect wallet to reply</p>
+                </div>
               )}
             </div>
           )}
@@ -788,17 +785,17 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
     if (cached && cached.length > 0) {
       setPosts(cached);
       setLoading(false);
-      
+
       if (!forceRefresh && DataService.isCacheValid()) {
         console.log('📦 Using cached feed - instant load');
         return;
       }
     }
-    
+
     if (!cached || cached.length === 0) {
       setLoading(true);
     }
-    
+
     setIsStreaming(true);
     DataService.getFeedProgressive(forceRefresh);
   }, []);
@@ -814,11 +811,11 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
     const unsubscribe = FeedEvents.subscribeToStream((streamedPosts, state) => {
       setPosts(streamedPosts);
       setStreamProgress({ loaded: state.loadedCount, total: state.totalCount });
-      
+
       if (streamedPosts.length > 0) {
         setLoading(false);
       }
-      
+
       if (!state.isLoading) {
         setIsStreaming(false);
       }
@@ -871,7 +868,7 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
     return (
       <div className="max-w-2xl mx-auto pt-4 md:pt-8 space-y-6 px-4 md:px-0">
         {[1, 2, 3].map(i => (
-           <GlassCard key={i} className="mb-4 md:mb-6 border-white/5">
+          <GlassCard key={i} className="mb-4 md:mb-6 border-white/5">
             <div className="p-4 md:p-6 animate-pulse">
               {/* Header Skeleton */}
               <div className="flex justify-between items-start mb-4">
@@ -889,22 +886,22 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
                 <div className="h-4 bg-white/5 rounded w-full" />
                 <div className="h-4 bg-white/5 rounded w-11/12" />
                 <div className="h-4 bg-white/5 rounded w-4/6" />
-                
+
                 {/* Media Placeholder */}
                 <div className="mt-4 h-48 md:h-64 w-full bg-white/5 rounded-2xl border border-white/5" />
 
                 {/* Actions Skeleton */}
                 <div className="flex justify-between max-w-md mt-6 opacity-50">
-                     <div className="flex gap-2">
-                        <div className="h-5 w-5 bg-white/10 rounded-full" />
-                        <div className="h-5 w-8 bg-white/10 rounded" />
-                     </div>
-                     <div className="h-5 w-5 bg-white/10 rounded-full" />
-                     <div className="flex gap-2">
-                        <div className="h-5 w-5 bg-white/10 rounded-full" />
-                        <div className="h-5 w-8 bg-white/10 rounded" />
-                     </div>
-                     <div className="h-5 w-5 bg-white/10 rounded-full" />
+                  <div className="flex gap-2">
+                    <div className="h-5 w-5 bg-white/10 rounded-full" />
+                    <div className="h-5 w-8 bg-white/10 rounded" />
+                  </div>
+                  <div className="h-5 w-5 bg-white/10 rounded-full" />
+                  <div className="flex gap-2">
+                    <div className="h-5 w-5 bg-white/10 rounded-full" />
+                    <div className="h-5 w-8 bg-white/10 rounded" />
+                  </div>
+                  <div className="h-5 w-5 bg-white/10 rounded-full" />
                 </div>
               </div>
             </div>
@@ -922,25 +919,23 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
         <div className="border-b border-white/10 flex">
           <button
             onClick={() => setFeedType('forYou')}
-            className={`flex-1 py-3 text-sm font-bold transition-all relative ${
-              feedType === 'forYou'
-                ? 'text-white'
-                : 'text-gray-500 hover:text-gray-300'
-            }`}
+            className={`flex-1 py-3 text-sm font-bold transition-all relative ${feedType === 'forYou'
+              ? 'text-white'
+              : 'text-gray-500 hover:text-gray-300'
+              }`}
           >
             For You
             {feedType === 'forYou' && (
               <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-t-full"></div>
             )}
           </button>
-          
+
           <button
             onClick={() => setFeedType('following')}
-            className={`flex-1 py-3 text-sm font-bold transition-all relative ${
-              feedType === 'following'
-                ? 'text-white'
-                : 'text-gray-500 hover:text-gray-300'
-            }`}
+            className={`flex-1 py-3 text-sm font-bold transition-all relative ${feedType === 'following'
+              ? 'text-white'
+              : 'text-gray-500 hover:text-gray-300'
+              }`}
           >
             Following
             {feedType === 'following' && (
@@ -972,7 +967,7 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
           {visiblePosts.map(post => (
             <PostItem key={`${post.contractAddress || 'default'}_${post.tokenId}`} post={post} onUserClick={onUserClick} onPostClick={onPostClick} currentUser={currentUser} />
           ))}
-          
+
           {hasMore && (
             <div ref={loadMoreRef} className="py-8">
               {isStreaming && (
@@ -983,7 +978,7 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
                   </div>
                   {streamProgress.total > 0 && (
                     <div className="w-32 h-1 bg-white/10 rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-gradient-to-r from-primary to-yellow-400 transition-all duration-300"
                         style={{ width: `${(streamProgress.loaded / streamProgress.total) * 100}%` }}
                       />

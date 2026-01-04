@@ -1,7 +1,7 @@
 import { database, storage } from './firebaseConfig';
 import { ref, push, set, get, update, onValue, query, orderByChild, limitToLast, off, remove } from 'firebase/database';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Message, ChatSession, User, Comment, PremiumBadge, BadgeType, BadgeStatus } from './types';
+import { Message, ChatSession, User, Comment, PremiumBadge, BadgeType, BadgeStatus, Post } from './types';
 import { generateAvatar } from './services';
 
 // Profile cache for comment author enrichment (30 second TTL)
@@ -12,11 +12,11 @@ const getCachedProfile = async (address: string, fetchFn: (addr: string) => Prom
   const normalizedAddr = address.toLowerCase();
   const cached = profileCache.get(normalizedAddr);
   const now = Date.now();
-  
+
   if (cached && (now - cached.timestamp) < PROFILE_CACHE_TTL) {
     return cached.profile;
   }
-  
+
   const profile = await fetchFn(normalizedAddr);
   if (profile) {
     profileCache.set(normalizedAddr, { profile, timestamp: now });
@@ -27,18 +27,18 @@ const getCachedProfile = async (address: string, fetchFn: (addr: string) => Prom
 // Helper to enrich comments with fresh profiles
 const enrichCommentsWithProfiles = async (comments: Comment[], getUserProfile: (addr: string) => Promise<User | null>): Promise<Comment[]> => {
   if (comments.length === 0) return comments;
-  
+
   const uniqueAddresses = [...new Set(comments.map(c => c.author.address.toLowerCase()))];
   const profilePromises = uniqueAddresses.map(addr => getCachedProfile(addr, getUserProfile));
   const profiles = await Promise.all(profilePromises);
-  
+
   const profileMap = new Map<string, User>();
   profiles.forEach((profile, index) => {
     if (profile) {
       profileMap.set(uniqueAddresses[index], profile);
     }
   });
-  
+
   return comments.map(comment => {
     const freshProfile = profileMap.get(comment.author.address.toLowerCase());
     if (freshProfile) {
@@ -68,7 +68,7 @@ export const FirebaseService = {
       const chatId = [normalizedSenderId, normalizedRecipientId].sort().join('_');
       const messagesRef = ref(database, `chats/${chatId}/messages`);
       const newMessageRef = push(messagesRef);
-      
+
       const message: Message = {
         id: newMessageRef.key || `msg_${Date.now()}`,
         sender: normalizedSenderId,
@@ -79,7 +79,7 @@ export const FirebaseService = {
       };
 
       await set(newMessageRef, message);
-      
+
       // Update last message in chat metadata
       const chatMetadataRef = ref(database, `chats/${chatId}/metadata`);
       await set(chatMetadataRef, {
@@ -100,8 +100,8 @@ export const FirebaseService = {
    * Filters out messages before the user's deletion timestamp
    */
   subscribeToMessages: (
-    senderId: string, 
-    recipientId: string, 
+    senderId: string,
+    recipientId: string,
     callback: (messages: Message[]) => void,
     deletionTimestamp?: number | null
   ): (() => void) => {
@@ -109,29 +109,29 @@ export const FirebaseService = {
     const normalizedSenderId = senderId.toLowerCase();
     const normalizedRecipientId = recipientId.toLowerCase();
     const normalizedChatId = [normalizedSenderId, normalizedRecipientId].sort().join('_');
-    
+
     // Also check original case chat ID (for legacy data)
     const originalChatId = [senderId, recipientId].sort().join('_');
-    
+
     const unsubscribes: (() => void)[] = [];
     const allMessages = new Map<string, Message>();
-    
+
     const emitMergedMessages = () => {
       let messagesArray = Array.from(allMessages.values());
-      
+
       // Filter out messages before deletion timestamp if provided
       if (deletionTimestamp) {
         messagesArray = messagesArray.filter(msg => msg.timestamp > deletionTimestamp);
       }
-      
+
       messagesArray.sort((a, b) => a.timestamp - b.timestamp);
       callback(messagesArray);
     };
-    
+
     // Subscribe to normalized chat ID
     const normalizedMessagesRef = ref(database, `chats/${normalizedChatId}/messages`);
     const normalizedQuery = query(normalizedMessagesRef, orderByChild('timestamp'), limitToLast(100));
-    
+
     const unsubNormalized = onValue(normalizedQuery, (snapshot) => {
       snapshot.forEach((childSnapshot) => {
         const msg = childSnapshot.val();
@@ -142,12 +142,12 @@ export const FirebaseService = {
       emitMergedMessages();
     });
     unsubscribes.push(() => off(normalizedMessagesRef));
-    
+
     // If original case is different, also subscribe to legacy chat
     if (originalChatId.toLowerCase() !== normalizedChatId) {
       const originalMessagesRef = ref(database, `chats/${originalChatId}/messages`);
       const originalQuery = query(originalMessagesRef, orderByChild('timestamp'), limitToLast(100));
-      
+
       const unsubOriginal = onValue(originalQuery, (snapshot) => {
         snapshot.forEach((childSnapshot) => {
           const msg = childSnapshot.val();
@@ -172,37 +172,37 @@ export const FirebaseService = {
   getUserChats: (userId: string, callback: (chats: ChatSession[]) => void): (() => void) => {
     const chatsRef = ref(database, 'chats');
     const normalizedUserId = userId.toLowerCase();
-    
+
     const unsubscribe = onValue(chatsRef, async (snapshot) => {
       const chatSessions: ChatSession[] = [];
       const participantAddresses: string[] = [];
-      
+
       snapshot.forEach((chatSnapshot) => {
         const chatId = chatSnapshot.key;
         const chatData = chatSnapshot.val();
-        
+
         // Split chat ID to get both participant addresses
         if (chatId) {
           const parts = chatId.split('_');
-          
+
           // Validate that we have exactly 2 participants
           if (parts.length !== 2 || !parts[0] || !parts[1]) {
             console.warn('Invalid chat ID format:', chatId);
             return;
           }
-          
+
           const [user1, user2] = parts;
-          
+
           // Check if user is exactly one of the two participants (case-insensitive)
           const isUser1 = user1.toLowerCase() === normalizedUserId;
           const isUser2 = user2.toLowerCase() === normalizedUserId;
-          
+
           if (isUser1 || isUser2) {
             const otherUserId = isUser1 ? user2 : user1;
-            
+
             const metadata = chatData.metadata;
             const lastMessage = metadata?.lastMessage;
-            
+
             if (lastMessage) {
               // Calculate unread count (case-insensitive comparison)
               let unreadCount = 0;
@@ -212,7 +212,7 @@ export const FirebaseService = {
                   unreadCount++;
                 }
               });
-              
+
               const chatSession: ChatSession = {
                 id: chatId,
                 participant: {
@@ -232,14 +232,14 @@ export const FirebaseService = {
           }
         }
       });
-      
+
       // Deduplicate chats by participant address (case-insensitive)
       // This handles legacy chats with different case formats
       const deduplicatedChats = new Map<string, ChatSession>();
       chatSessions.forEach(session => {
         const normalizedParticipant = session.participant.address.toLowerCase();
         const existing = deduplicatedChats.get(normalizedParticipant);
-        
+
         if (!existing) {
           // First chat with this participant
           deduplicatedChats.set(normalizedParticipant, session);
@@ -255,17 +255,17 @@ export const FirebaseService = {
           }
         }
       });
-      
+
       const uniqueChatSessions = Array.from(deduplicatedChats.values());
       const uniqueParticipantAddresses = uniqueChatSessions.map(s => s.participant.address);
-      
+
       // Fetch full user profiles (including badges) for all participants
       try {
-        const profilePromises = uniqueParticipantAddresses.map(address => 
+        const profilePromises = uniqueParticipantAddresses.map(address =>
           FirebaseService.getUserProfile(address)
         );
         const profiles = await Promise.all(profilePromises);
-        
+
         // Merge profile data (including badges) into chat sessions
         uniqueChatSessions.forEach((session, index) => {
           const profile = profiles[index];
@@ -284,7 +284,7 @@ export const FirebaseService = {
       } catch (error) {
         console.error('Error fetching participant profiles:', error);
       }
-      
+
       // Sort by last message timestamp
       uniqueChatSessions.sort((a, b) => b.lastMessage.timestamp - a.lastMessage.timestamp);
       callback(uniqueChatSessions);
@@ -302,23 +302,23 @@ export const FirebaseService = {
       const normalizedOtherUserId = otherUserId.toLowerCase();
       const normalizedChatId = [normalizedCurrentUserId, normalizedOtherUserId].sort().join('_');
       const originalChatId = [currentUserId, otherUserId].sort().join('_');
-      
+
       // Get all chat IDs to check (normalized + original if different)
       const chatIdsToCheck = [normalizedChatId];
       if (originalChatId.toLowerCase() !== normalizedChatId) {
         chatIdsToCheck.push(originalChatId);
       }
-      
+
       // Mark messages as read in all chat ID variations using one-time reads
       for (const chatId of chatIdsToCheck) {
         const messagesRef = ref(database, `chats/${chatId}/messages`);
         const messagesSnapshot = await get(messagesRef);
-        
+
         if (!messagesSnapshot.exists()) continue;
-        
+
         let markedAny = false;
         const updates: Record<string, any> = {};
-        
+
         messagesSnapshot.forEach((childSnapshot) => {
           const message = childSnapshot.val();
           if (message.recipient?.toLowerCase() === normalizedCurrentUserId && !message.isRead) {
@@ -327,15 +327,15 @@ export const FirebaseService = {
             console.log('✅ Marking message as read:', childSnapshot.key, 'in chat:', chatId);
           }
         });
-        
+
         // Batch update all messages at once
         if (markedAny && Object.keys(updates).length > 0) {
           await update(messagesRef, updates);
-          
+
           // Update metadata
           const chatMetadataRef = ref(database, `chats/${chatId}/metadata`);
           const metaSnapshot = await get(chatMetadataRef);
-          
+
           if (metaSnapshot.exists()) {
             const metadata = metaSnapshot.val();
             if (metadata.lastMessage?.recipient?.toLowerCase() === normalizedCurrentUserId) {
@@ -468,7 +468,7 @@ export const FirebaseService = {
     // Normalize address to lowercase for consistent presence paths
     const normalizedUserId = userId.toLowerCase();
     const presenceRef = ref(database, `presence/${normalizedUserId}`);
-    
+
     onValue(presenceRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -491,12 +491,22 @@ export const FirebaseService = {
     try {
       const normalizedAddress = address.toLowerCase();
       const userRef = ref(database, `users/${normalizedAddress}`);
-      
-      return new Promise((resolve) => {
-        onValue(userRef, (snapshot) => {
+
+      return new Promise(async (resolve) => {
+        onValue(userRef, async (snapshot) => {
           const userData = snapshot.val();
           if (userData) {
-            resolve(userData as User);
+            const user = userData as User;
+            
+            // Ensure user has an avatar (for existing users who might not have one)
+            // This ensures consistency - same address always gets same avatar
+            if (!user.avatarUrl) {
+              user.avatarUrl = generateAvatar(normalizedAddress);
+              // Save the generated avatar to Firebase so it persists
+              await FirebaseService.updateUserProfile(normalizedAddress, { avatarUrl: user.avatarUrl });
+            }
+            
+            resolve(user);
           } else {
             resolve(null);
           }
@@ -515,7 +525,7 @@ export const FirebaseService = {
     try {
       const normalizedAddress = user.address.toLowerCase();
       const userRef = ref(database, `users/${normalizedAddress}`);
-      
+
       // Filter out undefined values (Firebase doesn't allow them)
       const cleanUser: Record<string, any> = {};
       for (const [key, value] of Object.entries(user)) {
@@ -524,7 +534,7 @@ export const FirebaseService = {
         }
       }
       cleanUser.address = normalizedAddress;
-      
+
       await set(userRef, cleanUser);
       console.log('✅ User profile saved to Firebase:', normalizedAddress);
     } catch (error) {
@@ -540,12 +550,12 @@ export const FirebaseService = {
     try {
       const normalizedAddress = address.toLowerCase();
       const userRef = ref(database, `users/${normalizedAddress}`);
-      
+
       // Get current user data
       const currentUser = await FirebaseService.getUserProfile(normalizedAddress);
       if (currentUser) {
         const updatedUser = { ...currentUser, ...updates };
-        
+
         // Filter out undefined values (Firebase doesn't allow them)
         const cleanUser: Record<string, any> = {};
         for (const [key, value] of Object.entries(updatedUser)) {
@@ -553,7 +563,7 @@ export const FirebaseService = {
             cleanUser[key] = value;
           }
         }
-        
+
         await set(userRef, cleanUser);
         console.log('✅ User profile updated:', normalizedAddress);
       }
@@ -569,7 +579,7 @@ export const FirebaseService = {
   isFollowing: async (followerAddress: string, targetAddress: string): Promise<boolean> => {
     try {
       const followRef = ref(database, `follows/${followerAddress}/${targetAddress}`);
-      
+
       return new Promise((resolve) => {
         onValue(followRef, (snapshot) => {
           resolve(snapshot.exists());
@@ -672,7 +682,7 @@ export const FirebaseService = {
   getFollowing: async (userAddress: string): Promise<string[]> => {
     try {
       const followsRef = ref(database, `follows/${userAddress}`);
-      
+
       return new Promise((resolve) => {
         onValue(followsRef, (snapshot) => {
           const following: string[] = [];
@@ -705,22 +715,22 @@ export const FirebaseService = {
       if (isLiked) {
         // Unlike: remove the like
         await set(likeRef, null);
-        
+
         // Decrement count
         const stats = await FirebaseService.getPostStats(postId);
         const newLikes = Math.max(0, stats.likes - 1);
         await set(statsRef, { ...stats, likes: newLikes });
-        
+
         return { liked: false, likes: newLikes };
       } else {
         // Like: add the like
         await set(likeRef, { timestamp: Date.now() });
-        
+
         // Increment count
         const stats = await FirebaseService.getPostStats(postId);
         const newLikes = stats.likes + 1;
         await set(statsRef, { ...stats, likes: newLikes });
-        
+
         return { liked: true, likes: newLikes };
       }
     } catch (error) {
@@ -770,6 +780,46 @@ export const FirebaseService = {
   /**
    * Save transaction hash for a post
    */
+  /**
+   * Save full post to Firebase (for Solana feed)
+   */
+  savePost: async (post: Post): Promise<void> => {
+    try {
+      const postsRef = ref(database, `posts/${post.internalId}`);
+      // Convert Post object to Firebase-friendly format (remove undefined)
+      const postData = JSON.parse(JSON.stringify(post));
+      await set(postsRef, postData);
+      console.log('✅ Post saved to Firebase:', post.internalId);
+    } catch (error) {
+      console.error('Error saving post to Firebase:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get posts from Firebase (for Solana feed)
+   */
+  getPosts: async (limit: number = 50): Promise<Post[]> => {
+    try {
+      const postsRef = ref(database, 'posts');
+      const postsQuery = query(postsRef, orderByChild('timestamp'), limitToLast(limit));
+
+      return new Promise((resolve) => {
+        onValue(postsQuery, (snapshot) => {
+          const posts: Post[] = [];
+          snapshot.forEach((childSnapshot) => {
+            posts.push(childSnapshot.val() as Post);
+          });
+          // Return newest first
+          resolve(posts.reverse());
+        }, { onlyOnce: true });
+      });
+    } catch (error) {
+      console.error('Error fetching posts from Firebase:', error);
+      return [];
+    }
+  },
+
   savePostTxHash: async (postId: string, txHash: string): Promise<void> => {
     try {
       const statsRef = ref(database, `postStats/${postId}`);
@@ -788,7 +838,7 @@ export const FirebaseService = {
     try {
       const normalizedAddress = userAddress.toLowerCase();
       const repostRef = ref(database, `reposts/${postId}/${normalizedAddress}`);
-      
+
       return new Promise((resolve) => {
         onValue(repostRef, (snapshot) => {
           resolve(snapshot.exists());
@@ -809,15 +859,15 @@ export const FirebaseService = {
       const repostRef = ref(database, `reposts/${postId}/${normalizedAddress}`);
       const statsRef = ref(database, `postStats/${postId}`);
 
-      await set(repostRef, { 
+      await set(repostRef, {
         timestamp: Date.now(),
-        repostTokenId 
+        repostTokenId
       });
-      
+
       const stats = await FirebaseService.getPostStats(postId);
       const newReposts = stats.reposts + 1;
       await set(statsRef, { ...stats, reposts: newReposts });
-      
+
       return newReposts;
     } catch (error) {
       console.error('Error recording repost:', error);
@@ -834,7 +884,7 @@ export const FirebaseService = {
     try {
       const commentsRef = ref(database, `comments/${postId}`);
       const commentsQuery = query(commentsRef, orderByChild('timestamp'));
-      
+
       return new Promise((resolve) => {
         onValue(commentsQuery, async (snapshot) => {
           try {
@@ -842,7 +892,7 @@ export const FirebaseService = {
             snapshot.forEach((childSnapshot) => {
               comments.push(childSnapshot.val());
             });
-            
+
             // Enrich with fresh profiles (using cache)
             const enrichedComments = await enrichCommentsWithProfiles(comments, FirebaseService.getUserProfile);
             resolve(enrichedComments);
@@ -870,7 +920,7 @@ export const FirebaseService = {
     try {
       const commentsRef = ref(database, `comments/${postId}`);
       const newCommentRef = push(commentsRef);
-      
+
       const comment: Comment = {
         id: newCommentRef.key || `comment_${Date.now()}`,
         postId: parseInt(postId),
@@ -882,12 +932,12 @@ export const FirebaseService = {
       };
 
       await set(newCommentRef, comment);
-      
+
       // Update comment count in stats
       const stats = await FirebaseService.getPostStats(postId);
       const statsRef = ref(database, `postStats/${postId}`);
       await set(statsRef, { ...stats, comments: stats.comments + 1 });
-      
+
       return comment;
     } catch (error) {
       console.error('Error posting comment:', error);
@@ -904,7 +954,7 @@ export const FirebaseService = {
     try {
       const reportsRef = ref(database, `reports`);
       const newReportRef = push(reportsRef);
-      
+
       const report = {
         id: newReportRef.key,
         postId,
@@ -931,7 +981,7 @@ export const FirebaseService = {
     try {
       const reportsRef = ref(database, 'reports');
       const reportsQuery = query(reportsRef, orderByChild('timestamp'));
-      
+
       return new Promise((resolve) => {
         onValue(reportsQuery, (snapshot) => {
           const reports: any[] = [];
@@ -1012,7 +1062,7 @@ export const FirebaseService = {
   isPostHidden: async (postId: string): Promise<boolean> => {
     try {
       const hiddenRef = ref(database, `hiddenPosts/${postId}`);
-      
+
       return new Promise((resolve) => {
         onValue(hiddenRef, (snapshot) => {
           resolve(snapshot.exists());
@@ -1030,7 +1080,7 @@ export const FirebaseService = {
   getHiddenPosts: async (): Promise<string[]> => {
     try {
       const hiddenRef = ref(database, 'hiddenPosts');
-      
+
       return new Promise((resolve) => {
         onValue(hiddenRef, (snapshot) => {
           const hiddenIds: string[] = [];
@@ -1062,12 +1112,12 @@ export const FirebaseService = {
     try {
       const blogsRef = ref(database, 'blogs');
       const newBlogRef = push(blogsRef);
-      
+
       const slug = blog.title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '');
-      
+
       const blogPost = {
         id: newBlogRef.key,
         slug: `${slug}-${Date.now().toString(36)}`,
@@ -1104,7 +1154,7 @@ export const FirebaseService = {
   }>): Promise<void> => {
     try {
       const blogRef = ref(database, `blogs/${blogId}`);
-      
+
       return new Promise((resolve, reject) => {
         onValue(blogRef, async (snapshot) => {
           const currentBlog = snapshot.val();
@@ -1149,7 +1199,7 @@ export const FirebaseService = {
     try {
       const blogsRef = ref(database, 'blogs');
       const blogsQuery = query(blogsRef, orderByChild('createdAt'));
-      
+
       return new Promise((resolve) => {
         onValue(blogsQuery, (snapshot) => {
           const blogs: any[] = [];
@@ -1174,7 +1224,7 @@ export const FirebaseService = {
   getBlogBySlug: async (slug: string): Promise<any | null> => {
     try {
       const blogsRef = ref(database, 'blogs');
-      
+
       return new Promise((resolve) => {
         onValue(blogsRef, (snapshot) => {
           let foundBlog = null;
@@ -1199,7 +1249,7 @@ export const FirebaseService = {
   getBlogById: async (blogId: string): Promise<any | null> => {
     try {
       const blogRef = ref(database, `blogs/${blogId}`);
-      
+
       return new Promise((resolve) => {
         onValue(blogRef, (snapshot) => {
           if (snapshot.exists()) {
@@ -1222,16 +1272,16 @@ export const FirebaseService = {
    */
   uploadImage: async (file: File, folder: string = 'blog-images'): Promise<string> => {
     const timeoutMs = 30000;
-    
+
     const uploadPromise = async (): Promise<string> => {
       const timestamp = Date.now();
       const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const fileName = `${folder}/${timestamp}_${cleanFileName}`;
       const imageRef = storageRef(storage, fileName);
-      
+
       const snapshot = await uploadBytes(imageRef, file);
       const downloadUrl = await getDownloadURL(snapshot.ref);
-      
+
       console.log('Image uploaded successfully:', downloadUrl);
       return downloadUrl;
     };
@@ -1283,7 +1333,7 @@ export const FirebaseService = {
       const purchaseId = `${userAddress}_${Date.now()}`;
       const purchaseDate = Date.now();
       const expiryDate = purchaseDate + (30 * 24 * 60 * 60 * 1000); // 30 days
-      
+
       const badgeData = {
         id: purchaseId,
         userAddress: userAddress.toLowerCase(),
@@ -1317,7 +1367,7 @@ export const FirebaseService = {
       const purchaseId = `${userAddress}_${Date.now()}`;
       const purchaseDate = Date.now();
       const expiryDate = purchaseDate + (30 * 24 * 60 * 60 * 1000); // 30 days
-      
+
       const badgeData = {
         id: purchaseId,
         userAddress: userAddress.toLowerCase(),
@@ -1332,12 +1382,12 @@ export const FirebaseService = {
       };
 
       await set(ref(database, `premiumBadges/${purchaseId}`), badgeData);
-      
+
       // Also update user's active badge
       await update(ref(database, `users/${userAddress.toLowerCase()}`), {
         activeBadge: badgeData
       });
-      
+
       console.log('Badge purchased and activated:', purchaseId);
       return purchaseId;
     } catch (error) {
@@ -1353,12 +1403,12 @@ export const FirebaseService = {
     try {
       const badgesRef = ref(database, 'premiumBadges');
       const snapshot = await get(badgesRef);
-      
+
       if (!snapshot.exists()) return [];
-      
+
       const badges: any[] = [];
       const data = snapshot.val();
-      
+
       Object.keys(data).forEach(key => {
         const badge = { ...data[key], id: key };
         if (badge.status === 'active' && badge.expiryDate < Date.now()) {
@@ -1382,12 +1432,12 @@ export const FirebaseService = {
     try {
       const badgesRef = ref(database, 'premiumBadges');
       const snapshot = await get(badgesRef);
-      
+
       if (!snapshot.exists()) return null;
-      
+
       const data = snapshot.val();
       const now = Date.now();
-      
+
       for (const key of Object.keys(data)) {
         const badge = data[key];
         if (
@@ -1398,7 +1448,7 @@ export const FirebaseService = {
           return { ...badge, id: key };
         }
       }
-      
+
       return null;
     } catch (error) {
       console.error('Error fetching active badge:', error);
@@ -1418,26 +1468,26 @@ export const FirebaseService = {
     try {
       const badgeRef = ref(database, `premiumBadges/${badgeId}`);
       const badgeSnapshot = await get(badgeRef);
-      
+
       if (!badgeSnapshot.exists()) {
         throw new Error('Badge not found');
       }
-      
+
       const badgeData = badgeSnapshot.val();
       const updates: any = { status };
-      
+
       if (status === 'active' && adminAddress) {
         updates.approvedBy = adminAddress;
         updates.approvedAt = Date.now();
         updates.expiryDate = Date.now() + (30 * 24 * 60 * 60 * 1000);
       }
-      
+
       if (status === 'rejected' && rejectionNote) {
         updates.rejectionNote = rejectionNote;
       }
 
       await update(badgeRef, updates);
-      
+
       if (status === 'active') {
         const updatedBadge = { ...badgeData, ...updates, id: badgeId };
         await update(ref(database, `users/${badgeData.userAddress.toLowerCase()}`), {
@@ -1448,7 +1498,7 @@ export const FirebaseService = {
           activeBadge: null
         });
       }
-      
+
       console.log('Badge status updated:', badgeId, status);
     } catch (error) {
       console.error('Error updating badge status:', error);
@@ -1467,7 +1517,7 @@ export const FirebaseService = {
     try {
       const purchaseId = `admin_${userAddress}_${Date.now()}`;
       const now = Date.now();
-      
+
       const badgeData = {
         id: purchaseId,
         userAddress: userAddress.toLowerCase(),
@@ -1482,11 +1532,11 @@ export const FirebaseService = {
       };
 
       await set(ref(database, `premiumBadges/${purchaseId}`), badgeData);
-      
+
       await update(ref(database, `users/${userAddress.toLowerCase()}`), {
         activeBadge: badgeData
       });
-      
+
       console.log('Badge assigned by admin:', purchaseId);
       return purchaseId;
     } catch (error) {
@@ -1506,11 +1556,11 @@ export const FirebaseService = {
         revokedBy: adminAddress,
         revokedAt: Date.now()
       });
-      
+
       await update(ref(database, `users/${userAddress.toLowerCase()}`), {
         activeBadge: null
       });
-      
+
       console.log('Badge revoked by admin:', badgeId);
     } catch (error) {
       console.error('Error revoking badge:', error);
@@ -1526,21 +1576,21 @@ export const FirebaseService = {
       // Get all users
       const usersRef = ref(database, 'users');
       const usersSnapshot = await get(usersRef);
-      
+
       // Get all badges
       const badgesRef = ref(database, 'premiumBadges');
       const badgesSnapshot = await get(badgesRef);
-      
+
       const users: any[] = [];
       const badges = badgesSnapshot.exists() ? badgesSnapshot.val() : {};
       const now = Date.now();
-      
+
       if (usersSnapshot.exists()) {
         const usersData = usersSnapshot.val();
-        
+
         Object.keys(usersData).forEach(address => {
           const user = usersData[address];
-          
+
           let activeBadge = null;
           for (const key of Object.keys(badges)) {
             const badge = badges[key];
@@ -1553,7 +1603,7 @@ export const FirebaseService = {
               break;
             }
           }
-          
+
           users.push({
             address,
             ...user,
@@ -1579,7 +1629,7 @@ export const FirebaseService = {
     callback: (stats: { likes: number; comments: number; reposts: number; txHash?: string }) => void
   ): (() => void) => {
     const statsRef = ref(database, `postStats/${postId}`);
-    
+
     const unsubscribe = onValue(statsRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
@@ -1614,10 +1664,10 @@ export const FirebaseService = {
       snapshot.forEach((childSnapshot) => {
         comments.push(childSnapshot.val());
       });
-      
+
       // Enrich with fresh profiles (using cache)
       const enrichedComments = await enrichCommentsWithProfiles(comments, FirebaseService.getUserProfile);
-      
+
       // Only update if this is still the latest snapshot (prevents race conditions)
       if (currentSnapshotId === latestSnapshotId) {
         callback(enrichedComments);

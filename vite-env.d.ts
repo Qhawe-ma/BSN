@@ -10,7 +10,8 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_APP_ID: string;
   readonly VITE_PINATA_API_KEY: string;
   readonly VITE_PINATA_SECRET_KEY: string;
-  readonly VITE_BSC_CONTRACT_ADDRESS: string;
+  readonly VITE_HELIUS_RPC_URL: string;
+  readonly VITE_PREMIUM_PAYMENT_ADDRESS: string;
 }
 
 interface ImportMeta {

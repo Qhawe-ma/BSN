@@ -1,28 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { Crown, Check, Zap, Shield, Star, Sparkles, Loader, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Button, GlassCard } from '../components/UIComponents';
 import { FirebaseService } from '../firebaseService';
-import { ethers } from 'ethers';
+import { SolanaService } from '../solanaService';
 
 interface PremiumViewProps {
   onBack: () => void;
   userAddress?: string;
 }
 
-const PAYMENT_ADDRESS = '0xef1a6c326460c04bb02037725a5e818bbcfff3e3';
-
 const BADGE_PRICES = {
   blue: {
-    bnb: '0.01',
-    wei: ethers.parseEther('0.01').toString()
+    sol: 0.02,
+    display: '0.02'
   },
   gold: {
-    bnb: '0.029',
-    wei: ethers.parseEther('0.029').toString()
+    sol: 0.05,
+    display: '0.05'
   }
 };
 
 export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress }) => {
+  const { wallet, connected } = useWallet();
   const [purchaseStatus, setPurchaseStatus] = useState<'idle' | 'connecting' | 'confirming' | 'success' | 'error'>('idle');
   const [selectedBadge, setSelectedBadge] = useState<'blue' | 'gold' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -37,7 +38,7 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
 
   const checkExistingBadge = async () => {
     if (!userAddress) return;
-    
+
     try {
       const badge = await FirebaseService.getActiveBadge(userAddress);
       if (badge) {
@@ -49,14 +50,8 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
   };
 
   const handlePurchase = async (badgeType: 'blue' | 'gold') => {
-    if (!userAddress) {
+    if (!connected || !wallet) {
       setErrorMessage('Please connect your wallet first');
-      setPurchaseStatus('error');
-      return;
-    }
-
-    if (!window.ethereum) {
-      setErrorMessage('MetaMask not detected. Please install MetaMask.');
       setPurchaseStatus('error');
       return;
     }
@@ -67,45 +62,41 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
 
     try {
       const price = BADGE_PRICES[badgeType];
-      
-      setPurchaseStatus('confirming');
-      
-      const txHash = await window.ethereum.request({
-        method: 'eth_sendTransaction',
-        params: [{
-          from: userAddress,
-          to: PAYMENT_ADDRESS,
-          value: '0x' + BigInt(price.wei).toString(16),
-        }],
-      });
 
-      console.log('Transaction sent:', txHash);
+      setPurchaseStatus('confirming');
+
+      // Send SOL payment
+      const signature = await SolanaService.sendPremiumPayment(wallet.adapter, price.sol);
+
+      console.log('Transaction sent:', signature);
 
       // Create badge and activate immediately
-      await FirebaseService.purchaseAndActivateBadge(
-        userAddress,
-        badgeType,
-        txHash,
-        price.bnb
-      );
+      if (userAddress) {
+        await FirebaseService.purchaseAndActivateBadge(
+          userAddress,
+          badgeType,
+          signature,
+          price.display
+        );
+      }
 
       setPurchaseStatus('success');
       setPurchasedBadge({
         badgeType,
-        txHash
+        txHash: signature
       });
 
     } catch (error: any) {
       console.error('Purchase failed:', error);
-      
-      if (error.code === 4001) {
+
+      if (error.message?.includes('User rejected')) {
         setErrorMessage('Transaction cancelled by user');
-      } else if (error.code === -32603) {
-        setErrorMessage('Insufficient funds for transaction');
+      } else if (error.message?.includes('Insufficient')) {
+        setErrorMessage('Insufficient SOL for transaction');
       } else {
         setErrorMessage(error.message || 'Transaction failed. Please try again.');
       }
-      
+
       setPurchaseStatus('error');
     }
   };
@@ -120,13 +111,13 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
   if (existingBadge) {
     const expiryDate = new Date(existingBadge.expiryDate);
     const daysLeft = Math.ceil((existingBadge.expiryDate - Date.now()) / (1000 * 60 * 60 * 24));
-    
+
     return (
       <div className="min-h-screen pb-32 md:pb-8">
         <div className="max-w-2xl mx-auto px-4 py-8">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-24 h-24 mb-6">
-              <img 
+              <img
                 src={existingBadge.badgeType === 'gold' ? '/check/gold.svg' : '/check/blue.svg'}
                 alt={`${existingBadge.badgeType} Badge`}
                 className="w-20 h-20 object-contain"
@@ -145,7 +136,7 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
               <CheckCircle size={24} className="text-green-400" />
               <span className="text-green-400 font-bold text-lg">Active</span>
             </div>
-            
+
             <div className="space-y-3 text-gray-300">
               <p>
                 <span className="text-gray-500">Expires:</span>{' '}
@@ -161,9 +152,9 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
               <p className="text-gray-500 text-sm">
                 Want to upgrade or extend?
               </p>
-              <Button 
-                onClick={() => setExistingBadge(null)} 
-                variant="secondary" 
+              <Button
+                onClick={() => setExistingBadge(null)}
+                variant="secondary"
                 className="mt-3"
               >
                 View Plans
@@ -182,7 +173,7 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
         <div className="max-w-2xl mx-auto px-4 py-8">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-24 h-24 mb-6">
-              <img 
+              <img
                 src={purchasedBadge?.badgeType === 'gold' ? '/check/gold.svg' : '/check/blue.svg'}
                 alt="Badge"
                 className="w-20 h-20 object-contain"
@@ -222,8 +213,8 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
             <p className="text-gray-500 text-sm mt-6 text-center">
               Your badge is now visible next to your username throughout the platform.
             </p>
-            
-            <Button 
+
+            <Button
               onClick={onBack}
               className="w-full mt-6"
               size="lg"
@@ -268,11 +259,11 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
           {/* Blue Badge */}
           <GlassCard className="p-6 border-blue-500/30 hover:border-blue-500/50 transition-colors relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
-            
+
             <div className="relative">
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-16 h-16 flex items-center justify-center">
-                  <img 
+                  <img
                     src="/check/blue.svg"
                     alt="Blue Badge"
                     className="w-14 h-14 object-contain"
@@ -286,8 +277,8 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
 
               <div className="mb-6">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-white">{BADGE_PRICES.blue.bnb}</span>
-                  <span className="text-gray-400">BNB</span>
+                  <span className="text-4xl font-bold text-white">{BADGE_PRICES.blue.display}</span>
+                  <span className="text-gray-400">SOL</span>
                 </div>
               </div>
 
@@ -300,20 +291,26 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
                 ))}
               </ul>
 
-              <Button 
-                onClick={() => handlePurchase('blue')}
-                disabled={purchaseStatus !== 'idle' && purchaseStatus !== 'error'}
-                className="w-full bg-blue-500 hover:bg-blue-600"
-                size="lg"
-              >
-                {purchaseStatus === 'connecting' && selectedBadge === 'blue' ? (
-                  <><Loader size={18} className="animate-spin mr-2" /> Connecting...</>
-                ) : purchaseStatus === 'confirming' && selectedBadge === 'blue' ? (
-                  <><Loader size={18} className="animate-spin mr-2" /> Confirm in Wallet...</>
-                ) : (
-                  'Buy Blue Badge'
-                )}
-              </Button>
+              {connected ? (
+                <Button
+                  onClick={() => handlePurchase('blue')}
+                  disabled={purchaseStatus !== 'idle' && purchaseStatus !== 'error'}
+                  className="w-full bg-blue-500 hover:bg-blue-600"
+                  size="lg"
+                >
+                  {purchaseStatus === 'connecting' && selectedBadge === 'blue' ? (
+                    <><Loader size={18} className="animate-spin mr-2" /> Connecting...</>
+                  ) : purchaseStatus === 'confirming' && selectedBadge === 'blue' ? (
+                    <><Loader size={18} className="animate-spin mr-2" /> Confirm in Wallet...</>
+                  ) : (
+                    'Buy Blue Badge'
+                  )}
+                </Button>
+              ) : (
+                <div className="w-full flex justify-center">
+                  <WalletMultiButton />
+                </div>
+              )}
             </div>
           </GlassCard>
 
@@ -323,11 +320,11 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
             <div className="absolute top-4 right-4 bg-yellow-500/20 text-yellow-400 text-xs font-bold px-3 py-1 rounded-full">
               POPULAR
             </div>
-            
+
             <div className="relative">
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-16 h-16 flex items-center justify-center">
-                  <img 
+                  <img
                     src="/check/gold.svg"
                     alt="Gold Badge"
                     className="w-14 h-14 object-contain"
@@ -341,8 +338,8 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
 
               <div className="mb-6">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-white">{BADGE_PRICES.gold.bnb}</span>
-                  <span className="text-gray-400">BNB</span>
+                  <span className="text-4xl font-bold text-white">{BADGE_PRICES.gold.display}</span>
+                  <span className="text-gray-400">SOL</span>
                 </div>
               </div>
 
@@ -355,20 +352,26 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
                 ))}
               </ul>
 
-              <Button 
-                onClick={() => handlePurchase('gold')}
-                disabled={purchaseStatus !== 'idle' && purchaseStatus !== 'error'}
-                className="w-full"
-                size="lg"
-              >
-                {purchaseStatus === 'connecting' && selectedBadge === 'gold' ? (
-                  <><Loader size={18} className="animate-spin mr-2" /> Connecting...</>
-                ) : purchaseStatus === 'confirming' && selectedBadge === 'gold' ? (
-                  <><Loader size={18} className="animate-spin mr-2" /> Confirm in Wallet...</>
-                ) : (
-                  'Buy Gold Badge'
-                )}
-              </Button>
+              {connected ? (
+                <Button
+                  onClick={() => handlePurchase('gold')}
+                  disabled={purchaseStatus !== 'idle' && purchaseStatus !== 'error'}
+                  className="w-full"
+                  size="lg"
+                >
+                  {purchaseStatus === 'connecting' && selectedBadge === 'gold' ? (
+                    <><Loader size={18} className="animate-spin mr-2" /> Connecting...</>
+                  ) : purchaseStatus === 'confirming' && selectedBadge === 'gold' ? (
+                    <><Loader size={18} className="animate-spin mr-2" /> Confirm in Wallet...</>
+                  ) : (
+                    'Buy Gold Badge'
+                  )}
+                </Button>
+              ) : (
+                <div className="w-full flex justify-center">
+                  <WalletMultiButton />
+                </div>
+              )}
             </div>
           </GlassCard>
         </div>
@@ -383,7 +386,7 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
 
         {/* Info */}
         <div className="text-center text-gray-500 text-sm">
-          <p>Payment is processed via your connected wallet on BSC network.</p>
+          <p>Payment is processed via your connected wallet on Solana network.</p>
           <p className="mt-1">Badge is activated immediately after payment confirmation.</p>
         </div>
       </div>

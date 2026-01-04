@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { ArrowLeft, MessageSquare, Heart, Share2, Repeat, ShieldCheck, Send, Loader, X, Check, ImagePlus, Reply, CornerDownRight } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Heart, Share2, Repeat, ShieldCheck, Send, Loader, X, Check, ImagePlus, Reply, CornerDownRight, Feather } from 'lucide-react';
 import { Post, Comment, User } from '../types';
 import { DataService, BlockchainService, formatAddress } from '../services';
 import { GlassCard, Button, Avatar } from '../components/UIComponents';
@@ -24,7 +24,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
   const [post, setPost] = useState<Post | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -36,7 +36,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
   const [showRepostConfirm, setShowRepostConfirm] = useState(false);
   const [hasReposted, setHasReposted] = useState(false);
   const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'shared'>('idle');
-  
+
   const [newComment, setNewComment] = useState("");
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [commentImage, setCommentImage] = useState<File | null>(null);
@@ -48,12 +48,12 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
   useEffect(() => {
     const loadPost = async () => {
       setError(null);
-      
+
       try {
         // FAST LOADING: Try cached feed first for instant render
         let posts = DataService.getCachedFeed();
         let foundPost = posts?.find(p => p.tokenId === postId);
-        
+
         if (foundPost) {
           // Instant render with cached data
           setPost(foundPost);
@@ -61,13 +61,13 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
           setCommentsCount(foundPost.commentsCount);
           setRepostsCount(foundPost.repostsCount || 0);
           setIsLoading(false);
-          
+
           // Parallel fetch: fresh author profile, comments, and user interactions
           const [freshAuthorProfile, fetchedComments] = await Promise.all([
             FirebaseService.getUserProfile(foundPost.author.address),
             DataService.getComments(foundPost.internalId)
           ]);
-          
+
           // Update post with fresh author data (avatar, badge)
           if (freshAuthorProfile) {
             const updatedPost = {
@@ -81,9 +81,9 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
             };
             setPost(updatedPost);
           }
-          
+
           setComments(fetchedComments);
-          
+
           // Fetch user interactions in parallel
           if (currentUser) {
             const [liked, reposted] = await Promise.all([
@@ -98,7 +98,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
           setIsLoading(true);
           posts = await DataService.getFeed(false);
           foundPost = posts.find(p => p.tokenId === postId);
-          
+
           if (foundPost) {
             // Fetch fresh author profile
             const freshAuthorProfile = await FirebaseService.getUserProfile(foundPost.author.address);
@@ -113,15 +113,15 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                 }
               };
             }
-            
+
             setPost(foundPost);
             setLikesCount(foundPost.likes);
             setCommentsCount(foundPost.commentsCount);
             setRepostsCount(foundPost.repostsCount || 0);
-            
+
             const fetchedComments = await DataService.getComments(foundPost.internalId);
             setComments(fetchedComments);
-            
+
             if (currentUser) {
               const [liked, reposted] = await Promise.all([
                 DataService.isPostLiked(foundPost.internalId, currentUser.address),
@@ -169,18 +169,18 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
   const organizedComments = useMemo(() => {
     const topLevel = comments.filter(c => !c.parentId);
     const repliesMap = new Map<string, Comment[]>();
-    
+
     comments.filter(c => c.parentId).forEach(reply => {
       const existing = repliesMap.get(reply.parentId!) || [];
       existing.push(reply);
       repliesMap.set(reply.parentId!, existing);
     });
-    
+
     // Sort replies by timestamp
     repliesMap.forEach((replies) => {
       replies.sort((a, b) => a.timestamp - b.timestamp);
     });
-    
+
     return { topLevel, repliesMap };
   }, [comments]);
 
@@ -193,13 +193,13 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
 
   const handleLike = async () => {
     if (!currentUser || !post || isLiking) return;
-    
+
     // Optimistic update - instant UI response
     const wasLiked = isLiked;
     const prevCount = likesCount;
     setIsLiked(!wasLiked);
     setLikesCount(wasLiked ? prevCount - 1 : prevCount + 1);
-    
+
     setIsLiking(true);
     try {
       const result = await DataService.toggleLike(post.internalId, currentUser.address);
@@ -238,10 +238,10 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
 
   const handlePostComment = async (parentId?: string) => {
     if ((!newComment.trim() && !commentImage) || !currentUser || !post) return;
-    
+
     const commentText = newComment.trim();
     const tempId = `temp_${Date.now()}`;
-    
+
     const optimisticComment: Comment = {
       id: tempId,
       postId: parseInt(post.tokenId),
@@ -251,7 +251,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
       imageUrl: commentImagePreview || undefined,
       ...(parentId && { parentId })
     };
-    
+
     setComments(prev => [...prev, optimisticComment]);
     setNewComment("");
     const savedImage = commentImage;
@@ -259,7 +259,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
     setCommentsCount(prev => prev + 1);
     setIsPostingComment(true);
     setReplyingTo(null);
-    
+
     try {
       let imageUrl: string | undefined;
       if (savedImage) {
@@ -292,14 +292,14 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
 
   const handleShare = async () => {
     if (!post) return;
-    
+
     const postUrl = `${window.location.origin}/post/${post.tokenId}`;
-    const shareText = `Check out this post by ${post.author.ens || formatAddress(post.author.address)} on BSC Social`;
-    
+    const shareText = `Check out this post by ${post.author.ens || formatAddress(post.author.address)} on Solana Social`;
+
     try {
       if (navigator.share) {
         await navigator.share({
-          title: 'BSC Social Post',
+          title: 'Solana Social Post',
           text: shareText,
           url: postUrl
         });
@@ -308,7 +308,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
         await navigator.clipboard.writeText(postUrl);
         setShareStatus('copied');
       }
-      
+
       setTimeout(() => setShareStatus('idle'), 2000);
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
@@ -328,18 +328,18 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
       alert('Please connect your wallet to repost');
       return;
     }
-    
+
     if (hasReposted) {
       alert('You have already reposted this post');
       return;
     }
-    
+
     setShowRepostConfirm(true);
   };
 
   const handleConfirmRepost = async () => {
     if (!currentUser || !post || isReposting) return;
-    
+
     setIsReposting(true);
     try {
       await BlockchainService.repostPost(post);
@@ -407,15 +407,15 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
           <div className="px-4 md:px-6 pt-3 flex items-center gap-2 text-gray-500 text-xs">
             <Repeat size={12} />
             <span>
-              <span 
-                onClick={() => onUserClick(post.author)} 
+              <span
+                onClick={() => onUserClick(post.author)}
                 className="font-semibold hover:underline cursor-pointer"
               >
                 {post.author.ens || formatAddress(post.author.address)}
               </span>
               {' '}reposted from{' '}
-              <span 
-                onClick={() => onUserClick(post.originalAuthor!)} 
+              <span
+                onClick={() => onUserClick(post.originalAuthor!)}
                 className="font-semibold hover:underline cursor-pointer"
               >
                 {post.originalAuthor.ens || formatAddress(post.originalAuthor.address)}
@@ -423,7 +423,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
             </span>
           </div>
         )}
-        
+
         <div className="p-4 md:p-6">
           <div className="flex justify-between items-start mb-4">
             <div className="flex gap-3">
@@ -432,7 +432,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
               </div>
               <div className="flex flex-col justify-center">
                 <div className="flex items-center gap-2">
-                  <span 
+                  <span
                     onClick={() => onUserClick(post.author)}
                     className="font-bold text-white text-sm md:text-base hover:underline cursor-pointer hover:text-primary transition-colors"
                   >
@@ -460,17 +460,20 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
             )}
 
             <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 text-[10px] font-mono text-gray-600">
-              <a 
-                href={`https://bscscan.com/token/${post.contractAddress || import.meta.env.VITE_BSC_CONTRACT_ADDRESS}?a=${post.tokenId}#inventory`} 
-                target="_blank" 
-                rel="noreferrer" 
-                className="bg-white/5 px-2 py-1 rounded-md border border-white/5 hover:text-primary hover:border-primary/30 transition-colors"
+              <a
+                href={`https://solscan.io/token/${post.tokenId}#metadata_metadata`}
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-primary transition-colors"
               >
-                Token ID: #{post.tokenId}
+                <div className="flex items-center gap-2 text-gray-400 hover:text-primary transition-colors">
+                  <Feather size={14} />
+                  <span className="text-xs">View NFT</span>
+                </div>
               </a>
               {post.txHash && (
-                <a href={`https://bscscan.com/tx/${post.txHash}#eventlog`} target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">
-                  Tx: {post.txHash.substring(0,8)}...
+                <a href={`https://solscan.io/tx/${post.txHash}`} target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">
+                  Tx: {post.txHash.substring(0, 8)}...
                 </a>
               )}
               <span className="flex items-center gap-1 text-green-500/60 ml-auto">
@@ -480,7 +483,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
             </div>
 
             <div className="flex items-center justify-between text-gray-400 max-w-md mt-2">
-              <button 
+              <button
                 className="group flex items-center gap-2 hover:text-blue-400 transition-colors text-sm"
               >
                 <div className="p-2 rounded-full group-hover:bg-blue-400/10 transition-colors -ml-2">
@@ -488,13 +491,12 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                 </div>
                 <span>{commentsCount || ''}</span>
               </button>
-              
-              <button 
+
+              <button
                 onClick={handleRepostClick}
                 disabled={isReposting || hasReposted}
-                className={`group flex items-center gap-2 transition-colors text-sm ${
-                  hasReposted ? 'text-green-400' : 'hover:text-green-400'
-                } ${isReposting ? 'opacity-50' : ''}`}
+                className={`group flex items-center gap-2 transition-colors text-sm ${hasReposted ? 'text-green-400' : 'hover:text-green-400'
+                  } ${isReposting ? 'opacity-50' : ''}`}
               >
                 <div className={`p-2 rounded-full transition-colors ${hasReposted ? '' : 'group-hover:bg-green-400/10'}`}>
                   {isReposting ? (
@@ -506,7 +508,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                 <span>{repostsCount || ''}</span>
               </button>
 
-              <button 
+              <button
                 onClick={handleLike}
                 className={`group flex items-center gap-2 transition-colors text-sm ${isLiked ? 'text-pink-500' : 'hover:text-pink-500'}`}
               >
@@ -516,11 +518,10 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                 <span>{likesCount || ''}</span>
               </button>
 
-              <button 
+              <button
                 onClick={handleShare}
-                className={`group flex items-center gap-2 transition-colors text-sm ${
-                  shareStatus !== 'idle' ? 'text-primary' : 'hover:text-primary'
-                }`}
+                className={`group flex items-center gap-2 transition-colors text-sm ${shareStatus !== 'idle' ? 'text-primary' : 'hover:text-primary'
+                  }`}
               >
                 <div className="p-2 rounded-full group-hover:bg-primary/10 transition-colors">
                   {shareStatus === 'copied' || shareStatus === 'shared' ? (
@@ -538,7 +539,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
 
       <GlassCard className="p-4 md:p-6">
         <h3 className="text-sm font-bold text-white mb-4">Comments</h3>
-        
+
         {currentUser && (
           <div className="mb-4 pb-4 border-b border-white/5">
             {replyingTo && (
@@ -565,17 +566,17 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                 <button onClick={() => commentImageInputRef.current?.click()} className="p-2 text-gray-400 hover:text-primary hover:bg-white/5 rounded-full transition-all" title="Add image">
                   <ImagePlus size={18} />
                 </button>
-                <input 
+                <input
                   ref={replyInputRef}
-                  type="text" 
+                  type="text"
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handlePostComment(replyingTo?.id)}
                   disabled={isPostingComment}
-                  placeholder={replyingTo ? `Reply to ${replyingTo.author.ens || formatAddress(replyingTo.author.address)}...` : "Write a comment..."} 
+                  placeholder={replyingTo ? `Reply to ${replyingTo.author.ens || formatAddress(replyingTo.author.address)}...` : "Write a comment..."}
                   className="flex-1 bg-white/5 border border-white/10 rounded-full pl-4 pr-12 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
                 />
-                <button 
+                <button
                   onClick={() => handlePostComment(replyingTo?.id)}
                   disabled={(!newComment.trim() && !commentImage) || isPostingComment}
                   className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 bg-primary text-black rounded-full disabled:opacity-50"
@@ -586,7 +587,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
             </div>
           </div>
         )}
-        
+
         <div className="space-y-4">
           {comments.length === 0 ? (
             <p className="text-gray-500 text-center py-4 text-sm">No comments yet. Be the first to comment!</p>
@@ -600,7 +601,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                   <div className="flex-1">
                     <div className="flex justify-between items-baseline mb-1">
                       <div className="flex items-center gap-1.5">
-                        <span 
+                        <span
                           onClick={() => onUserClick(comment.author)}
                           className="text-sm font-bold text-gray-200 cursor-pointer hover:text-primary"
                         >
@@ -619,7 +620,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                       </div>
                     )}
                     {currentUser && (
-                      <button 
+                      <button
                         onClick={() => handleReplyClick(comment)}
                         className="mt-1.5 flex items-center gap-1 text-xs text-gray-500 hover:text-primary transition-colors"
                       >
@@ -629,7 +630,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                     )}
                   </div>
                 </div>
-                
+
                 {organizedComments.repliesMap.get(comment.id)?.map(reply => (
                   <div key={reply.id} className="flex gap-3 ml-10 mt-3 pl-3 border-l-2 border-white/5">
                     <div onClick={() => onUserClick(reply.author)} className="cursor-pointer">
@@ -638,7 +639,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                     <div className="flex-1">
                       <div className="flex justify-between items-baseline mb-1">
                         <div className="flex items-center gap-1.5">
-                          <span 
+                          <span
                             onClick={() => onUserClick(reply.author)}
                             className="text-xs font-bold text-gray-300 cursor-pointer hover:text-primary"
                           >
@@ -671,19 +672,19 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
             <div className="bg-gray-900/90 backdrop-blur-xl border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-bold text-white">Confirm Repost</h3>
-                <button 
+                <button
                   onClick={() => setShowRepostConfirm(false)}
                   className="text-gray-400 hover:text-white transition-colors"
                 >
                   <X size={20} />
                 </button>
               </div>
-              
+
               <div className="mb-6">
                 <p className="text-gray-300 mb-4">
                   Reposting will mint a new post on the blockchain. This action requires a wallet transaction and gas fees.
                 </p>
-                
+
                 <div className="bg-black/40 rounded-xl p-4 border border-white/5">
                   <div className="flex items-center gap-3 mb-2">
                     <Avatar url={post.author.avatarUrl} size="sm" address={post.author.address} />
@@ -694,7 +695,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
                   <p className="text-sm text-gray-400 line-clamp-3">{post.content}</p>
                 </div>
               </div>
-              
+
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowRepostConfirm(false)}

@@ -45,7 +45,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     }
     return new Set();
   });
-  
+
   // Track which chats have been read locally (persisted to localStorage)
   const [readChatIds, setReadChatIds] = useState<Set<string>>(() => {
     try {
@@ -58,9 +58,9 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     }
     return new Set();
   });
-  
+
   const chatMenuRef = useRef<HTMLDivElement>(null);
-  
+
   // Persist deleted chat IDs to localStorage
   useEffect(() => {
     try {
@@ -69,7 +69,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
       console.error('Error saving deleted chats to storage:', e);
     }
   }, [deletedChatIds]);
-  
+
   // Persist read chat IDs to localStorage
   useEffect(() => {
     try {
@@ -78,7 +78,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
       console.error('Error saving read chats to storage:', e);
     }
   }, [readChatIds]);
-  
+
   // Refs & Responsive
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -87,9 +87,9 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
   // Effects
   useEffect(() => {
     const handleResize = () => {
-        const mobile = window.innerWidth < 768;
-        setIsMobileView(mobile);
-        if (mobile) setIsSidebarOpen(true); // Reset sidebar on mobile
+      const mobile = window.innerWidth < 768;
+      setIsMobileView(mobile);
+      if (mobile) setIsSidebarOpen(true); // Reset sidebar on mobile
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -97,19 +97,19 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
 
   useEffect(() => {
     if (!currentUser) return;
-    
+
     const unsubscribe = DataService.subscribeToChats(currentUser.address, (chats) => {
       // Filter out deleted chats from Firebase results (check both chat ID and participant address)
-      const filteredChats = chats.filter(chat => 
-        !deletedChatIds.has(chat.id.toLowerCase()) && 
+      const filteredChats = chats.filter(chat =>
+        !deletedChatIds.has(chat.id.toLowerCase()) &&
         !deletedChatIds.has(chat.participant.address.toLowerCase())
       );
-      
+
       // Force unread count to 0 for active chat OR any chat that's been read locally
       const processedChats = filteredChats.map(chat => {
         const chatIdLower = chat.id.toLowerCase();
         const participantLower = chat.participant.address.toLowerCase();
-        
+
         // Check if this chat is active or has been read locally
         if (
           (activeSessionId && chatIdLower === activeSessionId.toLowerCase()) ||
@@ -120,19 +120,19 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
         }
         return chat;
       });
-      
+
       // Merge Firebase chats with local sessions (preserve locally created ones)
       setSessions(prev => {
         // Normalize IDs to lowercase for case-insensitive comparison
         const firebaseChatIds = new Set(processedChats.map(c => c.id.toLowerCase()));
         // Keep local sessions that aren't in Firebase yet and aren't deleted (case-insensitive check)
-        const localOnlySessions = prev.filter(s => 
+        const localOnlySessions = prev.filter(s =>
           !firebaseChatIds.has(s.id.toLowerCase()) && !deletedChatIds.has(s.id.toLowerCase())
         );
         // Combine: Firebase chats + local-only sessions
         return [...processedChats, ...localOnlySessions];
       });
-      
+
       // Subscribe to online status for all chat participants
       filteredChats.forEach(chat => {
         const normalizedAddress = chat.participant.address.toLowerCase();
@@ -149,7 +149,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
         });
       });
     });
-    
+
     return () => unsubscribe();
   }, [currentUser, deletedChatIds, activeSessionId, readChatIds]);
 
@@ -159,16 +159,16 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
       setIsOtherUserOnline(false);
       return;
     }
-    
+
     const [user1, user2] = activeSessionId.split('_');
     const otherUserId = user1.toLowerCase() === currentUser.address.toLowerCase() ? user2 : user1;
-    
+
     let unsubscribeMessages: (() => void) | null = null;
-    
+
     // Fetch deletion timestamp and then subscribe to messages
     const setupMessageSubscription = async () => {
       const deletionTime = await DataService.getChatDeletionTime(currentUser.address, otherUserId);
-      
+
       // Subscribe to messages with deletion timestamp filter
       unsubscribeMessages = DataService.subscribeToMessages(
         currentUser.address,
@@ -179,9 +179,9 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
         deletionTime
       );
     };
-    
+
     setupMessageSubscription();
-    
+
     // Mark messages as read when opening chat and clear unread count locally
     // Add to read chats set immediately for persistent tracking
     setReadChatIds(prev => {
@@ -190,7 +190,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
       newSet.add(otherUserId.toLowerCase());
       return newSet;
     });
-    
+
     // Force update the session's unread count to 0 immediately in local state
     setSessions(prev => prev.map(session => {
       if (session.id === activeSessionId) {
@@ -198,10 +198,10 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
       }
       return session;
     }));
-    
+
     // Also mark as read in Firebase (background)
     FirebaseService.markAsRead(currentUser.address, otherUserId);
-    
+
     // Subscribe to other user's online status
     const unsubscribePresence = FirebaseService.subscribeToUserPresence(
       otherUserId,
@@ -209,7 +209,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
         setIsOtherUserOnline(isOnline);
       }
     );
-    
+
     return () => {
       if (unsubscribeMessages) unsubscribeMessages();
       unsubscribePresence();
@@ -219,18 +219,18 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
   // Smart Auto-scrolling
   useEffect(() => {
     if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, activeSessionId]);
 
   // Handle initial chat target (from profile Message button)
   useEffect(() => {
     if (!initialChatTarget || !currentUser) return;
-    
+
     const openOrCreateChat = async () => {
       try {
         const normalizedTarget = initialChatTarget.toLowerCase();
-        
+
         // Remove from deleted set if previously deleted (allow re-chatting from profile)
         setDeletedChatIds(prev => {
           const newSet = new Set(prev);
@@ -242,9 +242,9 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
           }
           return newSet;
         });
-        
+
         // Check if session already exists
-        const existingSession = sessions.find(s => 
+        const existingSession = sessions.find(s =>
           s.participant.address.toLowerCase() === normalizedTarget
         );
 
@@ -263,7 +263,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
         } else {
           // Create new chat session
           const newSession = await DataService.startNewChat(initialChatTarget);
-          
+
           // Remove the actual participant address and chat ID from deleted set
           const participantAddr = newSession.participant.address.toLowerCase();
           setDeletedChatIds(prev => {
@@ -277,19 +277,19 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
             }
             return newSet;
           });
-          
+
           // Add to sessions and set as active
           setSessions(prev => {
             const exists = prev.some(s => s.id === newSession.id);
             return exists ? prev : [newSession, ...prev];
           });
-          
+
           // Set active session after adding to state
           setTimeout(() => {
             setActiveSessionId(newSession.id);
             if (isMobileView) setIsSidebarOpen(false);
           }, 50);
-          
+
           onClearChatTarget?.();
         }
       } catch (error) {
@@ -297,19 +297,19 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
         onClearChatTarget?.();
       }
     };
-    
+
     openOrCreateChat();
   }, [initialChatTarget, currentUser]);
 
   // Handlers
   const handleSend = async () => {
     if (!inputValue.trim() || !currentUser || !activeSession) return;
-    
+
     const recipientAddress = activeSession.participant.address;
     const messageContent = inputValue.trim();
-    
+
     setInputValue("");
-    
+
     try {
       await DataService.sendMessage(messageContent, recipientAddress);
     } catch (error) {
@@ -320,9 +320,9 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
   const handleStartNewChat = async () => {
     if (!newChatAddress) return;
     setIsSearching(true);
-    
+
     const normalizedAddress = newChatAddress.toLowerCase();
-    
+
     // Remove from deleted set if previously deleted (allow re-chatting)
     setDeletedChatIds(prev => {
       const newSet = new Set(prev);
@@ -335,47 +335,47 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
       }
       return newSet;
     });
-    
+
     // Check if chat already exists (now including previously deleted ones)
-    const existingSession = sessions.find(s => 
-        s.participant.address.toLowerCase() === normalizedAddress || 
-        s.participant.ens?.toLowerCase() === normalizedAddress
+    const existingSession = sessions.find(s =>
+      s.participant.address.toLowerCase() === normalizedAddress ||
+      s.participant.ens?.toLowerCase() === normalizedAddress
     );
 
     if (existingSession) {
-        // Also remove the actual participant address from deleted set
-        const participantAddr = existingSession.participant.address.toLowerCase();
-        setDeletedChatIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(participantAddr);
-          newSet.delete(existingSession.id.toLowerCase());
-          return newSet;
-        });
-        setActiveSessionId(existingSession.id);
-        setIsNewChatModalOpen(false);
-        if (isMobileView) setIsSidebarOpen(false);
+      // Also remove the actual participant address from deleted set
+      const participantAddr = existingSession.participant.address.toLowerCase();
+      setDeletedChatIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(participantAddr);
+        newSet.delete(existingSession.id.toLowerCase());
+        return newSet;
+      });
+      setActiveSessionId(existingSession.id);
+      setIsNewChatModalOpen(false);
+      if (isMobileView) setIsSidebarOpen(false);
     } else {
-        // Create new session
-        const newSession = await DataService.startNewChat(newChatAddress);
-        
-        // Remove the actual participant address and chat ID from deleted set
-        const participantAddr = newSession.participant.address.toLowerCase();
-        setDeletedChatIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(participantAddr);
-          newSet.delete(newSession.id.toLowerCase());
-          for (const id of prev) {
-            if (id.includes(participantAddr)) {
-              newSet.delete(id);
-            }
+      // Create new session
+      const newSession = await DataService.startNewChat(newChatAddress);
+
+      // Remove the actual participant address and chat ID from deleted set
+      const participantAddr = newSession.participant.address.toLowerCase();
+      setDeletedChatIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(participantAddr);
+        newSet.delete(newSession.id.toLowerCase());
+        for (const id of prev) {
+          if (id.includes(participantAddr)) {
+            newSet.delete(id);
           }
-          return newSet;
-        });
-        
-        setSessions(prev => [newSession, ...prev]);
-        setActiveSessionId(newSession.id);
-        setIsNewChatModalOpen(false);
-        if (isMobileView) setIsSidebarOpen(false);
+        }
+        return newSet;
+      });
+
+      setSessions(prev => [newSession, ...prev]);
+      setActiveSessionId(newSession.id);
+      setIsNewChatModalOpen(false);
+      if (isMobileView) setIsSidebarOpen(false);
     }
     setIsSearching(false);
     setNewChatAddress("");
@@ -399,14 +399,14 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
   // Delete entire chat (hides for current user only - saves deletion timestamp to Firebase)
   const handleDeleteChat = async () => {
     if (!currentUser || !activeSession) return;
-    
+
     const participantAddress = activeSession.participant.address.toLowerCase();
     const chatId = activeSessionId?.toLowerCase() || '';
-    
+
     try {
       // Save deletion timestamp to Firebase (so messages before this time are hidden)
       await DataService.hideChatForUser(currentUser.address, participantAddress);
-      
+
       // Add participant address to deleted set (normalized) - this persists to localStorage
       setDeletedChatIds(prev => {
         const newSet = new Set(prev);
@@ -421,16 +421,16 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
         }
         return newSet;
       });
-      
+
       // Remove from local state immediately and clear everything
-      setSessions(prev => prev.filter(s => 
+      setSessions(prev => prev.filter(s =>
         s.participant.address.toLowerCase() !== participantAddress &&
         s.id.toLowerCase() !== chatId
       ));
       setActiveSessionId(null);
       setShowDeleteChatConfirm(false);
       setMessages([]);
-      
+
       console.log('✅ Chat hidden for user, deletion timestamp saved:', participantAddress);
     } catch (error) {
       console.error('Error hiding chat:', error);
@@ -450,13 +450,13 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
 
   // Long press handler for mobile
   const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const handleMessageLongPressStart = (messageId: string) => {
     longPressTimeoutRef.current = setTimeout(() => {
       setDeletingMessageId(messageId);
     }, 500);
   };
-  
+
   const handleMessageLongPressEnd = () => {
     if (longPressTimeoutRef.current) {
       clearTimeout(longPressTimeoutRef.current);
@@ -476,7 +476,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
 
   return (
     <div className="h-[calc(100vh-7rem)] md:h-[88vh] max-w-7xl mx-auto flex gap-4 md:gap-6 pt-2 md:pt-6 overflow-hidden relative">
-      
+
       {/* Sidebar (Chat List) */}
       {showList && (
         <GlassCard className={`
@@ -490,53 +490,52 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                 <span className="bg-white/10 text-xs px-2 py-0.5 rounded-full text-gray-400 font-normal">{sessions.length}</span>
               </h2>
               <div className="flex gap-1">
-                <button 
-                    onClick={() => setIsNewChatModalOpen(true)}
-                    className="p-2 hover:bg-primary/10 hover:text-primary text-gray-400 rounded-lg transition-colors"
-                    title="New Message"
+                <button
+                  onClick={() => setIsNewChatModalOpen(true)}
+                  className="p-2 hover:bg-primary/10 hover:text-primary text-gray-400 rounded-lg transition-colors"
+                  title="New Message"
                 >
-                    <Plus size={20} />
+                  <Plus size={20} />
                 </button>
                 {!isMobileView && (
-                    <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/5 rounded-lg text-gray-400 transition-colors">
-                        <PanelLeftClose size={20} />
-                    </button>
+                  <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/5 rounded-lg text-gray-400 transition-colors">
+                    <PanelLeftClose size={20} />
+                  </button>
                 )}
               </div>
             </div>
             <div className="relative group">
-                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors" />
-                <input 
-                  placeholder="Search conversations..." 
-                  className="w-full bg-black/20 border border-white/5 focus:border-primary/30 rounded-xl py-2.5 pl-9 pr-4 text-sm text-white placeholder-gray-600 focus:outline-none transition-all"
-                />
+              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors" />
+              <input
+                placeholder="Search conversations..."
+                className="w-full bg-black/20 border border-white/5 focus:border-primary/30 rounded-xl py-2.5 pl-9 pr-4 text-sm text-white placeholder-gray-600 focus:outline-none transition-all"
+              />
             </div>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
             {sessions.map(session => (
               <button
                 key={session.id}
                 onClick={() => {
-                    setActiveSessionId(session.id);
-                    if (isMobileView) setIsSidebarOpen(false);
+                  setActiveSessionId(session.id);
+                  if (isMobileView) setIsSidebarOpen(false);
                 }}
-                className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all duration-200 group relative ${
-                  activeSessionId === session.id 
-                    ? 'bg-white/10 border border-white/5' 
-                    : 'hover:bg-white/5 border border-transparent'
-                }`}
+                className={`w-full p-3 rounded-xl flex items-center gap-3 transition-all duration-200 group relative ${activeSessionId === session.id
+                  ? 'bg-white/10 border border-white/5'
+                  : 'hover:bg-white/5 border border-transparent'
+                  }`}
               >
                 <div className="relative flex-shrink-0">
-                   <Avatar url={session.participant.avatarUrl} size="md" bordered={activeSessionId !== session.id} address={session.participant.address} />
-                   {onlineUsers.has(session.participant.address.toLowerCase()) && (
-                     <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#131417]"></div>
-                   )}
-                   {session.unreadCount > 0 && (
-                     <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full border-2 border-[#131417] flex items-center justify-center text-[10px] font-bold text-black">
-                         {session.unreadCount}
-                     </span>
-                   )}
+                  <Avatar url={session.participant.avatarUrl} size="md" bordered={activeSessionId !== session.id} address={session.participant.address} />
+                  {onlineUsers.has(session.participant.address.toLowerCase()) && (
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#131417]"></div>
+                  )}
+                  {session.unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full border-2 border-[#131417] flex items-center justify-center text-[10px] font-bold text-black">
+                      {session.unreadCount}
+                    </span>
+                  )}
                 </div>
                 <div className="flex-1 text-left overflow-hidden min-w-0">
                   <div className="flex justify-between items-center mb-0.5">
@@ -549,7 +548,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                       )}
                     </div>
                     <span className="text-[10px] text-gray-500 flex-shrink-0 font-mono ml-2">
-                        {session.lastMessage.id !== 'init' ? new Date(session.lastMessage.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
+                      {session.lastMessage.id !== 'init' ? new Date(session.lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                     </span>
                   </div>
                   <p className={`text-xs truncate flex items-center gap-1 ${activeSessionId === session.id ? 'text-gray-400' : 'text-gray-500 group-hover:text-gray-400'}`}>
@@ -577,74 +576,74 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
               {/* Chat Header */}
               <div className="p-4 border-b border-white/5 flex items-center gap-4 bg-white/[0.02] backdrop-blur-md z-20 shadow-sm">
                 <div className="flex items-center gap-3 flex-1">
-                    {/* Mobile Back */}
-                    {isMobileView && (
-                        <button onClick={() => setActiveSessionId(null)} className="p-2 -ml-2 text-gray-400 hover:text-white transition-colors">
-                            <ArrowLeft size={20} />
-                        </button>
-                    )}
-                    
-                    {/* Desktop Expand */}
-                    {!isMobileView && !isSidebarOpen && (
-                        <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-gray-400 hover:text-white transition-colors mr-2">
-                            <PanelLeftOpen size={20} />
-                        </button>
-                    )}
+                  {/* Mobile Back */}
+                  {isMobileView && (
+                    <button onClick={() => setActiveSessionId(null)} className="p-2 -ml-2 text-gray-400 hover:text-white transition-colors">
+                      <ArrowLeft size={20} />
+                    </button>
+                  )}
 
-                    <div onClick={() => activeSession && onUserClick(activeSession.participant)} className="cursor-pointer hover:opacity-80 transition-opacity">
-                        <Avatar url={activeSession?.participant.avatarUrl || ""} size="md" address={activeSession?.participant.address} />
-                    </div>
-                    <div className="flex flex-col">
-                        <h3 
-                            onClick={() => activeSession && onUserClick(activeSession.participant)}
-                            className="font-bold text-white text-base flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"
-                        >
-                            {activeSession?.participant.ens || (activeSession && formatAddress(activeSession.participant.address))}
-                            {activeSession?.participant.activeBadge && activeSession.participant.activeBadge.status === 'active' && (
-                              <BadgeIcon badgeType={activeSession.participant.activeBadge.badgeType} size="sm" />
-                            )}
-                        </h3>
-                        <div className="flex items-center gap-2">
-                            {isOtherUserOnline ? (
-                              <div className="flex items-center gap-1.5">
-                                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                                  <span className="text-[10px] text-green-500/80 font-medium">Online</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1.5">
-                                  <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
-                                  <span className="text-[10px] text-gray-500 font-medium">Offline</span>
-                              </div>
-                            )}
-                            <span className="text-gray-600">•</span>
-                            <button 
-                              onClick={async () => {
-                                // Generate sample encrypted text for demo
-                                if (currentUser && activeSession) {
-                                  try {
-                                    const sample = await EncryptionService.encrypt(
-                                      "Hello! This is a sample message.",
-                                      currentUser.address,
-                                      activeSession.participant.address
-                                    );
-                                    setSampleEncryptedText(sample);
-                                  } catch (e) {
-                                    setSampleEncryptedText("E2E:aBc123XyZ...encrypted_data...");
-                                  }
-                                }
-                                setShowEncryptionInfo(true);
-                              }}
-                              className="flex items-center gap-1.5 hover:bg-white/5 px-2 py-1 rounded-lg transition-colors group"
-                            >
-                                <Lock size={10} className="text-gray-500 group-hover:text-primary transition-colors" />
-                                <span className="text-[10px] text-gray-500 group-hover:text-primary font-mono tracking-wider transition-colors">ENCRYPTED</span>
-                                <Info size={10} className="text-gray-600 group-hover:text-primary transition-colors" />
-                            </button>
+                  {/* Desktop Expand */}
+                  {!isMobileView && !isSidebarOpen && (
+                    <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-gray-400 hover:text-white transition-colors mr-2">
+                      <PanelLeftOpen size={20} />
+                    </button>
+                  )}
+
+                  <div onClick={() => activeSession && onUserClick(activeSession.participant)} className="cursor-pointer hover:opacity-80 transition-opacity">
+                    <Avatar url={activeSession?.participant.avatarUrl || ""} size="md" address={activeSession?.participant.address} />
+                  </div>
+                  <div className="flex flex-col">
+                    <h3
+                      onClick={() => activeSession && onUserClick(activeSession.participant)}
+                      className="font-bold text-white text-base flex items-center gap-2 cursor-pointer hover:text-primary transition-colors"
+                    >
+                      {activeSession?.participant.ens || (activeSession && formatAddress(activeSession.participant.address))}
+                      {activeSession?.participant.activeBadge && activeSession.participant.activeBadge.status === 'active' && (
+                        <BadgeIcon badgeType={activeSession.participant.activeBadge.badgeType} size="sm" />
+                      )}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      {isOtherUserOnline ? (
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                          <span className="text-[10px] text-green-500/80 font-medium">Online</span>
                         </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                          <span className="text-[10px] text-gray-500 font-medium">Offline</span>
+                        </div>
+                      )}
+                      <span className="text-gray-600">•</span>
+                      <button
+                        onClick={async () => {
+                          // Generate sample encrypted text for demo
+                          if (currentUser && activeSession) {
+                            try {
+                              const sample = await EncryptionService.encrypt(
+                                "Hello! This is a sample message.",
+                                currentUser.address,
+                                activeSession.participant.address
+                              );
+                              setSampleEncryptedText(sample);
+                            } catch (e) {
+                              setSampleEncryptedText("E2E:aBc123XyZ...encrypted_data...");
+                            }
+                          }
+                          setShowEncryptionInfo(true);
+                        }}
+                        className="flex items-center gap-1.5 hover:bg-white/5 px-2 py-1 rounded-lg transition-colors group"
+                      >
+                        <Lock size={10} className="text-gray-500 group-hover:text-primary transition-colors" />
+                        <span className="text-[10px] text-gray-500 group-hover:text-primary font-mono tracking-wider transition-colors">ENCRYPTED</span>
+                        <Info size={10} className="text-gray-600 group-hover:text-primary transition-colors" />
+                      </button>
                     </div>
+                  </div>
                 </div>
                 <div className="relative" ref={chatMenuRef}>
-                  <button 
+                  <button
                     onClick={() => setShowChatMenu(!showChatMenu)}
                     className="p-2 hover:bg-white/5 rounded-lg text-gray-400 transition-colors"
                   >
@@ -668,7 +667,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
               </div>
 
               {/* Messages Area */}
-              <div 
+              <div
                 ref={scrollContainerRef}
                 className="flex-1 overflow-y-auto p-4 md:p-6 space-y-1 scroll-smooth custom-scrollbar relative"
               >
@@ -676,115 +675,115 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                 <div className="fixed top-[4.5rem] left-0 right-0 h-8 bg-gradient-to-b from-black/20 to-transparent pointer-events-none z-10" />
 
                 {messages.length === 0 && (
-                    <div className="flex flex-col items-center justify-center h-full opacity-40 select-none">
-                         <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                            <Lock size={32} className="text-gray-500" />
-                         </div>
-                        <p className="text-sm text-gray-400 font-mono">Start of encrypted history</p>
+                  <div className="flex flex-col items-center justify-center h-full opacity-40 select-none">
+                    <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                      <Lock size={32} className="text-gray-500" />
                     </div>
+                    <p className="text-sm text-gray-400 font-mono">Start of encrypted history</p>
+                  </div>
                 )}
 
                 {messages.map((msg, idx) => {
                   const isMe = msg.sender?.toLowerCase() === currentUser?.address?.toLowerCase();
                   const prevMsg = messages[idx - 1];
                   const nextMsg = messages[idx + 1];
-                  
+
                   // Grouping Logic
                   const isSequence = prevMsg && prevMsg.sender === msg.sender;
                   const isLastInSequence = !nextMsg || nextMsg.sender !== msg.sender;
-                  
+
                   // Date Separator
                   const showDate = idx === 0 || new Date(msg.timestamp).getDate() !== new Date(messages[idx - 1].timestamp).getDate();
-                  
+
                   return (
                     <React.Fragment key={msg.id}>
-                        {showDate && (
-                             <div className="flex items-center gap-4 my-6 opacity-50">
-                                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-700 to-transparent"></div>
-                                 <span className="text-[10px] text-gray-400 font-mono uppercase tracking-widest">
-                                     {new Date(msg.timestamp).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                                 </span>
-                                 <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-700 to-transparent"></div>
-                             </div>
-                        )}
-                        
-                        <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in ${!isSequence ? 'mt-3' : 'mt-1'}`}>
-                          <div 
-                            className={`flex ${isMe ? 'flex-row-reverse' : 'flex-row'} gap-2 max-w-[75%] md:max-w-[60%] cursor-pointer select-none`}
-                            onContextMenu={(e) => handleMessageContextMenu(e, msg.id)}
-                            onTouchStart={() => handleMessageLongPressStart(msg.id)}
-                            onTouchEnd={handleMessageLongPressEnd}
-                            onTouchCancel={handleMessageLongPressEnd}
-                          >
-                            {!isMe && !isSequence && (
-                              <div className="flex-shrink-0 mt-1">
-                                <Avatar 
-                                  url={activeSession?.participant.avatarUrl || ''} 
-                                  address={activeSession?.participant.address}
-                                  size="sm" 
-                                />
-                              </div>
-                            )}
-                            {!isMe && isSequence && (
-                              <div className="w-8 flex-shrink-0"></div>
-                            )}
-                            
-                            <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                              <div className="flex items-end gap-1.5">
-                                {msg.encryptedContent && !isMe && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedMessageForProof(msg);
-                                    }}
-                                    className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-all opacity-60 hover:opacity-100"
-                                    title="View encryption proof"
-                                  >
-                                    <Lock size={10} className="text-gray-400" />
-                                  </button>
-                                )}
-                                <div className={`
+                      {showDate && (
+                        <div className="flex items-center gap-4 my-6 opacity-50">
+                          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-700 to-transparent"></div>
+                          <span className="text-[10px] text-gray-400 font-mono uppercase tracking-widest">
+                            {new Date(msg.timestamp).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                          </span>
+                          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-gray-700 to-transparent"></div>
+                        </div>
+                      )}
+
+                      <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} animate-fade-in ${!isSequence ? 'mt-3' : 'mt-1'}`}>
+                        <div
+                          className={`flex ${isMe ? 'flex-row-reverse' : 'flex-row'} gap-2 max-w-[75%] md:max-w-[60%] cursor-pointer select-none`}
+                          onContextMenu={(e) => handleMessageContextMenu(e, msg.id)}
+                          onTouchStart={() => handleMessageLongPressStart(msg.id)}
+                          onTouchEnd={handleMessageLongPressEnd}
+                          onTouchCancel={handleMessageLongPressEnd}
+                        >
+                          {!isMe && !isSequence && (
+                            <div className="flex-shrink-0 mt-1">
+                              <Avatar
+                                url={activeSession?.participant.avatarUrl || ''}
+                                address={activeSession?.participant.address}
+                                size="sm"
+                              />
+                            </div>
+                          )}
+                          {!isMe && isSequence && (
+                            <div className="w-8 flex-shrink-0"></div>
+                          )}
+
+                          <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                            <div className="flex items-end gap-1.5">
+                              {msg.encryptedContent && !isMe && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedMessageForProof(msg);
+                                  }}
+                                  className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-all opacity-60 hover:opacity-100"
+                                  title="View encryption proof"
+                                >
+                                  <Lock size={10} className="text-gray-400" />
+                                </button>
+                              )}
+                              <div className={`
                                   px-4 py-2.5 text-[15px] leading-relaxed shadow-sm transition-all relative
-                                  ${isMe 
-                                      ? `bg-primary text-black rounded-2xl ${isSequence ? 'rounded-tr-md' : 'rounded-tr-sm'}` 
-                                      : `bg-[#1E2025] text-gray-100 border border-white/5 rounded-2xl ${isSequence ? 'rounded-tl-md' : 'rounded-tl-sm'}`
-                                  }
+                                  ${isMe
+                                  ? `bg-primary text-black rounded-2xl ${isSequence ? 'rounded-tr-md' : 'rounded-tr-sm'}`
+                                  : `bg-[#1E2025] text-gray-100 border border-white/5 rounded-2xl ${isSequence ? 'rounded-tl-md' : 'rounded-tl-sm'}`
+                                }
                                 `}>
-                                  {msg.content}
-                                </div>
-                                {msg.encryptedContent && isMe && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedMessageForProof(msg);
-                                    }}
-                                    className="p-1.5 rounded-full bg-black/10 hover:bg-black/20 transition-all opacity-60 hover:opacity-100"
-                                    title="View encryption proof"
-                                  >
-                                    <Lock size={10} className="text-black/50" />
-                                  </button>
-                                )}
+                                {msg.content}
                               </div>
-                              
-                              {isLastInSequence && (
-                                <div className="flex items-center gap-1.5 mt-1.5 px-1">
-                                  <span className="text-[10px] text-gray-500 font-mono">
-                                    {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                  </span>
-                                  {isMe && (
-                                    <span className="flex items-center">
-                                      {msg.isRead ? (
-                                        <CheckCheck size={14} className="text-blue-400" />
-                                      ) : (
-                                        <Check size={14} className="text-gray-500" />
-                                      )}
-                                    </span>
-                                  )}
-                                </div>
+                              {msg.encryptedContent && isMe && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedMessageForProof(msg);
+                                  }}
+                                  className="p-1.5 rounded-full bg-black/10 hover:bg-black/20 transition-all opacity-60 hover:opacity-100"
+                                  title="View encryption proof"
+                                >
+                                  <Lock size={10} className="text-black/50" />
+                                </button>
                               )}
                             </div>
+
+                            {isLastInSequence && (
+                              <div className="flex items-center gap-1.5 mt-1.5 px-1">
+                                <span className="text-[10px] text-gray-500 font-mono">
+                                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                {isMe && (
+                                  <span className="flex items-center">
+                                    {msg.isRead ? (
+                                      <CheckCheck size={14} className="text-blue-400" />
+                                    ) : (
+                                      <Check size={14} className="text-gray-500" />
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
+                      </div>
                     </React.Fragment>
                   );
                 })}
@@ -793,22 +792,22 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
 
               {/* Input Area - Enhanced Visibility */}
               <div className="p-5 md:p-6 bg-gradient-to-t from-gray-900/90 via-gray-900/80 to-gray-900/60 backdrop-blur-xl border-t border-white/10 z-20">
-                <form 
+                <form
                   className="flex gap-4 items-end max-w-4xl mx-auto"
                   onSubmit={(e) => { e.preventDefault(); handleSend(); }}
                 >
                   <div className="flex-1 relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-blue-500/5 rounded-2xl blur-sm"></div>
-                    <Input 
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        placeholder="Type a secure message..."
-                        className="relative w-full bg-black/50 border-2 border-white/15 focus:bg-black/70 focus:border-primary/50 rounded-2xl pl-6 pr-6 py-5 transition-all shadow-lg text-base min-h-[60px] max-h-[150px] placeholder:text-gray-500"
+                    <Input
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      placeholder="Type a secure message..."
+                      className="relative w-full bg-black/50 border-2 border-white/15 focus:bg-black/70 focus:border-primary/50 rounded-2xl pl-6 pr-6 py-5 transition-all shadow-lg text-base min-h-[60px] max-h-[150px] placeholder:text-gray-500"
                     />
                   </div>
-                  <button 
-                    type="submit" 
-                    disabled={!inputValue.trim()} 
+                  <button
+                    type="submit"
+                    disabled={!inputValue.trim()}
                     className={`p-2 flex items-center justify-center shrink-0 transition-all duration-300 ${inputValue.trim() ? 'text-primary hover:scale-110 hover:text-primary/80' : 'text-gray-600 cursor-not-allowed'}`}
                   >
                     <Send size={28} strokeWidth={2.5} />
@@ -820,19 +819,19 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
             // Empty State
             <div className="flex flex-col items-center justify-center h-full text-gray-500 space-y-6 p-8 text-center">
               <div className="relative group">
-                  <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                  <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 flex items-center justify-center shadow-2xl relative z-10">
-                    <MessageSquare size={40} className="text-gray-400 group-hover:text-primary transition-colors duration-500" />
-                  </div>
+                <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 flex items-center justify-center shadow-2xl relative z-10">
+                  <MessageSquare size={40} className="text-gray-400 group-hover:text-primary transition-colors duration-500" />
+                </div>
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-white mb-2">Encrypted Messaging</h3>
                 <p className="text-sm text-gray-400 max-w-xs mx-auto leading-relaxed">
-                    Your conversations are end-to-end encrypted and stored on the decentralized graph.
+                  Your conversations are end-to-end encrypted and stored on the decentralized graph.
                 </p>
               </div>
               <Button onClick={() => setIsNewChatModalOpen(true)} variant="primary" className="rounded-full px-8 py-3 font-bold">
-                  Start New Chat
+                Start New Chat
               </Button>
             </div>
           )}
@@ -842,108 +841,108 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
       {/* PROFESSIONAL REDESIGNED MODAL */}
       {isNewChatModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0B0E11]/80 backdrop-blur-sm animate-fade-in">
-            <div className="w-full max-w-lg relative transform transition-all scale-100">
-                {/* Glow Effect */}
-                <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-3xl blur-lg opacity-75"></div>
-                
-                <div className="relative bg-[#16161a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
-                    
-                    {/* Header */}
-                    <div className="flex items-center justify-between p-6 border-b border-white/5">
-                        <h3 className="text-xl font-bold text-white tracking-tight">New Message</h3>
-                        <button 
-                            onClick={() => setIsNewChatModalOpen(false)}
-                            className="p-2 hover:bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors"
-                        >
-                            <X size={20} />
-                        </button>
-                    </div>
+          <div className="w-full max-w-lg relative transform transition-all scale-100">
+            {/* Glow Effect */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-3xl blur-lg opacity-75"></div>
 
-                    {/* Body */}
-                    <div className="p-6 space-y-8">
-                        
-                        {/* Recipient Input */}
-                        <div className="space-y-3">
-                             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">To</label>
-                             <div className="relative group">
-                                 <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                                     <Search size={18} className="text-gray-500 group-focus-within:text-primary transition-colors" />
-                                 </div>
-                                 <input 
-                                     value={newChatAddress}
-                                     onChange={(e) => setNewChatAddress(e.target.value)}
-                                     placeholder="Search address (0x...) or ENS" 
-                                     className="w-full bg-black/40 border border-white/10 focus:border-primary/50 focus:bg-black/60 rounded-xl py-4 pl-11 pr-4 text-white placeholder-gray-600 outline-none transition-all font-mono shadow-inner"
-                                     autoFocus
-                                 />
-                                 {newChatAddress.length > 0 && (
-                                     <div className="absolute inset-y-0 right-4 flex items-center">
-                                         {newChatAddress.length > 5 ? (
-                                              <CheckCheck size={18} className="text-green-500" />
-                                         ) : (
-                                              <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                                         )}
-                                     </div>
-                                 )}
-                             </div>
-                             <p className="text-xs text-gray-600 ml-1">Enter a BSC wallet address or ENS domain to initialize a secure session.</p>
-                        </div>
+            <div className="relative bg-[#16161a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
 
-                        {/* Action Buttons */}
-                        <div className="flex items-center justify-end gap-4 pt-2">
-                            <Button 
-                                variant="ghost" 
-                                onClick={() => setIsNewChatModalOpen(false)}
-                                className="text-gray-400 hover:text-white"
-                            >
-                                Cancel
-                            </Button>
-                            <Button 
-                                onClick={handleStartNewChat} 
-                                disabled={!newChatAddress || isSearching} 
-                                className="min-w-[140px] py-3 bg-primary text-black font-bold hover:shadow-[0_0_20px_rgba(250,204,21,0.3)] transition-shadow"
-                            >
-                                {isSearching ? (
-                                    <span className="flex items-center gap-2">
-                                        <Loader size={16} className="animate-spin" />
-                                        Connecting...
-                                    </span>
-                                ) : (
-                                    <span className="flex items-center gap-2">
-                                        <MessageSquare size={18} />
-                                        Start Chat
-                                    </span>
-                                )}
-                            </Button>
-                        </div>
-                    </div>
-                    
-                    {/* Footer / Suggested (Optional Decoration) */}
-                    <div className="bg-white/[0.02] p-4 border-t border-white/5 flex items-center justify-center">
-                        <span className="text-[10px] text-gray-600 flex items-center gap-1.5 uppercase tracking-widest font-mono">
-                            <Lock size={10} /> 
-                            End-to-End Encrypted
-                        </span>
-                    </div>
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-white/5">
+                <h3 className="text-xl font-bold text-white tracking-tight">New Message</h3>
+                <button
+                  onClick={() => setIsNewChatModalOpen(false)}
+                  className="p-2 hover:bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
 
+              {/* Body */}
+              <div className="p-6 space-y-8">
+
+                {/* Recipient Input */}
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">To</label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                      <Search size={18} className="text-gray-500 group-focus-within:text-primary transition-colors" />
+                    </div>
+                    <input
+                      value={newChatAddress}
+                      onChange={(e) => setNewChatAddress(e.target.value)}
+                      placeholder="Search address or ENS"
+                      className="w-full bg-black/40 border border-white/10 focus:border-primary/50 focus:bg-black/60 rounded-xl py-4 pl-11 pr-4 text-white placeholder-gray-600 outline-none transition-all font-mono shadow-inner"
+                      autoFocus
+                    />
+                    {newChatAddress.length > 0 && (
+                      <div className="absolute inset-y-0 right-4 flex items-center">
+                        {newChatAddress.length > 5 ? (
+                          <CheckCheck size={18} className="text-green-500" />
+                        ) : (
+                          <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-600 ml-1">Enter a Solana wallet address or ENS domain to initialize a secure session.</p>
                 </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-end gap-4 pt-2">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setIsNewChatModalOpen(false)}
+                    className="text-gray-400 hover:text-white"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleStartNewChat}
+                    disabled={!newChatAddress || isSearching}
+                    className="min-w-[140px] py-3 bg-primary text-black font-bold hover:shadow-[0_0_20px_rgba(250,204,21,0.3)] transition-shadow"
+                  >
+                    {isSearching ? (
+                      <span className="flex items-center gap-2">
+                        <Loader size={16} className="animate-spin" />
+                        Connecting...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <MessageSquare size={18} />
+                        Start Chat
+                      </span>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Footer / Suggested (Optional Decoration) */}
+              <div className="bg-white/[0.02] p-4 border-t border-white/5 flex items-center justify-center">
+                <span className="text-[10px] text-gray-600 flex items-center gap-1.5 uppercase tracking-widest font-mono">
+                  <Lock size={10} />
+                  End-to-End Encrypted
+                </span>
+              </div>
+
             </div>
+          </div>
         </div>
       )}
 
       {/* Delete Chat Confirmation Modal */}
       {showDeleteChatConfirm && (
-        <div 
+        <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
           onClick={() => setShowDeleteChatConfirm(false)}
         >
-          <div 
+          <div
             className="relative bg-[#12141a] border border-white/10 rounded-2xl max-w-sm w-full shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Subtle glow */}
             <div className="absolute -inset-px bg-gradient-to-b from-white/5 to-transparent rounded-2xl pointer-events-none"></div>
-            
+
             {/* Content */}
             <div className="relative p-6">
               {/* Icon & Header */}
@@ -954,7 +953,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                 <h3 className="text-xl font-bold text-white mb-1">Delete Conversation</h3>
                 <p className="text-sm text-gray-500">Remove this chat from your list</p>
               </div>
-              
+
               {/* Info Box */}
               <div className="bg-white/[0.03] border border-white/5 rounded-xl p-4 mb-6">
                 <div className="flex items-start gap-3">
@@ -969,7 +968,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                   </div>
                 </div>
               </div>
-              
+
               {/* Actions */}
               <div className="flex gap-3">
                 <button
@@ -992,11 +991,11 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
 
       {/* Delete Message Confirmation Modal */}
       {deletingMessageId && (
-        <div 
+        <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
           onClick={() => setDeletingMessageId(null)}
         >
-          <div 
+          <div
             className="bg-[#1a1a1f] border border-white/10 rounded-xl p-4 max-w-[280px] w-full shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
@@ -1029,20 +1028,20 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
 
       {/* Encryption Info Modal */}
       {showEncryptionInfo && (
-        <div 
+        <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
           onClick={() => {
             setShowEncryptionInfo(false);
             setShowRawEncryption(false);
           }}
         >
-          <div 
+          <div
             className="relative bg-[#12141a] border border-white/10 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Gradient glow */}
             <div className="absolute -inset-px bg-gradient-to-b from-primary/20 to-transparent rounded-2xl pointer-events-none"></div>
-            
+
             {/* Content */}
             <div className="relative p-6">
               {/* Header */}
@@ -1056,7 +1055,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                     <p className="text-xs text-gray-500">AES-256-GCM Encryption</p>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => {
                     setShowEncryptionInfo(false);
                     setShowRawEncryption(false);
@@ -1066,7 +1065,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                   <X size={18} />
                 </button>
               </div>
-              
+
               {/* Encryption Features */}
               <div className="space-y-3 mb-6">
                 <div className="flex items-start gap-3 p-3 bg-white/[0.02] rounded-xl border border-white/5">
@@ -1078,7 +1077,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                     <p className="text-xs text-gray-500">Each conversation uses a unique encryption key derived from both users' addresses</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start gap-3 p-3 bg-white/[0.02] rounded-xl border border-white/5">
                   <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Lock size={16} className="text-blue-400" />
@@ -1088,7 +1087,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                     <p className="text-xs text-gray-500">Messages are encrypted before leaving your device and only decrypted for you and the recipient</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-start gap-3 p-3 bg-white/[0.02] rounded-xl border border-white/5">
                   <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center flex-shrink-0">
                     <ShieldCheck size={16} className="text-purple-400" />
@@ -1119,7 +1118,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                     <span className="text-[10px] text-gray-400">{showRawEncryption ? 'Hide' : 'Show'} Raw</span>
                   </button>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-gray-500 w-16">Original:</span>
@@ -1127,18 +1126,18 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                       "Hello! This is a sample message."
                     </code>
                   </div>
-                  
+
                   {showRawEncryption && sampleEncryptedText && (
                     <div className="flex items-start gap-2">
                       <span className="text-[10px] text-gray-500 w-16 pt-1">Encrypted:</span>
                       <code className="text-[10px] text-primary bg-primary/10 px-2 py-1 rounded font-mono break-all leading-relaxed">
-                        {sampleEncryptedText.length > 80 
-                          ? sampleEncryptedText.substring(0, 80) + '...' 
+                        {sampleEncryptedText.length > 80
+                          ? sampleEncryptedText.substring(0, 80) + '...'
                           : sampleEncryptedText}
                       </code>
                     </div>
                   )}
-                  
+
                   {!showRawEncryption && (
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-gray-500 w-16">Stored as:</span>
@@ -1149,7 +1148,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                   )}
                 </div>
               </div>
-              
+
               <p className="text-[10px] text-gray-600 text-center">
                 All messages in this chat are protected with military-grade encryption
               </p>
@@ -1159,16 +1158,16 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
       )}
 
       {selectedMessageForProof && (
-        <div 
+        <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
           onClick={() => setSelectedMessageForProof(null)}
         >
-          <div 
+          <div
             className="relative bg-[#12141a] border border-white/10 rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="absolute -inset-px bg-gradient-to-b from-green-500/20 to-transparent rounded-2xl pointer-events-none"></div>
-            
+
             <div className="relative p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -1180,7 +1179,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                     <p className="text-xs text-gray-500">This message is end-to-end encrypted</p>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setSelectedMessageForProof(null)}
                   className="p-2 hover:bg-white/5 rounded-lg text-gray-400 hover:text-white transition-colors"
                 >

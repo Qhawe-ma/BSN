@@ -102,29 +102,29 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
     },
     {
       icon: <Globe size={28} />,
-      title: "Built on BSC",
-      description: "Powered by Binance Smart Chain for fast transactions and low fees."
+      title: "Built on Solana",
+      description: "Powered by Solana blockchain for fast transactions and low fees."
     }
   ];
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className="min-h-screen bg-[#0B0E11] text-white overflow-hidden relative"
     >
 
       <nav className="relative z-20 px-6 py-6 flex items-center justify-between max-w-7xl mx-auto">
         <div className="flex items-center gap-3">
-          <img 
-            src="/check/logoo.svg" 
-            alt="BSN" 
+          <img
+            src="https://res.cloudinary.com/dl8f1ztsy/image/upload/v1767533735/SSN_FULL_LOGOHE_mesdpk.png"
+            alt="SSN"
             className="h-12 md:h-14"
           />
         </div>
         <div className="flex items-center gap-3">
-          <a 
-            href="https://x.com/bsn_app" 
-            target="_blank" 
+          <a
+            href="https://x.com/bsn_app"
+            target="_blank"
             rel="noopener noreferrer"
             className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
             title="Follow us on X"
@@ -133,7 +133,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
             </svg>
           </a>
-          <Button 
+          <Button
             onClick={onLaunchApp}
             size="lg"
             className="rounded-full px-6 md:px-8 group"
@@ -149,19 +149,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
           <div className="text-center max-w-4xl mx-auto mb-20">
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
               <span className="text-white">Message </span>
-              <span className="bg-gradient-to-r from-primary to-yellow-400 bg-clip-text text-transparent">Any Wallet</span>
+              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Any Wallet</span>
               <br />
               <span className="text-white">With </span>
               <span className="text-wave-effect">Full Encryption</span>
             </h1>
-            
+
             <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-              The first truly decentralized social network where your wallet is your identity. 
+              The first truly decentralized social network where your wallet is your identity.
               Send encrypted messages to any wallet address, create posts as NFTs, and own your digital presence.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button 
+              <Button
                 onClick={onLaunchApp}
                 size="lg"
                 className="rounded-full px-10 py-4 text-lg group w-full sm:w-auto"
@@ -170,7 +170,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
                 <span>Start Messaging</span>
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </Button>
-              <Button 
+              <Button
                 variant="secondary"
                 size="lg"
                 className="rounded-full px-10 py-4 text-lg w-full sm:w-auto"
@@ -184,9 +184,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
           <div className="relative max-w-2xl mx-auto mb-24">
             <div className="flex items-center justify-center gap-2 mb-4">
               <span className="text-gray-500 text-sm font-mono">CA:</span>
-              <button 
+              <button
                 onClick={() => {
-                  navigator.clipboard.writeText('0x521c0f93731f515759aafe3e7e573720446f4444');
+                  navigator.clipboard.writeText('7ViFw9tBqX9rX8kZ9X9rX8kZ9X9rX8kZ9X9rX8kZj8rN');
                   const btn = document.getElementById('ca-copy-btn');
                   if (btn) {
                     btn.textContent = 'Copied!';
@@ -197,10 +197,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
                 className="text-primary text-sm font-mono hover:text-yellow-300 transition-colors cursor-pointer"
                 title="Click to copy"
               >
-                0x521c0f93731f515759aafe3e7e573720446f4444
+                7ViF...j8rN
               </button>
             </div>
-            
+
             <div className="rounded-3xl bg-[#0D1117] border border-white/10 shadow-2xl overflow-hidden">
               <div className="bg-[#161B22] border-b border-white/5 px-5 py-4">
                 <div className="flex items-center gap-2 mb-4">
@@ -211,18 +211,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-white/10 ring-offset-2 ring-offset-[#161B22]">
-                      <img 
-                        src="https://api.dicebear.com/7.x/identicon/svg?seed=alice&backgroundColor=1e2329" 
-                        alt="alice.eth" 
+                      <img
+                        src="https://api.dicebear.com/7.x/identicon/svg?seed=alice&backgroundColor=1e2329"
+                        alt="alice.eth"
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
                         <p className="text-white font-medium text-sm">alice.eth</p>
-                        <img 
-                          src="/check/gold.svg" 
-                          alt="Verified" 
+                        <img
+                          src="/check/gold.svg"
+                          alt="Verified"
                           className="w-4 h-4"
                         />
                       </div>
@@ -238,7 +238,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="p-5 space-y-4 min-h-[200px] bg-[#0D1117]">
                 <div className="flex justify-start">
                   <div className="flex flex-col items-start max-w-[75%]">
@@ -248,7 +248,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
                     <span className="text-[10px] text-gray-500 mt-1.5 ml-1 font-mono">10:42 AM</span>
                   </div>
                 </div>
-                
+
                 <div className="flex justify-end">
                   <div className="flex flex-col items-end max-w-[75%]">
                     <div className="bg-primary text-black rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm">
@@ -273,7 +273,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-[#161B22] border-t border-white/5 px-4 py-3">
                 <div className="flex items-center gap-3">
                   <div className="flex-1 bg-[#0D1117] border border-white/10 rounded-2xl px-4 py-3 flex items-center">
@@ -289,15 +289,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
 
           <div id="features" className="pt-10">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
-              Why <span className="bg-gradient-to-r from-primary to-yellow-400 bg-clip-text text-transparent">BSN</span>?
+              Why <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">BSN</span>?
             </h2>
             <p className="text-gray-400 text-center mb-12 max-w-xl mx-auto">
               Built for privacy, designed for the future of decentralized communication.
             </p>
-            
+
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {features.map((feature, index) => (
-                <GlassCard 
+                <GlassCard
                   key={index}
                   hoverEffect
                   className="p-6 group cursor-default"
@@ -322,11 +322,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
                 Ready to Own Your Social Identity?
               </h2>
               <p className="text-gray-400 mb-8 max-w-lg mx-auto">
-                Connect your wallet and start messaging anyone on the blockchain. 
+                Connect your wallet and start messaging anyone on the blockchain.
                 Your messages are encrypted and your identity is yours.
               </p>
               <div className="flex justify-center">
-                <Button 
+                <Button
                   onClick={onLaunchApp}
                   size="lg"
                   className="rounded-full px-12 py-4 text-lg group"
@@ -344,21 +344,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-3">
-              <img 
-                src="/check/logoo.svg" 
-                alt="BSN" 
+              <img
+                src="https://res.cloudinary.com/dl8f1ztsy/image/upload/v1767533735/SSN_FULL_LOGOHE_mesdpk.png"
+                alt="SSN"
                 className="h-8"
               />
-              <span className="text-gray-500 text-sm">Binance Social Network</span>
+              <span className="text-gray-500 text-sm">Solana Social Network</span>
             </div>
             <p className="text-gray-500 text-sm">
-              Powered by BSC - Built with Privacy in Mind
+              Powered by Solana - Built with Privacy in Mind
             </p>
           </div>
           <div className="text-center pt-4 border-t border-white/5">
             <p className="text-gray-600 text-xs max-w-2xl mx-auto">
-              BSN is a decentralized social platform. We never ask for your private keys or seed phrases. 
-              Wallet connections are handled securely through your browser extension. 
+              BSN is a decentralized social platform. We never ask for your private keys or seed phrases.
+              Wallet connections are handled securely through your browser extension.
               Always verify you are on the official site before connecting.
             </p>
           </div>

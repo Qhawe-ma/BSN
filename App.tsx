@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Home, MessageCircle, PlusSquare, User as UserIcon, BarChart2, LogOut, Wallet, X, Feather, Image as ImageIcon, Loader, ChevronLeft, ChevronRight, BookOpen, Crown } from 'lucide-react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { User, ViewState } from './types';
-import { BlockchainService, DataService, OptimisticPostService } from './services';
+import { BlockchainService, DataService, OptimisticPostService, formatAddress } from './services';
 import { FirebaseService } from './firebaseService';
 import { Button, GlassCard, Avatar } from './components/UIComponents';
 
@@ -17,27 +19,25 @@ import { PremiumView } from './views/PremiumView';
 import { LandingPage } from './views/LandingPage';
 
 // Guest Protection Component
-const ConnectWalletPrompt: React.FC<{ onConnect: () => void, isConnecting?: boolean, title?: string, subtitle?: string }> = ({ onConnect, isConnecting = false, title = "Connect Wallet", subtitle = "You need to connect your wallet to access this feature." }) => (
-    <div className="flex flex-col items-center justify-center h-[70vh] text-center px-4">
-         <div className="relative group mb-8">
-             <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-             <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center shadow-2xl relative z-10">
-               {isConnecting ? (
-                 <Loader size={32} className="text-primary animate-spin" />
-               ) : (
-                 <Wallet size={32} className="text-gray-400 group-hover:text-primary transition-colors duration-500" />
-               )}
-             </div>
-         </div>
-         <h2 className="text-2xl font-bold text-white mb-2">{title}</h2>
-         <p className="text-gray-400 max-w-sm mb-8">{subtitle}</p>
-         <Button onClick={onConnect} disabled={isConnecting} size="lg" className="rounded-full px-8">
-           {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-         </Button>
+const ConnectWalletPrompt: React.FC<{ title?: string, subtitle?: string }> = ({ title = "Connect Wallet", subtitle = "You need to connect your wallet to access this feature." }) => (
+  <div className="flex flex-col items-center justify-center h-[70vh] text-center px-4">
+    <div className="relative group mb-8">
+      <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+      <div className="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center shadow-2xl relative z-10">
+        <Wallet size={32} className="text-gray-400 group-hover:text-primary transition-colors duration-500" />
+      </div>
     </div>
+    <h2 className="text-2xl font-bold text-white mb-2">{title}</h2>
+    <p className="text-gray-400 max-w-sm mb-8">{subtitle}</p>
+    <div className="wallet-adapter-button-trigger wallet-button-rounded">
+      <WalletMultiButton />
+    </div>
+  </div>
 );
 
 const App: React.FC = () => {
+  const { publicKey, wallet, connected, disconnect } = useWallet();
+
   const [showLanding, setShowLanding] = useState(() => {
     const pathname = window.location.pathname;
     // Skip landing page for direct links to posts, admin, blog, or premium
@@ -48,7 +48,7 @@ const App: React.FC = () => {
     const hasPassedLanding = sessionStorage.getItem('bsn_passed_landing');
     const hasSavedWallet = localStorage.getItem('walletAddress');
     const hasSavedView = sessionStorage.getItem('bsn_current_view');
-    
+
     // If user has passed landing, has a wallet, or has a saved view - skip landing
     if (hasPassedLanding === 'true' || hasSavedWallet || hasSavedView) {
       return false;
@@ -67,7 +67,7 @@ const App: React.FC = () => {
   });
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [viewingProfileUser, setViewingProfileUser] = useState<User | null>(null);
-  
+
   // Create Post State
   const [isCreating, setIsCreating] = useState(false);
   const [postContent, setPostContent] = useState("");
@@ -75,60 +75,45 @@ const App: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [mintingStatus, setMintingStatus] = useState<'idle' | 'uploading' | 'confirming' | 'success' | 'error'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Wallet Connection State
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
-  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Chat target for navigating from profile Message button
   const [chatTarget, setChatTarget] = useState<string | null>(null);
-  
+
   // Post detail view
   const [viewingPostId, setViewingPostId] = useState<string | null>(null);
 
-  // --- Auto-reconnect on page load ---
+  // --- Handle Wallet Connection/Disconnection ---
   useEffect(() => {
-    const autoReconnect = async () => {
-      const savedAddress = localStorage.getItem('walletAddress');
-      if (savedAddress && window.ethereum) {
+    const handleWalletConnection = async () => {
+      if (connected && publicKey) {
+        const address = publicKey.toString();
+        console.log('🔗 Wallet connected:', address);
+
         try {
-          // Use silent reconnect - no wallet popup
-          const connectedUser = await BlockchainService.silentReconnect();
-          
-          if (connectedUser && connectedUser.address.toLowerCase() === savedAddress.toLowerCase()) {
+          // Use silent reconnect logic to get/create user profile
+          const connectedUser = await BlockchainService.silentReconnect(address);
+
+          if (connectedUser) {
             // Set user online status
             await FirebaseService.setUserOnline(connectedUser.address, true);
-            
-            try {
-              const firebaseUser = await FirebaseService.getUserProfile(connectedUser.address);
-              if (firebaseUser) {
-                setUser({
-                  ...connectedUser,
-                  ...firebaseUser
-                });
-              } else {
-                setUser(connectedUser);
-              }
-            } catch (firebaseError) {
-              console.warn('Firebase unavailable, using wallet data only:', firebaseError);
-              setUser(connectedUser);
-            }
-            
-            console.log('✅ Auto-reconnected wallet successfully!');
-          } else {
-            // If silent reconnect failed or address mismatch, clear saved address
-            localStorage.removeItem('walletAddress');
+            setUser(connectedUser);
+            localStorage.setItem('walletAddress', address);
           }
         } catch (error) {
-          console.warn('Auto-reconnect failed:', error);
-          localStorage.removeItem('walletAddress');
+          console.error('Error handling wallet connection:', error);
         }
+      } else {
+        // Disconnected
+        if (user) {
+          await FirebaseService.setUserOnline(user.address, false);
+        }
+        setUser(null);
+        localStorage.removeItem('walletAddress');
       }
     };
 
-    autoReconnect();
-  }, []);
+    handleWalletConnection();
+  }, [connected, publicKey]);
 
   // --- Preload feed data in background for instant loading ---
   useEffect(() => {
@@ -162,13 +147,13 @@ const App: React.FC = () => {
     const loadSharedProfile = async () => {
       const urlParams = new URLSearchParams(window.location.search);
       const profileAddress = urlParams.get('profile');
-      
+
       if (profileAddress) {
         console.log('🔗 Loading shared profile:', profileAddress);
         try {
           // Load the profile from Firebase
           const profileUser = await FirebaseService.getUserProfile(profileAddress);
-          
+
           if (profileUser) {
             setViewingProfileUser(profileUser);
             setView(ViewState.PROFILE);
@@ -201,7 +186,7 @@ const App: React.FC = () => {
       const pathname = window.location.pathname;
       const postMatch = pathname.match(/^\/post\/([^/]+)$/);
       const blogMatch = pathname.match(/^\/blogs?\/?(.*)$/);
-      
+
       if (postMatch) {
         const postId = postMatch[1];
         console.log('🔗 Loading shared post:', postId);
@@ -224,7 +209,7 @@ const App: React.FC = () => {
     const handlePopState = () => {
       const pathname = window.location.pathname;
       const postMatch = pathname.match(/^\/post\/([^/]+)$/);
-      
+
       if (postMatch) {
         const postId = postMatch[1];
         setViewingPostId(postId);
@@ -243,71 +228,12 @@ const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // --- Wallet Connection (Direct EVM wallet - no modal) ---
-  const handleConnect = async () => {
-    if (isConnecting) return;
-    
-    setIsConnecting(true);
-    setConnectionError(null);
-    
-    if (errorTimeoutRef.current) {
-      clearTimeout(errorTimeoutRef.current);
-      errorTimeoutRef.current = null;
-    }
-    
-    try {
-      // Use the default browser EVM wallet (window.ethereum)
-      const ethereum = (window as any).ethereum;
-      
-      if (!ethereum) {
-        throw new Error('No EVM wallet detected. Please install a wallet extension like MetaMask.');
-      }
-      
-      const connectedUser = await BlockchainService.connectWallet(ethereum);
-      
-      localStorage.setItem('walletAddress', connectedUser.address);
-      await FirebaseService.setUserOnline(connectedUser.address, true);
-      
-      try {
-        const firebaseUser = await FirebaseService.getUserProfile(connectedUser.address);
-        if (firebaseUser) {
-          setUser({ ...connectedUser, ...firebaseUser });
-        } else {
-          setUser(connectedUser);
-        }
-      } catch (firebaseError) {
-        console.warn('Firebase unavailable, using wallet data only:', firebaseError);
-        setUser(connectedUser);
-      }
-      
-      console.log('✅ Wallet connected successfully!');
-    } catch (error: any) {
-      console.error('Wallet connection failed:', error);
-      
-      let errorMessage = 'Failed to connect wallet. Please try again.';
-      if (error && typeof error === 'object') {
-        errorMessage = error.message || error.toString();
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-      
-      setConnectionError(errorMessage);
-      
-      errorTimeoutRef.current = setTimeout(() => {
-        setConnectionError(null);
-        errorTimeoutRef.current = null;
-      }, 5000);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
   // --- Logout Handler ---
   const handleLogout = async () => {
     if (user) {
-      // Set user offline before logging out
       await FirebaseService.setUserOnline(user.address, false);
     }
+    await disconnect();
     setUser(null);
     setViewingProfileUser(null);
     localStorage.removeItem('walletAddress');
@@ -352,29 +278,29 @@ const App: React.FC = () => {
   };
 
   const handleUpdateProfile = async (updatedFields: Partial<User>) => {
-      if (user) {
-          // Save to Firebase
-          try {
-            await FirebaseService.updateUserProfile(user.address, updatedFields);
-            console.log('✅ Profile updated successfully');
-            
-            // Reload from Firebase to get canonical data
-            const firebaseUser = await FirebaseService.getUserProfile(user.address);
-            if (firebaseUser) {
-              const updatedUser = { ...user, ...firebaseUser };
-              setUser(updatedUser);
-              
-              // If we are viewing our own profile, update that view as well
-              if (viewingProfileUser && viewingProfileUser.address === user.address) {
-                  setViewingProfileUser(updatedUser);
-              }
-            }
-          } catch (error) {
-            console.error('Failed to update profile:', error);
-            alert('Failed to save profile changes. Please try again.');
-            return;
+    if (user) {
+      // Save to Firebase
+      try {
+        await FirebaseService.updateUserProfile(user.address, updatedFields);
+        console.log('✅ Profile updated successfully');
+
+        // Reload from Firebase to get canonical data
+        const firebaseUser = await FirebaseService.getUserProfile(user.address);
+        if (firebaseUser) {
+          const updatedUser = { ...user, ...firebaseUser };
+          setUser(updatedUser);
+
+          // If we are viewing our own profile, update that view as well
+          if (viewingProfileUser && viewingProfileUser.address === user.address) {
+            setViewingProfileUser(updatedUser);
           }
+        }
+      } catch (error) {
+        console.error('Failed to update profile:', error);
+        alert('Failed to save profile changes. Please try again.');
+        return;
       }
+    }
   };
 
   const handleRefreshProfile = async () => {
@@ -386,7 +312,7 @@ const App: React.FC = () => {
       if (firebaseUser) {
         // Update the viewing profile user
         setViewingProfileUser(firebaseUser);
-        
+
         // If this is the current user's profile, update that too
         if (user && user.address === targetUser.address) {
           setUser(firebaseUser);
@@ -419,11 +345,11 @@ const App: React.FC = () => {
   // --- Create Post Logic with Optimistic Updates (Like X.com - Instant Display) ---
   const handleCreatePost = async () => {
     if (!postContent && !selectedImage) return;
-    if (!user) {
+    if (!user || !wallet) {
       alert('Please connect your wallet first');
       return;
     }
-    
+
     // Step 1: Create optimistic post and show IMMEDIATELY (X.com style)
     const optimisticPost = OptimisticPostService.createOptimisticPost(
       postContent,
@@ -431,10 +357,10 @@ const App: React.FC = () => {
       undefined,
       imagePreview || undefined
     );
-    
+
     // Add to feed instantly - user sees their post right away!
     OptimisticPostService.addOptimisticPost(optimisticPost);
-    
+
     // Close modal and navigate to feed immediately
     const savedContent = postContent;
     const savedImage = selectedImage;
@@ -442,46 +368,47 @@ const App: React.FC = () => {
     removeImage();
     setIsCreating(false);
     setView(ViewState.FEED);
-    
+
     // Step 2: Update status to show "uploading" indicator on the post
     setMintingStatus('uploading');
     OptimisticPostService.updateOptimisticPost(optimisticPost.optimisticId!, {
       optimisticStatus: 'pending'
     });
-    
+
     try {
       // Step 3: Mint on blockchain in background (user can browse while this happens)
       OptimisticPostService.updateOptimisticPost(optimisticPost.optimisticId!, {
         optimisticStatus: 'confirming'
       });
-      
-      const confirmedPost = await BlockchainService.mintPost(savedContent, savedImage || undefined);
-      
+
+      // Pass the wallet adapter to the minting service
+      const confirmedPost = await BlockchainService.mintPost(wallet.adapter, savedContent, savedImage || undefined);
+
       // Step 4: Replace optimistic post with real confirmed post
       OptimisticPostService.confirmOptimisticPost(optimisticPost.optimisticId!, confirmedPost);
-      
+
       setMintingStatus('success');
       console.log('🎉 Post confirmed on blockchain!');
-      
+
       // Reset status after brief success indicator
       setTimeout(() => {
         setMintingStatus('idle');
       }, 2000);
-      
+
     } catch (error: any) {
       // Handle error - remove the optimistic post
       console.error('Minting error:', error);
-      
+
       // Remove the optimistic post from feed
       OptimisticPostService.removeOptimisticPost(optimisticPost.optimisticId!);
-      
+
       setMintingStatus('error');
-      
+
       // Show error notification to user
       setTimeout(() => {
         setMintingStatus('idle');
       }, 5000);
-      
+
       alert(error.message || 'Failed to mint post. Please try again.');
     }
   };
@@ -489,19 +416,19 @@ const App: React.FC = () => {
   // --- Render View Switcher ---
   const renderContent = () => {
     switch (view) {
-      case ViewState.FEED: 
+      case ViewState.FEED:
         return <FeedView type="global" onUserClick={handleNavigateToProfile} onPostClick={handleNavigateToPost} currentUser={user || undefined} />;
-      
-      case ViewState.CHAT: 
-        if (!user) return <ConnectWalletPrompt onConnect={handleConnect} isConnecting={isConnecting} title="Encrypted Messaging" subtitle="Connect your wallet to access your secure, end-to-end encrypted messages." />;
-        return <ChatView 
-          currentUser={user} 
-          onUserClick={handleNavigateToProfile} 
+
+      case ViewState.CHAT:
+        if (!user) return <ConnectWalletPrompt title="Encrypted Messaging" subtitle="Connect your wallet to access your secure, end-to-end encrypted messages." />;
+        return <ChatView
+          currentUser={user}
+          onUserClick={handleNavigateToProfile}
           initialChatTarget={chatTarget || undefined}
           onClearChatTarget={() => setChatTarget(null)}
         />;
-      
-      case ViewState.PROFILE: 
+
+      case ViewState.PROFILE:
         // Determine which profile to show:
         // 1. The specific user we clicked on (viewingProfileUser)
         // 2. OR the current logged-in user (user)
@@ -509,32 +436,32 @@ const App: React.FC = () => {
 
         // If neither exists, it means a guest is trying to view "My Profile". Block it.
         if (!targetUser) {
-           return <ConnectWalletPrompt onConnect={handleConnect} isConnecting={isConnecting} title="Your Profile" subtitle="Connect your wallet to view your decentralized identity." />;
+          return <ConnectWalletPrompt title="Your Profile" subtitle="Connect your wallet to view your decentralized identity." />;
         }
 
         return (
-          <ProfileView 
-            user={targetUser} 
+          <ProfileView
+            user={targetUser}
             currentUser={user || undefined}
             onNavigateToChat={handleNavigateToChat}
-            onUpdateProfile={handleUpdateProfile} 
-            onConnect={handleConnect}
-            isConnecting={isConnecting}
+            onUpdateProfile={handleUpdateProfile}
+            onConnect={() => { }} // Handled by wallet button in header
+            isConnecting={false}
             onRefreshProfile={handleRefreshProfile}
             onPostClick={handleNavigateToPost}
           />
         );
-      
-      case ViewState.DASHBOARD: 
-        if (!user) return <ConnectWalletPrompt onConnect={handleConnect} isConnecting={isConnecting} title="Analytics Dashboard" subtitle="Connect your wallet to view your on-chain performance metrics." />;
+
+      case ViewState.DASHBOARD:
+        if (!user) return <ConnectWalletPrompt title="Analytics Dashboard" subtitle="Connect your wallet to view your on-chain performance metrics." />;
         return <DashboardView user={user} />;
-      
+
       case ViewState.POST_DETAIL:
         if (!viewingPostId) {
           return <FeedView type="global" onUserClick={handleNavigateToProfile} onPostClick={handleNavigateToPost} currentUser={user || undefined} />;
         }
         return (
-          <PostDetailView 
+          <PostDetailView
             postId={viewingPostId}
             currentUser={user || undefined}
             onBack={() => {
@@ -545,7 +472,7 @@ const App: React.FC = () => {
             onUserClick={handleNavigateToProfile}
           />
         );
-      
+
       case ViewState.ADMIN:
         return (
           <AdminView
@@ -555,7 +482,7 @@ const App: React.FC = () => {
             }}
           />
         );
-      
+
       case ViewState.BLOGS:
         return (
           <BlogView
@@ -565,7 +492,7 @@ const App: React.FC = () => {
             }}
           />
         );
-      
+
       case ViewState.PREMIUM:
         return (
           <PremiumView
@@ -576,23 +503,22 @@ const App: React.FC = () => {
             userAddress={user?.address}
           />
         );
-      
-      default: 
+
+      default:
         return <FeedView type="global" onUserClick={handleNavigateToProfile} onPostClick={handleNavigateToPost} currentUser={user || undefined} />;
     }
   };
 
   // --- Navigation Item ---
   const NavItem: React.FC<{ icon: React.ReactNode; label: string; target: ViewState; active: boolean; onClick?: () => void }> = ({ icon, label, target, active, onClick }) => (
-    <button 
+    <button
       onClick={() => {
         if (onClick) onClick();
         else setView(target);
       }}
       title={isSidebarCollapsed ? label : undefined}
-      className={`flex items-center ${isSidebarCollapsed ? 'justify-center w-12 h-12 mx-auto px-0' : 'px-5 gap-4 w-full'} py-3 rounded-2xl transition-all duration-300 group relative ${
-        active ? 'bg-white/10 text-white font-bold shadow-lg border border-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
-      }`}
+      className={`flex items-center ${isSidebarCollapsed ? 'justify-center w-12 h-12 mx-auto px-0' : 'px-5 gap-4 w-full'} py-3 rounded-2xl transition-all duration-300 group relative ${active ? 'bg-white/10 text-white font-bold shadow-lg border border-white/5' : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent'
+        }`}
     >
       <div className={`transition-transform duration-300 flex-shrink-0 ${active ? 'scale-110 text-primary' : 'group-hover:scale-110'}`}>
         {icon}
@@ -624,51 +550,51 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-[#0B0E11] text-foreground font-sans selection:bg-primary/30 selection:text-white overflow-x-hidden pb-24 md:pb-0">
       {/* Global Ambient Background */}
       <div className="fixed inset-0 pointer-events-none z-0">
-          <div className="absolute top-0 left-[20%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[150px]" />
-          <div className="absolute bottom-0 right-[10%] w-[500px] h-[500px] bg-blue-900/5 rounded-full blur-[150px]" />
+        <div className="absolute top-0 left-[20%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[150px]" />
+        <div className="absolute bottom-0 right-[10%] w-[500px] h-[500px] bg-blue-900/5 rounded-full blur-[150px]" />
       </div>
 
       {/* Desktop Sidebar (Always visible now) */}
       <aside className={`hidden md:flex fixed top-0 left-0 h-screen flex-col border-r border-white/5 bg-black/20 backdrop-blur-xl z-40 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-20' : 'w-72'}`}>
-        
+
         {/* Sidebar Header */}
         <div className={`p-6 flex items-center relative ${isSidebarCollapsed ? 'justify-center px-0' : 'justify-start'}`}>
-          <button 
-            onClick={() => setShowLanding(true)} 
+          <button
+            onClick={() => setShowLanding(true)}
             className="flex items-center text-white hover:opacity-80 transition-opacity cursor-pointer"
             title="Back to Landing Page"
           >
-              <div className={`relative flex items-center justify-center transition-all duration-300 ${isSidebarCollapsed ? 'w-10 h-10' : 'h-14 w-auto'}`}>
-                <img 
-                  src="/check/logoo.svg" 
-                  alt="BSN" 
-                  className={`h-14 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'opacity-0 scale-0 absolute pointer-events-none' : 'opacity-100 scale-100'}`}
-                />
-                <img 
-                  src="/check/iconnns.svg" 
-                  alt="BSN" 
-                  className={`h-10 w-10 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'opacity-100 scale-100' : 'opacity-0 scale-0 absolute pointer-events-none'}`}
-                />
-              </div>
+            <div className={`relative flex items-center justify-center transition-all duration-300 ${isSidebarCollapsed ? 'w-10 h-10' : 'h-14 w-auto'}`}>
+              <img
+                src="https://res.cloudinary.com/dl8f1ztsy/image/upload/v1767533735/SSN_FULL_LOGOHE_mesdpk.png"
+                alt="SSN"
+                className={`h-14 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'opacity-0 scale-0 absolute pointer-events-none' : 'opacity-100 scale-100'}`}
+              />
+              <img
+                src="https://res.cloudinary.com/dl8f1ztsy/image/upload/v1767531209/Lock_no_bg_b8rp0v.png"
+                alt="SSN"
+                className={`h-10 w-10 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'opacity-100 scale-100' : 'opacity-0 scale-0 absolute pointer-events-none'}`}
+              />
+            </div>
           </button>
 
           {/* Toggle Button */}
-          <button 
+          <button
             onClick={() => setSidebarCollapsed(!isSidebarCollapsed)}
             className="absolute -right-3 top-8 w-6 h-6 bg-[#0B0E11] border border-white/10 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 transition-all shadow-lg z-50"
           >
             {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
         </div>
-        
+
         <nav className="flex-1 px-3 space-y-2 mt-4">
           <NavItem icon={<Home size={20} />} label="Home" target={ViewState.FEED} active={view === ViewState.FEED} />
           <NavItem icon={<MessageCircle size={20} />} label="Messages" target={ViewState.CHAT} active={view === ViewState.CHAT} />
-          <NavItem 
-            icon={<UserIcon size={20} />} 
-            label="Profile" 
-            target={ViewState.PROFILE} 
-            active={view === ViewState.PROFILE && (viewingProfileUser?.address === user?.address || (!viewingProfileUser && !user))} 
+          <NavItem
+            icon={<UserIcon size={20} />}
+            label="Profile"
+            target={ViewState.PROFILE}
+            active={view === ViewState.PROFILE && (viewingProfileUser?.address === user?.address || (!viewingProfileUser && !user))}
             onClick={() => {
               // When clicking "Profile" in nav, load real data from Firebase
               if (user) {
@@ -680,20 +606,20 @@ const App: React.FC = () => {
             }}
           />
           <NavItem icon={<BarChart2 size={20} />} label="Analytics" target={ViewState.DASHBOARD} active={view === ViewState.DASHBOARD} />
-          <NavItem 
-            icon={<BookOpen size={20} />} 
-            label="Blog" 
-            target={ViewState.BLOGS} 
+          <NavItem
+            icon={<BookOpen size={20} />}
+            label="Blog"
+            target={ViewState.BLOGS}
             active={view === ViewState.BLOGS}
             onClick={() => {
               setView(ViewState.BLOGS);
               window.history.pushState({}, '', '/blog');
             }}
           />
-          <NavItem 
-            icon={<Crown size={20} />} 
-            label="Premium" 
-            target={ViewState.PREMIUM} 
+          <NavItem
+            icon={<Crown size={20} />}
+            label="Premium"
+            target={ViewState.PREMIUM}
             active={view === ViewState.PREMIUM}
             onClick={() => {
               setView(ViewState.PREMIUM);
@@ -703,30 +629,50 @@ const App: React.FC = () => {
         </nav>
 
         <div className="p-4 mt-auto">
-          <Button 
-            onClick={() => user ? setIsCreating(true) : handleConnect()} 
-            size={isSidebarCollapsed ? 'sm' : 'lg'} 
-            disabled={isConnecting}
-            className={`w-full mb-6 shadow-xl shadow-primary/10 transition-all duration-300 ${isSidebarCollapsed ? 'px-0 aspect-square flex items-center justify-center rounded-2xl' : ''}`}
-            title="Create Post"
-          >
-            {user ? <PlusSquare size={20} /> : (isConnecting ? <Loader size={20} className="animate-spin" /> : <Wallet size={20} />)}
-            <span className={`${isSidebarCollapsed ? 'hidden' : 'ml-2'}`}>{user ? 'Post' : (isConnecting ? 'Connecting...' : 'Connect')}</span>
-          </Button>
-          
+          {user ? (
+            <Button
+              onClick={() => setIsCreating(true)}
+              size={isSidebarCollapsed ? 'sm' : 'lg'}
+              className={`w-full mb-6 shadow-xl shadow-primary/10 transition-all duration-300 ${isSidebarCollapsed ? 'px-0 aspect-square flex items-center justify-center rounded-2xl' : ''}`}
+              title="Create Post"
+            >
+              <PlusSquare size={20} />
+              <span className={`${isSidebarCollapsed ? 'hidden' : 'ml-2'}`}>Post</span>
+            </Button>
+          ) : (
+            <div className={`w-full mb-6 ${isSidebarCollapsed ? 'flex justify-center' : ''}`}>
+              {isSidebarCollapsed ? (
+                <button
+                  onClick={() => {
+                    const button = document.querySelector('.wallet-adapter-button-trigger button') as HTMLButtonElement;
+                    if (button) button.click();
+                  }}
+                  className="w-12 h-12 rounded-full bg-gradient-to-r from-primary to-secondary text-black flex items-center justify-center hover:brightness-110 transition-all shadow-lg shadow-primary/30"
+                  title="Connect Wallet"
+                >
+                  <Wallet size={20} />
+                </button>
+              ) : (
+                <div className="wallet-adapter-button-trigger wallet-button-rounded">
+                  <WalletMultiButton />
+                </div>
+              )}
+            </div>
+          )}
+
           {user && (
-            <div 
+            <div
               onClick={handleLogout}
               className={`flex items-center gap-3 p-2 rounded-2xl bg-white/5 border border-white/5 hover:bg-red-500/10 hover:border-red-500/30 transition-all cursor-pointer overflow-hidden ${isSidebarCollapsed ? 'justify-center bg-transparent border-transparent hover:bg-red-500/10' : ''}`}
               title="Disconnect"
             >
               <Avatar url={user.avatarUrl || ''} size="sm" address={user.address} bordered={false} />
-              
+
               <div className={`overflow-hidden transition-all duration-300 ${isSidebarCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-                <p className="text-sm font-bold text-white truncate">{user.ens || "0xUser"}</p>
+                <p className="text-sm font-bold text-white truncate">{user.ens || formatAddress(user.address)}</p>
                 <p className="text-xs text-gray-500 font-mono truncate">{user.address.substring(0, 10)}...</p>
               </div>
-              
+
               <LogOut size={16} className={`text-gray-500 hover:text-red-400 ml-auto transition-all duration-300 ${isSidebarCollapsed ? 'w-0 opacity-0 hidden' : 'opacity-100'}`} />
             </div>
           )}
@@ -736,24 +682,30 @@ const App: React.FC = () => {
       {/* Mobile Bottom Nav - Floating Pill */}
       <div className="md:hidden fixed bottom-6 left-1/2 transform -translate-x-1/2 w-[94%] max-w-md z-50 safe-area-pb">
         <div className="bg-gray-900/90 backdrop-blur-2xl border border-white/10 rounded-full shadow-2xl flex items-center p-1 px-1.5 relative">
-            {/* Left group */}
-            <div className="flex items-center gap-0.5">
-              <button onClick={() => setView(ViewState.FEED)} className={`p-2.5 rounded-full transition-colors ${view === ViewState.FEED ? 'text-primary bg-white/10' : 'text-gray-500'}`}><Home size={22} /></button>
-              <button onClick={() => setView(ViewState.CHAT)} className={`p-2.5 rounded-full transition-colors ${view === ViewState.CHAT ? 'text-primary bg-white/10' : 'text-gray-500'}`}><MessageCircle size={22} /></button>
-              <button onClick={() => { setView(ViewState.BLOGS); window.history.pushState({}, '', '/blog'); }} className={`p-2.5 rounded-full transition-colors ${view === ViewState.BLOGS ? 'text-primary bg-white/10' : 'text-gray-500'}`}><BookOpen size={22} /></button>
-            </div>
-            
-            {/* Center floating button */}
-            <div className="flex-1 flex justify-center">
-              <button onClick={() => user ? setIsCreating(true) : handleConnect()} disabled={isConnecting} className="p-3 rounded-full bg-primary text-black shadow-lg shadow-primary/30 transform -translate-y-5 border-4 border-[#0B0E11] disabled:opacity-50">{user ? <PlusSquare size={26} /> : (isConnecting ? <Loader size={22} className="animate-spin" /> : <Wallet size={22} />)}</button>
-            </div>
-            
-            {/* Right group */}
-            <div className="flex items-center gap-0.5">
-              <button onClick={() => { if (user) { handleNavigateToProfile(user); } else { setViewingProfileUser(null); setView(ViewState.PROFILE); } }} className={`p-2.5 rounded-full transition-colors ${view === ViewState.PROFILE ? 'text-primary bg-white/10' : 'text-gray-500'}`}><UserIcon size={22} /></button>
-              <button onClick={() => setView(ViewState.DASHBOARD)} className={`p-2.5 rounded-full transition-colors ${view === ViewState.DASHBOARD ? 'text-primary bg-white/10' : 'text-gray-500'}`}><BarChart2 size={22} /></button>
-              <button onClick={() => { setView(ViewState.PREMIUM); window.history.pushState({}, '', '/premium'); }} className={`p-2.5 rounded-full transition-colors ${view === ViewState.PREMIUM ? 'text-primary bg-white/10' : 'text-gray-500'}`}><Crown size={22} /></button>
-            </div>
+          {/* Left group */}
+          <div className="flex items-center gap-0.5">
+            <button onClick={() => setView(ViewState.FEED)} className={`p-2.5 rounded-full transition-colors ${view === ViewState.FEED ? 'text-primary bg-white/10' : 'text-gray-500'}`}><Home size={22} /></button>
+            <button onClick={() => setView(ViewState.CHAT)} className={`p-2.5 rounded-full transition-colors ${view === ViewState.CHAT ? 'text-primary bg-white/10' : 'text-gray-500'}`}><MessageCircle size={22} /></button>
+            <button onClick={() => { setView(ViewState.BLOGS); window.history.pushState({}, '', '/blog'); }} className={`p-2.5 rounded-full transition-colors ${view === ViewState.BLOGS ? 'text-primary bg-white/10' : 'text-gray-500'}`}><BookOpen size={22} /></button>
+          </div>
+
+          {/* Center floating button */}
+          <div className="flex-1 flex justify-center">
+            {user ? (
+              <button onClick={() => setIsCreating(true)} className="p-3 rounded-full bg-primary text-black shadow-lg shadow-primary/30 transform -translate-y-5 border-4 border-[#0B0E11]"><PlusSquare size={26} /></button>
+            ) : (
+              <div className="transform -translate-y-5 wallet-adapter-button-trigger wallet-button-rounded">
+                <WalletMultiButton />
+              </div>
+            )}
+          </div>
+
+          {/* Right group */}
+          <div className="flex items-center gap-0.5">
+            <button onClick={() => { if (user) { handleNavigateToProfile(user); } else { setViewingProfileUser(null); setView(ViewState.PROFILE); } }} className={`p-2.5 rounded-full transition-colors ${view === ViewState.PROFILE ? 'text-primary bg-white/10' : 'text-gray-500'}`}><UserIcon size={22} /></button>
+            <button onClick={() => setView(ViewState.DASHBOARD)} className={`p-2.5 rounded-full transition-colors ${view === ViewState.DASHBOARD ? 'text-primary bg-white/10' : 'text-gray-500'}`}><BarChart2 size={22} /></button>
+            <button onClick={() => { setView(ViewState.PREMIUM); window.history.pushState({}, '', '/premium'); }} className={`p-2.5 rounded-full transition-colors ${view === ViewState.PREMIUM ? 'text-primary bg-white/10' : 'text-gray-500'}`}><Crown size={22} /></button>
+          </div>
         </div>
       </div>
 
@@ -769,111 +721,72 @@ const App: React.FC = () => {
             <div className="flex justify-between items-center p-5 border-b border-white/10">
               <h2 className="text-lg font-bold text-white">New Post</h2>
               <button onClick={() => setIsCreating(false)} className="p-2 bg-white/5 rounded-full text-gray-500 hover:text-white transition-colors">
-                  <X size={20} />
+                <X size={20} />
               </button>
             </div>
-            
+
             <div className="p-6 flex-1 flex flex-col overflow-y-auto">
-                <div className="flex gap-4 mb-4">
-                   <Avatar url={user?.avatarUrl || ''} size="md" address={user?.address} />
-                   <textarea 
-                      className="w-full bg-transparent border-none text-white resize-none focus:ring-0 text-lg placeholder-gray-600 min-h-[120px]"
-                      placeholder="What's happening on-chain?"
-                      value={postContent}
-                      onChange={(e) => setPostContent(e.target.value)}
-                      maxLength={280}
-                      autoFocus
-                    />
+              <div className="flex gap-4 mb-4">
+                <Avatar url={user?.avatarUrl || ''} size="md" address={user?.address} />
+                <textarea
+                  className="w-full bg-transparent border-none text-white resize-none focus:ring-0 text-lg placeholder-gray-600 min-h-[120px]"
+                  placeholder="What's happening on-chain?"
+                  value={postContent}
+                  onChange={(e) => setPostContent(e.target.value)}
+                  maxLength={280}
+                  autoFocus
+                />
+              </div>
+
+              {imagePreview && (
+                <div className="relative rounded-2xl overflow-hidden mb-6 border border-white/10 group">
+                  <img src={imagePreview} alt="Preview" className="w-full max-h-64 object-cover" />
+                  <button
+                    onClick={removeImage}
+                    className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-red-500/80 text-white rounded-full backdrop-blur-md transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              )}
+
+              <div className="mt-auto flex items-center justify-between pt-4 border-t border-white/5">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2 text-primary hover:bg-primary/10 rounded-full transition-colors"
+                    title="Add Image"
+                  >
+                    <ImageIcon size={20} />
+                  </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageSelect}
+                    accept="image/*"
+                    className="hidden"
+                  />
                 </div>
 
-                {imagePreview && (
-                  <div className="relative rounded-2xl overflow-hidden mb-6 border border-white/10 group">
-                    <img src={imagePreview} alt="Preview" className="w-full max-h-64 object-cover" />
-                    <button 
-                      onClick={removeImage}
-                      className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-red-500/80 text-white rounded-full backdrop-blur-md transition-colors"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                )}
-                
-                {mintingStatus !== 'idle' && (
-                  <div className="mb-auto mt-2 bg-blue-500/10 text-blue-400 text-sm p-4 rounded-2xl border border-blue-500/20 flex items-center gap-3">
-                    {mintingStatus === 'uploading' && (
-                      <>
-                        <Loader size={18} className="animate-spin" />
-                        <span>Uploading assets to IPFS...</span>
-                      </>
-                    )}
-                    {mintingStatus === 'confirming' && (
-                      <>
-                        <Loader size={18} className="animate-spin" />
-                        <span>Waiting for blockchain confirmation...</span>
-                      </>
-                    )}
-                    {mintingStatus === 'success' && (
-                      <>
-                        <Feather size={18} className="text-green-400" />
-                        <span className="text-green-400 font-bold">Successfully Minted!</span>
-                      </>
-                    )}
-                  </div>
-                )}
-                
-                <div className="flex justify-between items-center pt-4 border-t border-white/5 mt-auto md:mt-0">
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="file" 
-                      ref={fileInputRef}
-                      onChange={handleImageSelect} 
-                      className="hidden" 
-                      accept="image/*"
-                    />
-                    <button 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="p-2.5 text-primary hover:bg-primary/10 rounded-full transition-colors"
-                    >
-                      <ImageIcon size={22} />
-                    </button>
-                    <span className="text-xs text-gray-500">
-                        {280 - postContent.length} / 280
-                    </span>
-                  </div>
-
-                  <Button 
-                    disabled={(!postContent && !selectedImage) || mintingStatus !== 'idle'} 
-                    onClick={handleCreatePost} 
-                    className="rounded-full px-8 py-3"
-                    size="md"
+                <div className="flex items-center gap-3">
+                  <span className={`text-xs ${postContent.length > 250 ? 'text-red-500' : 'text-gray-500'}`}>
+                    {postContent.length}/280
+                  </span>
+                  <Button
+                    onClick={handleCreatePost}
+                    disabled={(!postContent && !selectedImage) || mintingStatus !== 'idle'}
+                    className="rounded-full px-6"
                   >
-                    {mintingStatus === 'idle' ? 'Mint Post' : 'Processing...'}
+                    {mintingStatus === 'idle' && 'Post'}
+                    {mintingStatus === 'uploading' && <><Loader size={16} className="animate-spin mr-2" /> Uploading...</>}
+                    {mintingStatus === 'confirming' && <><Loader size={16} className="animate-spin mr-2" /> Minting...</>}
+                    {mintingStatus === 'success' && <><Feather size={16} className="mr-2" /> Sent!</>}
+                    {mintingStatus === 'error' && 'Error'}
                   </Button>
                 </div>
+              </div>
             </div>
           </GlassCard>
-        </div>
-      )}
-
-      {/* Connection Error Toast */}
-      {connectionError && (
-        <div className="fixed bottom-24 md:bottom-8 left-1/2 transform -translate-x-1/2 z-[150] animate-in slide-in-from-bottom duration-300">
-          <div className="bg-red-500/90 backdrop-blur-xl text-white px-6 py-4 rounded-2xl shadow-2xl border border-red-400/30 flex items-center gap-3 max-w-md">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-            <p className="text-sm font-medium">{connectionError}</p>
-            <button 
-              onClick={() => {
-                setConnectionError(null);
-                if (errorTimeoutRef.current) {
-                  clearTimeout(errorTimeoutRef.current);
-                  errorTimeoutRef.current = null;
-                }
-              }}
-              className="ml-auto p-1 hover:bg-white/20 rounded-lg transition-colors"
-            >
-              <X size={16} />
-            </button>
-          </div>
         </div>
       )}
     </div>
