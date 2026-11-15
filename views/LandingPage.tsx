@@ -27,7 +27,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
   useEffect(() => {
     if (!prefetchStarted.current) {
       prefetchStarted.current = true;
-      console.log('🚀 Prefetching feed in background while on landing page...');
+      console.log('Prefetching feed in background while on landing page...');
       DataService.getFeedProgressive(false);
     }
   }, []);
@@ -289,7 +289,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
 
           <div id="features" className="pt-10">
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
-              Why <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">BSN</span>?
+              Why <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">SSN</span>?
             </h2>
             <p className="text-gray-400 text-center mb-12 max-w-xl mx-auto">
               Built for privacy, designed for the future of decentralized communication.
@@ -357,7 +357,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp }) => {
           </div>
           <div className="text-center pt-4 border-t border-white/5">
             <p className="text-gray-600 text-xs max-w-2xl mx-auto">
-              BSN is a decentralized social platform. We never ask for your private keys or seed phrases.
+              SSN is a decentralized social platform. We never ask for your private keys or seed phrases.
               Wallet connections are handled securely through your browser extension.
               Always verify you are on the official site before connecting.
             </p>

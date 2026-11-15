@@ -56,7 +56,6 @@ export const BlogView: React.FC<BlogViewProps> = ({ onBack }) => {
     return `<p class="text-gray-300 leading-relaxed mb-4">${html}</p>`;
   };
 
-  // Blog detail view
   if (selectedBlog) {
     return (
       <div className="min-h-screen">
@@ -133,7 +132,6 @@ export const BlogView: React.FC<BlogViewProps> = ({ onBack }) => {
     );
   }
 
-  // Blog list view
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -156,7 +154,7 @@ export const BlogView: React.FC<BlogViewProps> = ({ onBack }) => {
             
             <div>
               <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">Blog</h1>
-              <p className="text-gray-400 mt-1 text-lg">Insights, updates, and stories from BSN</p>
+              <p className="text-gray-400 mt-1 text-lg">Insights, updates, and stories from SSN</p>
             </div>
           </div>
         </div>

@@ -4,22 +4,22 @@ import { FirebaseService } from './firebaseService';
 import { EncryptionService } from './encryptionService';
 import { SolanaBlockchainService } from './solanaBlockchainService';
 
-// Export SolanaBlockchainService as BlockchainService for compatibility
+// Older call sites import this name.
 export const BlockchainService = SolanaBlockchainService;
 
-// --- Post Cache (Aggressive caching like major social platforms) ---
+// Served immediately, refreshed in the background once it goes stale.
 interface PostCache {
   posts: Post[];
   timestamp: number;
-  ttl: number; // Time to live in ms
-  staleTime: number; // When to background refresh
+  ttl: number;
+  staleTime: number;
 }
 let feedCache: PostCache | null = null;
-const CACHE_TTL = 300000; // 5 minutes cache - aggressive like X/Facebook
-const STALE_TIME = 60000; // Background refresh after 1 minute
+const CACHE_TTL = 300000;
+const STALE_TIME = 60000;
 let backgroundRefreshInProgress = false;
 
-// --- Progressive Loading State ---
+// Counters handed to feed subscribers with each update.
 interface StreamState {
   isLoading: boolean;
   loadedCount: number;
@@ -33,7 +33,6 @@ let streamState: StreamState = {
   hasMore: false
 };
 
-// --- Feed Update Events (Enhanced for Streaming) ---
 type FeedUpdateCallback = () => void;
 type StreamUpdateCallback = (posts: Post[], state: StreamState) => void;
 const feedUpdateListeners: Set<FeedUpdateCallback> = new Set();
@@ -58,7 +57,7 @@ export const FeedEvents = {
 
 export const getStreamState = () => streamState;
 
-// --- Optimistic Posts Management (Like X.com - Instant Post Display) ---
+// Kept across cache refreshes until the mint confirms or fails.
 let optimisticPosts: Map<string, Post> = new Map();
 let confirmedTokenIds: Set<string> = new Set();
 
@@ -79,7 +78,7 @@ const mergeOptimisticPostsWithCache = (): void => {
 export const OptimisticPostService = {
   addOptimisticPost: (post: Post): void => {
     optimisticPosts.set(post.optimisticId!, post);
-    console.log('⚡ Added optimistic post:', post.optimisticId);
+    console.log('Added optimistic post:', post.optimisticId);
 
     if (feedCache) {
       feedCache.posts = [post, ...feedCache.posts.filter(p => p.optimisticId !== post.optimisticId)];
@@ -114,7 +113,7 @@ export const OptimisticPostService = {
   },
 
   confirmOptimisticPost: (optimisticId: string, confirmedPost: Post): void => {
-    console.log('✅ Confirming optimistic post:', optimisticId, 'with tokenId:', confirmedPost.tokenId);
+    console.log('Confirming optimistic post:', optimisticId, 'with tokenId:', confirmedPost.tokenId);
 
     confirmedTokenIds.add(optimisticId);
 
@@ -145,7 +144,7 @@ export const OptimisticPostService = {
   },
 
   removeOptimisticPost: (optimisticId: string): void => {
-    console.log('❌ Removing failed optimistic post:', optimisticId);
+    console.log('Removing failed optimistic post:', optimisticId);
     optimisticPosts.delete(optimisticId);
 
     if (feedCache) {
@@ -197,38 +196,33 @@ export const OptimisticPostService = {
   }
 };
 
-// --- Helper: Avatar Generator (Solana-themed, deterministic) ---
-// This ensures each Solana address gets a consistent, unique avatar
+// The address is the Dicebear seed, so the same wallet always gets the same avatar.
 export const generateAvatar = (address: string): string => {
   if (!address) {
     return `https://api.dicebear.com/7.x/shapes/svg?seed=default&backgroundColor=1e2329&shapeColor=9945ff`;
   }
 
-  // Convert address to a number for deterministic selection
   const addressHash = address.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  
-  // Solana-themed avatar styles (deterministic based on address)
+
   const styles = [
-    'shapes',      // Geometric shapes - modern crypto look
-    'bottts',      // Robot style - tech/crypto vibe
-    'avataaars',   // Cartoon style - friendly
-    'personas',    // More realistic - professional
-    'pixel-art',   // Pixel art - retro gaming
+    'shapes',
+    'bottts',
+    'avataaars',
+    'personas',
+    'pixel-art',
   ];
-  
-  // Solana brand colors
+
   const solanaColors = [
-    '9945ff', // Solana purple
-    '14f195', // Solana green
-    '00d4ff', // Solana cyan
-    'ff6b6b', // Coral
-    '4ecdc4', // Teal
-    'ffe66d', // Yellow
-    'a8e6cf', // Mint
-    'ff8b94', // Pink
+    '9945ff',
+    '14f195',
+    '00d4ff',
+    'ff6b6b',
+    '4ecdc4',
+    'ffe66d',
+    'a8e6cf',
+    'ff8b94',
   ];
-  
-  // Deterministically select style and colors based on address
+
   const styleIndex = addressHash % styles.length;
   const colorIndex = (addressHash * 7) % solanaColors.length;
   const secondaryColorIndex = (addressHash * 13) % solanaColors.length;
@@ -237,12 +231,10 @@ export const generateAvatar = (address: string): string => {
   const primaryColor = solanaColors[colorIndex];
   const secondaryColor = solanaColors[secondaryColorIndex];
   
-  // Generate avatar URL with Solana-themed colors
-  // Using the address as seed ensures same address = same avatar
   const baseUrl = `https://api.dicebear.com/7.x/${selectedStyle}/svg`;
   const params = new URLSearchParams({
     seed: address,
-    backgroundColor: '1e2329', // Dark background
+    backgroundColor: '1e2329',
     ...(selectedStyle === 'shapes' && {
       shapeColor: primaryColor,
       shapeColor2: secondaryColor,
@@ -265,17 +257,16 @@ export const generateAvatar = (address: string): string => {
   return `${baseUrl}?${params.toString()}`;
 };
 
-// --- Helper: Format Address ---
 export const formatAddress = (addr: string | undefined | null) => {
   if (!addr) return 'Unknown';
   if (addr.length < 8) return addr;
   return `${addr.substring(0, 4)}...${addr.substring(addr.length - 4)}`;
 };
 
-// --- Background Refresh Helper (avoids recursion) ---
+// Separate from getFeed so a stale cache hit cannot recurse into itself.
 const refreshFeedInBackground = async (): Promise<void> => {
   try {
-    console.log('🔄 Background: Fetching fresh feed from Firebase...');
+    console.log('Background: Fetching fresh feed from Firebase...');
     const allPosts = await FirebaseService.getPosts(50); // Fetch last 50 posts
 
     feedCache = {
@@ -287,26 +278,23 @@ const refreshFeedInBackground = async (): Promise<void> => {
 
     OptimisticPostService.reapplyOptimisticPosts();
 
-    console.log(`✅ Background refresh complete: ${allPosts.length} posts`);
+    console.log(`Background refresh complete: ${allPosts.length} posts`);
     FeedEvents.emit();
   } catch (error) {
     console.error('Background refresh failed:', error);
   }
 };
 
-// --- Service: Data/Firebase ---
 export const DataService = {
   getFeed: async (forceRefresh = false): Promise<Post[]> => {
     try {
       const now = Date.now();
 
-      // Return cached immediately if valid (within TTL) and not forcing refresh
       if (!forceRefresh && feedCache && (now - feedCache.timestamp < feedCache.ttl)) {
-        console.log('📦 Returning cached feed (instant)');
+        console.log('Returning cached feed (instant)');
 
-        // Background refresh if stale but still valid (separate helper to avoid recursion)
         if (now - feedCache.timestamp > STALE_TIME && !backgroundRefreshInProgress) {
-          console.log('🔄 Starting background refresh...');
+          console.log('Starting background refresh...');
           backgroundRefreshInProgress = true;
           refreshFeedInBackground().finally(() => {
             backgroundRefreshInProgress = false;
@@ -316,7 +304,7 @@ export const DataService = {
         return feedCache.posts;
       }
 
-      console.log('🔄 Fetching fresh feed from Firebase...');
+      console.log('Fetching fresh feed from Firebase...');
       const allPosts = await FirebaseService.getPosts(50);
 
       feedCache = {
@@ -326,21 +314,20 @@ export const DataService = {
         staleTime: STALE_TIME
       };
 
-      console.log(`✅ Loaded ${allPosts.length} posts`);
+      console.log(`Loaded ${allPosts.length} posts`);
       return allPosts;
     } catch (error) {
       console.error('Error fetching feed:', error);
-      // Return stale cache if available on error
       if (feedCache) {
-        console.log('⚠️ Using stale cache due to error');
+        console.log('Using stale cache due to error');
         return feedCache.posts;
       }
       return [];
     }
   },
 
+  // One Firebase page. The name is historical; nothing is streamed.
   getFeedProgressive: async (forceRefresh = false): Promise<void> => {
-    // Simplified for now - just load the feed
     const posts = await DataService.getFeed(forceRefresh);
 
     streamState = {
@@ -353,29 +340,25 @@ export const DataService = {
     FeedEvents.emitStream(posts, streamState);
   },
 
-  // Get posts by specific owner address - uses cache for instant loading
   getPostsByOwner: async (ownerAddress: string): Promise<Post[]> => {
     try {
       const normalizedOwner = ownerAddress.toLowerCase();
 
-      // First, try to get from cache for instant results
       if (feedCache && (Date.now() - feedCache.timestamp < feedCache.ttl)) {
         const cachedPosts = feedCache.posts.filter(
           post => post.author.address.toLowerCase() === normalizedOwner
         );
-        console.log(`⚡ Instant load: ${cachedPosts.length} posts for ${formatAddress(ownerAddress)} from cache`);
+        console.log(`Instant load: ${cachedPosts.length} posts for ${formatAddress(ownerAddress)} from cache`);
         return cachedPosts;
       }
 
-      // If no cache, fetch the full feed (this populates the cache)
       const allPosts = await DataService.getFeed();
 
-      // Filter for this owner
       const ownerPosts = allPosts.filter(
         post => post.author.address.toLowerCase() === normalizedOwner
       );
 
-      console.log(`✅ Loaded ${ownerPosts.length} posts for user ${formatAddress(ownerAddress)}`);
+      console.log(`Loaded ${ownerPosts.length} posts for user ${formatAddress(ownerAddress)}`);
       return ownerPosts;
     } catch (error) {
       console.error('Error fetching posts by owner:', error);
@@ -383,7 +366,6 @@ export const DataService = {
     }
   },
 
-  // Get cached feed without fetching (for instant display)
   getCachedFeed: (): Post[] | null => {
     if (feedCache && (Date.now() - feedCache.timestamp < feedCache.ttl)) {
       return feedCache.posts;
@@ -391,16 +373,12 @@ export const DataService = {
     return null;
   },
 
-  // Check if cache is valid
   isCacheValid: (): boolean => {
     return feedCache !== null && (Date.now() - feedCache.timestamp < feedCache.ttl);
   },
 
-  // Invalidate cache (call after minting new post)
   invalidateCache: () => {
     feedCache = null;
-    console.log('🗑️ Feed cache invalidated');
-    // Notify all subscribers to refresh their feed
     FeedEvents.emit();
   },
 
@@ -464,10 +442,9 @@ export const DataService = {
       throw new Error('Please connect your wallet first');
     }
 
-    // Create chat ID using the same format as Firebase (sorted addresses)
+    // Same id format as Firebase: the two addresses, sorted.
     const chatId = [currentUser.address, address].sort().join('_');
 
-    // Fetch the user's profile to get their badge and other info
     let participantData: User = {
       address: address,
       ens: undefined,
@@ -494,7 +471,6 @@ export const DataService = {
       console.error('Error fetching participant profile:', error);
     }
 
-    // Create a new chat session
     const chatSession: ChatSession = {
       id: chatId,
       participant: participantData,
@@ -512,10 +488,7 @@ export const DataService = {
     return chatSession;
   },
 
-  /**
-   * Subscribe to real-time messages (with automatic decryption)
-   * Filters out messages before the user's deletion timestamp
-   */
+  // Decrypts on the way out. Messages older than deletionTimestamp stay hidden.
   subscribeToMessages: (
     senderId: string,
     recipientId: string,
@@ -540,23 +513,15 @@ export const DataService = {
     }, deletionTimestamp);
   },
 
-  /**
-   * Get chat deletion timestamp for a user
-   */
   getChatDeletionTime: async (userId: string, otherUserId: string): Promise<number | null> => {
     return FirebaseService.getChatDeletionTime(userId, otherUserId);
   },
 
-  /**
-   * Hide chat for a specific user (preserves messages for other user)
-   */
+  // Hides the thread for this wallet only. The other participant still has it.
   hideChatForUser: async (userId: string, otherUserId: string): Promise<void> => {
     return FirebaseService.hideChatForUser(userId, otherUserId);
   },
 
-  /**
-   * Subscribe to real-time chats (with automatic decryption of last message)
-   */
   subscribeToChats: (
     userId: string,
     callback: (chats: ChatSession[]) => void

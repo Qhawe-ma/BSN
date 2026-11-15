@@ -411,11 +411,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ user, currentUser, onN
                     </div>
                     <div className="p-6 space-y-5">
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Display Name (ENS)</label>
+                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Display Name</label>
                             <Input 
                                 value={editEns} 
                                 onChange={(e) => setEditEns(e.target.value)} 
-                                placeholder="name.eth" 
+                                placeholder="Your name" 
                             />
                         </div>
                         

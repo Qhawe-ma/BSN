@@ -324,7 +324,7 @@ export const FirebaseService = {
           if (message.recipient?.toLowerCase() === normalizedCurrentUserId && !message.isRead) {
             updates[`${childSnapshot.key}/isRead`] = true;
             markedAny = true;
-            console.log('✅ Marking message as read:', childSnapshot.key, 'in chat:', chatId);
+            console.log('Marking message as read:', childSnapshot.key, 'in chat:', chatId);
           }
         });
 
@@ -362,7 +362,7 @@ export const FirebaseService = {
       const chatId = [normalizedSenderId, normalizedRecipientId].sort().join('_');
       const messageRef = ref(database, `chats/${chatId}/messages/${messageId}`);
       await remove(messageRef);
-      console.log('✅ Message deleted:', messageId);
+      console.log('Message deleted:', messageId);
     } catch (error) {
       console.error('Error deleting message:', error);
       throw new Error('Failed to delete message');
@@ -380,7 +380,7 @@ export const FirebaseService = {
       const chatId = [normalizedUserId, normalizedOtherUserId].sort().join('_');
       const chatRef = ref(database, `chats/${chatId}`);
       await remove(chatRef);
-      console.log('✅ Chat deleted:', chatId);
+      console.log('Chat deleted:', chatId);
     } catch (error) {
       console.error('Error deleting chat:', error);
       throw new Error('Failed to delete chat');
@@ -401,7 +401,7 @@ export const FirebaseService = {
         deletedAt: Date.now(),
         otherUser: normalizedOtherUserId
       });
-      console.log('✅ Chat hidden for user:', normalizedUserId, 'chatId:', chatId);
+      console.log('Chat hidden for user:', normalizedUserId, 'chatId:', chatId);
     } catch (error) {
       console.error('Error hiding chat for user:', error);
       throw new Error('Failed to hide chat');
@@ -438,7 +438,7 @@ export const FirebaseService = {
       const chatId = [normalizedUserId, normalizedOtherUserId].sort().join('_');
       const deletionRef = ref(database, `chatDeletions/${normalizedUserId}/${chatId}`);
       await remove(deletionRef);
-      console.log('✅ Chat deletion record cleared for user:', normalizedUserId);
+      console.log('Chat deletion record cleared for user:', normalizedUserId);
     } catch (error) {
       console.error('Error clearing chat deletion:', error);
     }
@@ -536,7 +536,7 @@ export const FirebaseService = {
       cleanUser.address = normalizedAddress;
 
       await set(userRef, cleanUser);
-      console.log('✅ User profile saved to Firebase:', normalizedAddress);
+      console.log('User profile saved to Firebase:', normalizedAddress);
     } catch (error) {
       console.error('Error saving user profile:', error);
       throw new Error('Failed to save user profile');
@@ -565,7 +565,7 @@ export const FirebaseService = {
         }
 
         await set(userRef, cleanUser);
-        console.log('✅ User profile updated:', normalizedAddress);
+        console.log('User profile updated:', normalizedAddress);
       }
     } catch (error) {
       console.error('Error updating user profile:', error);
@@ -630,7 +630,7 @@ export const FirebaseService = {
         });
       }
 
-      console.log('✅ Follow successful:', followerAddress, '->', targetAddress);
+      console.log('Follow successful:', followerAddress, '->', targetAddress);
     } catch (error) {
       console.error('Error following user:', error);
       throw new Error('Failed to follow user');
@@ -669,7 +669,7 @@ export const FirebaseService = {
         });
       }
 
-      console.log('✅ Unfollow successful:', followerAddress, '->', targetAddress);
+      console.log('Unfollow successful:', followerAddress, '->', targetAddress);
     } catch (error) {
       console.error('Error unfollowing user:', error);
       throw new Error('Failed to unfollow user');
@@ -789,7 +789,7 @@ export const FirebaseService = {
       // Convert Post object to Firebase-friendly format (remove undefined)
       const postData = JSON.parse(JSON.stringify(post));
       await set(postsRef, postData);
-      console.log('✅ Post saved to Firebase:', post.internalId);
+      console.log('Post saved to Firebase:', post.internalId);
     } catch (error) {
       console.error('Error saving post to Firebase:', error);
       throw error;
@@ -825,7 +825,7 @@ export const FirebaseService = {
       const statsRef = ref(database, `postStats/${postId}`);
       const stats = await FirebaseService.getPostStats(postId);
       await set(statsRef, { ...stats, txHash });
-      console.log('✅ Saved txHash for post:', postId);
+      console.log('Saved txHash for post:', postId);
     } catch (error) {
       console.error('Error saving txHash:', error);
     }
@@ -967,7 +967,7 @@ export const FirebaseService = {
       };
 
       await set(newReportRef, report);
-      console.log('✅ Post reported successfully');
+      console.log('Post reported successfully');
     } catch (error) {
       console.error('Error reporting post:', error);
       throw new Error('Failed to report post');
@@ -1035,7 +1035,7 @@ export const FirebaseService = {
         hiddenAt: Date.now(),
         reason: reason || 'Violated community guidelines'
       });
-      console.log('✅ Post hidden successfully:', postId);
+      console.log('Post hidden successfully:', postId);
     } catch (error) {
       console.error('Error hiding post:', error);
       throw new Error('Failed to hide post');
@@ -1049,7 +1049,7 @@ export const FirebaseService = {
     try {
       const hiddenRef = ref(database, `hiddenPosts/${postId}`);
       await set(hiddenRef, null);
-      console.log('✅ Post unhidden successfully:', postId);
+      console.log('Post unhidden successfully:', postId);
     } catch (error) {
       console.error('Error unhiding post:', error);
       throw new Error('Failed to unhide post');
@@ -1133,7 +1133,7 @@ export const FirebaseService = {
       };
 
       await set(newBlogRef, blogPost);
-      console.log('✅ Blog post created successfully');
+      console.log('Blog post created successfully');
       return newBlogRef.key || '';
     } catch (error) {
       console.error('Error creating blog post:', error);
@@ -1165,7 +1165,7 @@ export const FirebaseService = {
               updatedAt: Date.now()
             };
             await set(blogRef, updatedBlog);
-            console.log('✅ Blog post updated successfully');
+            console.log('Blog post updated successfully');
             resolve();
           } else {
             reject(new Error('Blog post not found'));
@@ -1185,7 +1185,7 @@ export const FirebaseService = {
     try {
       const blogRef = ref(database, `blogs/${blogId}`);
       await set(blogRef, null);
-      console.log('✅ Blog post deleted successfully');
+      console.log('Blog post deleted successfully');
     } catch (error) {
       console.error('Error deleting blog post:', error);
       throw new Error('Failed to delete blog post');

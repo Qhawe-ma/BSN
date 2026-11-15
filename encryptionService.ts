@@ -1,6 +1,7 @@
 const ENCRYPTION_ALGORITHM = 'AES-GCM';
 const KEY_LENGTH = 256;
 const IV_LENGTH = 12;
+// Shipped in the client. Do not change it; existing chats would not decrypt.
 const SHARED_APP_SECRET = 'bsn-blockchain-social-network-e2e-v1';
 
 const keyCache = new Map<string, CryptoKey>();

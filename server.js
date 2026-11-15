@@ -27,7 +27,6 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     const ext = path.extname(file.originalname).toLowerCase();
-    const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
     cb(null, `avatar-${uniqueSuffix}${ext}`);
   }
 });
@@ -70,7 +69,7 @@ const commentImageUpload = multer({
 
 app.use(express.json());
 
-// Security headers to improve browser trust
+// Clickjacking and MIME-sniffing headers.
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');

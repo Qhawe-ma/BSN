@@ -1,34 +1,18 @@
 import * as MetaplexSDK from '@metaplex-foundation/js';
 // Handle CJS/ESM interop for Vite alias
 const { Metaplex, walletAdapterIdentity } = (MetaplexSDK as any).default || MetaplexSDK;
-import { Connection, PublicKey, Keypair, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { connection, getSolBalance } from './solanaService';
 import { IPFSService } from './ipfsService';
 
-/**
- * Metaplex Service for minting posts as NFTs on Solana
- * Uses Pinata (IPFS) for off-chain metadata storage
- */
-
-/**
- * Initialize Metaplex instance with wallet
- */
+// Metadata is uploaded through Pinata before the mint, so Metaplex storage is unused.
 export const createMetaplex = (wallet: any) => {
     const metaplex = Metaplex.make(connection, { cluster: 'mainnet-beta' })
         .use(walletAdapterIdentity(wallet));
 
-    // We don't need bundlrStorage anymore as we handle upload manually via Pinata
-
     return metaplex;
 };
 
-/**
- * Mint a post as an NFT using Metaplex
- * @param wallet - Connected Solana wallet
- * @param content - Post content
- * @param imageUrl - Optional image URL (from IPFS)
- * @returns NFT mint address and metadata
- */
 export const mintPostNFT = async (
     wallet: any,
     content: string,
@@ -56,9 +40,9 @@ export const mintPostNFT = async (
         const MINIMUM_SOL_REQUIRED = 0.02; // ~0.015 for rent + buffer
         const balance = await getSolBalance(ownerPublicKey);
         
-        console.log('🎨 Minting post as NFT with Metaplex...');
-        console.log('🔑 Wallet publicKey:', ownerPublicKey.toString());
-        console.log(`💰 Current balance: ${balance.toFixed(4)} SOL`);
+        console.log('Minting post as NFT with Metaplex...');
+        console.log('Wallet publicKey:', ownerPublicKey.toString());
+        console.log(`Current balance: ${balance.toFixed(4)} SOL`);
 
         if (balance < MINIMUM_SOL_REQUIRED) {
             const needed = (MINIMUM_SOL_REQUIRED - balance).toFixed(4);
@@ -100,13 +84,13 @@ export const mintPostNFT = async (
             },
         };
 
-        console.log('📝 Uploading metadata to Pinata/IPFS...', metadata);
+        console.log('Uploading metadata to Pinata/IPFS...', metadata);
 
         // Manually upload metadata to Pinata (IPFS)
         const ipfsHash = await IPFSService.uploadMetadata(metadata as any);
         const metadataUri = IPFSService.getIPFSUrl(ipfsHash);
 
-        console.log('✅ Metadata uploaded to:', metadataUri);
+        console.log('Metadata uploaded to:', metadataUri);
 
         // Mint NFT using the pre-uploaded metadata URI
         // Using optimized settings for cost efficiency:
@@ -129,10 +113,10 @@ export const mintPostNFT = async (
             maxSupply: 1, // Only one copy (cheaper than collection)
         });
 
-        console.log('✅ Post NFT minted successfully!');
-        console.log('🔗 Mint Address:', nft.address.toString());
-        console.log('📋 Metadata URI:', nft.uri);
-        console.log('📡 Transaction:', response.signature);
+        console.log('Post NFT minted successfully!');
+        console.log('Mint Address:', nft.address.toString());
+        console.log('Metadata URI:', nft.uri);
+        console.log('Transaction:', response.signature);
 
         return {
             mintAddress: nft.address.toString(),
@@ -176,25 +160,7 @@ export const mintPostNFT = async (
     }
 };
 
-/**
- * Get NFT metadata from mint address
- */
-export const getNFTMetadata = async (mintAddress: string) => {
-    try {
-        const metaplex = Metaplex.make(connection);
-        const nft = await metaplex.nfts().findByMint({
-            mintAddress: new PublicKey(mintAddress),
-        });
-
-        return nft;
-    } catch (error) {
-        console.error('Error fetching NFT metadata:', error);
-        return null;
-    }
-};
-
 export const MetaplexService = {
     createMetaplex,
     mintPostNFT,
-    getNFTMetadata,
 };

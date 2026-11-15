@@ -787,7 +787,7 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
       setLoading(false);
 
       if (!forceRefresh && DataService.isCacheValid()) {
-        console.log('📦 Using cached feed - instant load');
+        console.log('Using cached feed - instant load');
         return;
       }
     }
@@ -826,7 +826,7 @@ export const FeedView: React.FC<{ type: 'global' | 'following'; onUserClick: (us
 
   useEffect(() => {
     const unsubscribe = FeedEvents.subscribe(() => {
-      console.log('📡 Feed update received');
+      console.log('Feed update received');
       const cached = DataService.getCachedFeed();
       if (cached && cached.length > 0) {
         setPosts(cached);
