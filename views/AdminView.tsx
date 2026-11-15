@@ -17,15 +17,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'reports' | 'hidden' | 'blogs' | 'badges' | 'users'>('reports');
   
-  // Reports state
   const [reports, setReports] = useState<any[]>([]);
   const [loadingReports, setLoadingReports] = useState(false);
   
-  // Hidden posts state
   const [hiddenPosts, setHiddenPosts] = useState<string[]>([]);
   const [loadingHidden, setLoadingHidden] = useState(false);
   
-  // Blog state
   const [blogs, setBlogs] = useState<any[]>([]);
   const [loadingBlogs, setLoadingBlogs] = useState(false);
   const [showBlogEditor, setShowBlogEditor] = useState(false);
@@ -41,12 +38,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Badge state
   const [badges, setBadges] = useState<any[]>([]);
   const [loadingBadges, setLoadingBadges] = useState(false);
   const [badgeFilter, setBadgeFilter] = useState<'all' | 'pending' | 'active' | 'expired'>('pending');
 
-  // Users state
   const [users, setUsers] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [userSearch, setUserSearch] = useState('');
@@ -55,7 +50,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [selectedBadgeType, setSelectedBadgeType] = useState<BadgeType>('blue');
 
-  // Badge password gate state
   const [showBadgePasswordModal, setShowBadgePasswordModal] = useState(false);
   const [badgePassword, setBadgePassword] = useState('');
   const [showBadgePassword, setShowBadgePassword] = useState(false);
@@ -67,7 +61,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     userAddress?: string;
   } | null>(null);
 
-  // Handle login
   const handleLogin = async () => {
     if (!password.trim()) {
       setError('Please enter a password');
@@ -100,7 +93,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Check session on mount
   useEffect(() => {
     const isAuth = sessionStorage.getItem('adminAuth');
     if (isAuth === 'true') {
@@ -109,7 +101,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   }, []);
 
-  // Load all data
   const loadData = async () => {
     loadReports();
     loadHiddenPosts();
@@ -118,7 +109,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     loadUsers();
   };
 
-  // Load reports
   const loadReports = async () => {
     setLoadingReports(true);
     try {
@@ -131,7 +121,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Load hidden posts
   const loadHiddenPosts = async () => {
     setLoadingHidden(true);
     try {
@@ -144,7 +133,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Load blogs
   const loadBlogs = async () => {
     setLoadingBlogs(true);
     try {
@@ -157,7 +145,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Load badges
   const loadBadges = async () => {
     setLoadingBadges(true);
     try {
@@ -170,7 +157,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Load users
   const loadUsers = async () => {
     setLoadingUsers(true);
     try {
@@ -183,7 +169,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Approve badge
   const handleApproveBadge = async (badgeId: string) => {
     try {
       await FirebaseService.updateBadgeStatus(badgeId, 'active', 'admin');
@@ -195,7 +180,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Reject badge
   const handleRejectBadge = async (badgeId: string) => {
     try {
       await FirebaseService.updateBadgeStatus(badgeId, 'rejected', undefined, 'Rejected by admin');
@@ -207,7 +191,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Verify badge password
   const verifyBadgePassword = async (): Promise<boolean> => {
     if (!badgePassword.trim()) {
       setBadgePasswordError('Please enter the badge password');
@@ -240,7 +223,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Handle badge password submit
   const handleBadgePasswordSubmit = async () => {
     const isValid = await verifyBadgePassword();
     if (!isValid) return;
@@ -258,7 +240,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     setPendingBadgeAction(null);
   };
 
-  // Close badge password modal
   const closeBadgePasswordModal = () => {
     setShowBadgePasswordModal(false);
     setBadgePassword('');
@@ -315,13 +296,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Filter badges
   const filteredBadges = badges.filter(badge => {
     if (badgeFilter === 'all') return true;
     return badge.status === badgeFilter;
   });
 
-  // Filter users by search
   const filteredUsers = users.filter(user => {
     if (!userSearch.trim()) return true;
     const search = userSearch.toLowerCase();
@@ -329,7 +308,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
            (user.ens && user.ens.toLowerCase().includes(search));
   });
 
-  // Handle hide post
   const handleHidePost = async (postId: string, reportId?: string) => {
     try {
       await FirebaseService.hidePost(postId);
@@ -344,7 +322,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Handle unhide post
   const handleUnhidePost = async (postId: string) => {
     try {
       await FirebaseService.unhidePost(postId);
@@ -355,7 +332,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Handle dismiss report
   const handleDismissReport = async (reportId: string) => {
     try {
       await FirebaseService.updateReportStatus(reportId, 'dismissed');
@@ -366,7 +342,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Handle delete report
   const handleDeleteReport = async (reportId: string) => {
     try {
       await FirebaseService.deleteReport(reportId);
@@ -377,7 +352,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Open blog editor
   const openBlogEditor = (blog?: any) => {
     if (blog) {
       setEditingBlog(blog);
@@ -395,7 +369,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     setShowBlogEditor(true);
   };
 
-  // Save blog
   const handleSaveBlog = async () => {
     if (!blogForm.title.trim() || !blogForm.content.trim()) {
       alert('Title and content are required');
@@ -420,7 +393,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
           excerpt: blogForm.excerpt,
           content: blogForm.content,
           coverImage: blogForm.coverImage,
-          author: 'BSN Team',
+          author: 'SSN Team',
           tags
         });
       }
@@ -435,7 +408,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Delete blog
   const handleDeleteBlog = async (blogId: string) => {
     if (!confirm('Are you sure you want to delete this blog post?')) return;
     
@@ -499,7 +471,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     });
   };
 
-  // Handle image upload
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -529,7 +500,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Remove cover image
   const handleRemoveImage = () => {
     setBlogForm({ ...blogForm, coverImage: '' });
     if (fileInputRef.current) {
@@ -537,7 +507,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     }
   };
 
-  // Format date
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -548,14 +517,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     });
   };
 
-  // Logout
   const handleLogout = () => {
     sessionStorage.removeItem('adminAuth');
     setIsAuthenticated(false);
     setPassword('');
   };
 
-  // Login screen
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -619,7 +586,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ onBack }) => {
     );
   }
 
-  // Admin dashboard
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-6 pb-24 md:pb-6">
       {/* Header */}

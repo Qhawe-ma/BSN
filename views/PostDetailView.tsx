@@ -50,7 +50,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({
       setError(null);
 
       try {
-        // FAST LOADING: Try cached feed first for instant render
+        // Paint from the feed cache before the network round trip.
         let posts = DataService.getCachedFeed();
         let foundPost = posts?.find(p => p.tokenId === postId);
 

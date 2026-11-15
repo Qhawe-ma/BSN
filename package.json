@@ -1,10 +1,10 @@
 {
-  "name": "bsn",
+  "name": "ssn",
+  "description": "SSN, a Solana social app",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "preinstall": "node -e \"try { require('fs').rmSync('node_modules', { recursive: true, force: true, maxRetries: 3 }); } catch(e) {}\"",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
@@ -27,6 +27,7 @@
     "axios": "^1.13.2",
     "core-util-is": "^1.0.3",
     "derive-valtio": "^0.2.0",
+    "express": "^5.1.0",
     "firebase": "^12.6.0",
     "lucide-react": "^0.554.0",
     "multer": "^2.0.2",

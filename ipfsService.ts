@@ -1,9 +1,7 @@
 import axios from 'axios';
 
-// ⚠️ SECURITY WARNING: 
-// Pinata secret keys are currently exposed in the frontend.
-// For production, move IPFS uploads to a backend API proxy to protect these credentials.
-// This is a temporary solution for development/testing purposes.
+// The Pinata secret is sent from the browser. Proxy this through a server
+// before treating the deployment as production.
 const PINATA_API_KEY = import.meta.env.VITE_PINATA_API_KEY;
 const PINATA_SECRET_KEY = import.meta.env.VITE_PINATA_SECRET_KEY;
 const PINATA_API_URL = 'https://api.pinata.cloud';
@@ -16,16 +14,13 @@ export interface PostMetadata {
 }
 
 export const IPFSService = {
-  /**
-   * Upload image to IPFS via Pinata
-   */
   uploadImage: async (file: File): Promise<string> => {
     try {
       const formData = new FormData();
       formData.append('file', file);
 
       const metadata = JSON.stringify({
-        name: `BSN_Image_${Date.now()}`,
+        name: `SSN_Image_${Date.now()}`,
       });
       formData.append('pinataMetadata', metadata);
 
@@ -47,9 +42,6 @@ export const IPFSService = {
     }
   },
 
-  /**
-   * Upload post metadata to IPFS via Pinata
-   */
   uploadMetadata: async (metadata: PostMetadata): Promise<string> => {
     try {
       const response = await axios.post(
@@ -57,7 +49,7 @@ export const IPFSService = {
         {
           pinataContent: metadata,
           pinataMetadata: {
-            name: `BSN_Post_${Date.now()}`,
+            name: `SSN_Post_${Date.now()}`,
           },
         },
         {
@@ -76,11 +68,8 @@ export const IPFSService = {
     }
   },
 
-  /**
-   * Get IPFS URL for a hash using CORS-friendly gateways
-   */
+  // w3s.link allows browser fetches. Several other public gateways do not.
   getIPFSUrl: (hash: string): string => {
-    // Use w3s.link gateway (CORS-friendly and reliable from web3.storage)
     return `https://w3s.link/ipfs/${hash}`;
   },
 };

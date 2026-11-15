@@ -41,13 +41,13 @@ export interface Post {
   ipfsHash: string;
   txHash: string;
   attachmentUrl?: string;
-  isLiked?: boolean; // Contextual to current user
-  isRepost?: boolean; // If this post is a repost of another
-  originalPostId?: string; // Token ID of original post if this is a repost
-  originalAuthor?: User; // Original author if this is a repost
-  contractAddress?: string; // The contract address this post was minted on
-  isOptimistic?: boolean; // True if post is pending blockchain confirmation
-  optimisticId?: string; // Temporary ID for optimistic posts
+  isLiked?: boolean;
+  isRepost?: boolean;
+  originalPostId?: string;
+  originalAuthor?: User;
+  contractAddress?: string;
+  isOptimistic?: boolean; // Shown before the mint confirms
+  optimisticId?: string;
   optimisticStatus?: 'pending' | 'confirming' | 'confirmed' | 'failed'; // Status of optimistic post
 }
 
@@ -85,9 +85,9 @@ export enum ViewState {
   CHAT = 'CHAT',
   PROFILE = 'PROFILE',
   DASHBOARD = 'DASHBOARD',
-  CREATE = 'CREATE', // Mobile only mostly
-  POST_DETAIL = 'POST_DETAIL', // Single post view
-  ADMIN = 'ADMIN', // Admin panel
-  BLOGS = 'BLOGS', // Blog section
-  PREMIUM = 'PREMIUM' // Premium subscription
+  CREATE = 'CREATE',
+  POST_DETAIL = 'POST_DETAIL',
+  ADMIN = 'ADMIN',
+  BLOGS = 'BLOGS',
+  PREMIUM = 'PREMIUM'
 }

@@ -65,12 +65,10 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
 
       setPurchaseStatus('confirming');
 
-      // Send SOL payment
       const signature = await SolanaService.sendPremiumPayment(wallet.adapter, price.sol);
 
       console.log('Transaction sent:', signature);
 
-      // Create badge and activate immediately
       if (userAddress) {
         await FirebaseService.purchaseAndActivateBadge(
           userAddress,
@@ -107,7 +105,6 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
     { icon: <Sparkles size={20} />, title: '30-Day Duration', desc: 'Badge valid for 30 days' },
   ];
 
-  // Show existing badge status
   if (existingBadge) {
     const expiryDate = new Date(existingBadge.expiryDate);
     const daysLeft = Math.ceil((existingBadge.expiryDate - Date.now()) / (1000 * 60 * 60 * 24));
@@ -166,7 +163,6 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
     );
   }
 
-  // Show success after purchase
   if (purchasedBadge || purchaseStatus === 'success') {
     return (
       <div className="min-h-screen pb-32 md:pb-8">
@@ -235,7 +231,7 @@ export const PremiumView: React.FC<PremiumViewProps> = ({ onBack, userAddress })
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary to-yellow-500 rounded-3xl mb-6 shadow-2xl shadow-primary/30">
             <Crown size={40} className="text-black" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">BSN Premium</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">SSN Premium</h1>
           <p className="text-gray-400 text-lg max-w-md mx-auto">
             Get verified and stand out with a premium badge
           </p>

@@ -7,13 +7,11 @@ import {
     TorusWalletAdapter,
     LedgerWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
-import { WalletAdapterNetwork, WalletError } from '@solana/wallet-adapter-base';
+import { WalletError } from '@solana/wallet-adapter-base';
 
-// Import wallet adapter CSS
 import '@solana/wallet-adapter-react-ui/styles.css';
 
-// Custom wallet button styles - must load after wallet adapter CSS
-// Includes mobile-specific overrides to ensure rounded corners on all devices
+// Injected after the adapter stylesheet, which sets its own border radius.
 const walletButtonStyles = `
   .wallet-button-rounded,
   .wallet-button-rounded *,
@@ -58,7 +56,6 @@ const walletButtonStyles = `
   }
 `;
 
-// Inject styles after wallet adapter CSS loads
 if (typeof document !== 'undefined') {
   const styleSheet = document.createElement('style');
   styleSheet.textContent = walletButtonStyles;
@@ -68,10 +65,6 @@ if (typeof document !== 'undefined') {
 const HELIUS_RPC_URL = import.meta.env.VITE_HELIUS_RPC_URL || 'https://api.mainnet-beta.solana.com';
 
 export const WalletContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
-    // Use mainnet
-    const network = WalletAdapterNetwork.Mainnet;
-
-    // Configure wallets
     const wallets = useMemo(
         () => [
             new PhantomWalletAdapter(),
@@ -82,13 +75,11 @@ export const WalletContextProvider: FC<{ children: ReactNode }> = ({ children })
         []
     );
 
-    // Handle wallet errors gracefully
     const onError = useCallback((error: WalletError) => {
-        // Only log non-user-initiated errors (like auto-connect failures)
+        // Auto-connect failures are noisy and not actionable. The user can connect manually.
         if (error.name !== 'WalletConnectionError' || !error.message.includes('Unexpected error')) {
             console.warn('Wallet adapter error:', error);
         }
-        // Silently ignore auto-connect failures - user can manually connect
     }, []);
 
     return (

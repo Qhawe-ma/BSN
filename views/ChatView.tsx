@@ -15,7 +15,6 @@ interface ChatViewProps {
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, initialChatTarget, onClearChatTarget }) => {
-  // State
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -79,12 +78,10 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     }
   }, [readChatIds]);
 
-  // Refs & Responsive
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
 
-  // Effects
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
@@ -301,7 +298,6 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     openOrCreateChat();
   }, [initialChatTarget, currentUser]);
 
-  // Handlers
   const handleSend = async () => {
     if (!inputValue.trim() || !currentUser || !activeSession) return;
 
@@ -431,7 +427,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
       setShowDeleteChatConfirm(false);
       setMessages([]);
 
-      console.log('✅ Chat hidden for user, deletion timestamp saved:', participantAddress);
+      console.log('Chat hidden for user, deletion timestamp saved:', participantAddress);
     } catch (error) {
       console.error('Error hiding chat:', error);
     }
@@ -470,7 +466,6 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
     setDeletingMessageId(messageId);
   };
 
-  // Logic for View Toggle
   const showList = isMobileView ? !activeSessionId : isSidebarOpen;
   const showChat = isMobileView ? activeSessionId : true;
 
@@ -618,7 +613,6 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
                       <span className="text-gray-600">•</span>
                       <button
                         onClick={async () => {
-                          // Generate sample encrypted text for demo
                           if (currentUser && activeSession) {
                             try {
                               const sample = await EncryptionService.encrypt(
@@ -816,7 +810,6 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onUserClick, in
               </div>
             </>
           ) : (
-            // Empty State
             <div className="flex flex-col items-center justify-center h-full text-gray-500 space-y-6 p-8 text-center">
               <div className="relative group">
                 <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>

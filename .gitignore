@@ -23,6 +23,16 @@ dist-ssr
 *.sln
 *.sw?
 
+# Secrets
+.env
+.env.*
+!.env.example
+
+# User uploads. The directories stay; their contents do not.
+uploads/avatars/*
+uploads/comments/*
+!uploads/avatars/.gitkeep
+!uploads/comments/.gitkeep
+
 # Large video files
-uploads/comments/*.mp4
 **/BSN NEW FINAL.mp4

@@ -7,7 +7,6 @@ import { BlockchainService, DataService, OptimisticPostService, formatAddress } 
 import { FirebaseService } from './firebaseService';
 import { Button, GlassCard, Avatar } from './components/UIComponents';
 
-// Views - eagerly loaded for instant navigation
 import { FeedView } from './views/FeedView';
 import { ChatView } from './views/ChatView';
 import { ProfileView } from './views/ProfileView';
@@ -18,7 +17,6 @@ import { BlogView } from './views/BlogView';
 import { PremiumView } from './views/PremiumView';
 import { LandingPage } from './views/LandingPage';
 
-// Guest Protection Component
 const ConnectWalletPrompt: React.FC<{ title?: string, subtitle?: string }> = ({ title = "Connect Wallet", subtitle = "You need to connect your wallet to access this feature." }) => (
   <div className="flex flex-col items-center justify-center h-[70vh] text-center px-4">
     <div className="relative group mb-8">
@@ -68,7 +66,6 @@ const App: React.FC = () => {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [viewingProfileUser, setViewingProfileUser] = useState<User | null>(null);
 
-  // Create Post State
   const [isCreating, setIsCreating] = useState(false);
   const [postContent, setPostContent] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -76,25 +73,19 @@ const App: React.FC = () => {
   const [mintingStatus, setMintingStatus] = useState<'idle' | 'uploading' | 'confirming' | 'success' | 'error'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Chat target for navigating from profile Message button
   const [chatTarget, setChatTarget] = useState<string | null>(null);
-
-  // Post detail view
   const [viewingPostId, setViewingPostId] = useState<string | null>(null);
 
-  // --- Handle Wallet Connection/Disconnection ---
   useEffect(() => {
     const handleWalletConnection = async () => {
       if (connected && publicKey) {
         const address = publicKey.toString();
-        console.log('🔗 Wallet connected:', address);
+        console.log('Wallet connected:', address);
 
         try {
-          // Use silent reconnect logic to get/create user profile
           const connectedUser = await BlockchainService.silentReconnect(address);
 
           if (connectedUser) {
-            // Set user online status
             await FirebaseService.setUserOnline(connectedUser.address, true);
             setUser(connectedUser);
             localStorage.setItem('walletAddress', address);
@@ -103,7 +94,6 @@ const App: React.FC = () => {
           console.error('Error handling wallet connection:', error);
         }
       } else {
-        // Disconnected
         if (user) {
           await FirebaseService.setUserOnline(user.address, false);
         }
@@ -115,21 +105,17 @@ const App: React.FC = () => {
     handleWalletConnection();
   }, [connected, publicKey]);
 
-  // --- Preload feed data in background for instant loading ---
   useEffect(() => {
     DataService.getFeedProgressive(false);
   }, []);
 
-  // --- Keep user online with heartbeat ---
   useEffect(() => {
     if (!user) return;
 
-    // Update online status every 1 minute
     const heartbeat = setInterval(() => {
       FirebaseService.setUserOnline(user.address, true);
     }, 60 * 1000); // 1 minute
 
-    // Mark offline when page closes/reloads
     const handleBeforeUnload = () => {
       FirebaseService.setUserOnline(user.address, false);
     };
@@ -142,24 +128,21 @@ const App: React.FC = () => {
     };
   }, [user]);
 
-  // --- Check for shared profile link in URL ---
   useEffect(() => {
     const loadSharedProfile = async () => {
       const urlParams = new URLSearchParams(window.location.search);
       const profileAddress = urlParams.get('profile');
 
       if (profileAddress) {
-        console.log('🔗 Loading shared profile:', profileAddress);
+        console.log('Loading shared profile:', profileAddress);
         try {
-          // Load the profile from Firebase
           const profileUser = await FirebaseService.getUserProfile(profileAddress);
 
           if (profileUser) {
             setViewingProfileUser(profileUser);
             setView(ViewState.PROFILE);
-            console.log('✅ Shared profile loaded successfully');
+            console.log('Shared profile loaded successfully');
           } else {
-            // If profile doesn't exist in Firebase, create a basic one
             const basicProfile: User = {
               address: profileAddress,
               followers: 0,
@@ -169,7 +152,7 @@ const App: React.FC = () => {
             };
             setViewingProfileUser(basicProfile);
             setView(ViewState.PROFILE);
-            console.log('✅ Shared profile loaded (basic profile)');
+            console.log('Shared profile loaded (basic profile)');
           }
         } catch (error) {
           console.error('Failed to load shared profile:', error);
@@ -180,7 +163,6 @@ const App: React.FC = () => {
     loadSharedProfile();
   }, []);
 
-  // --- Check for shared post link or special pages in URL ---
   useEffect(() => {
     const handleInitialRoute = () => {
       const pathname = window.location.pathname;
@@ -189,14 +171,14 @@ const App: React.FC = () => {
 
       if (postMatch) {
         const postId = postMatch[1];
-        console.log('🔗 Loading shared post:', postId);
+        console.log('Loading shared post:', postId);
         setViewingPostId(postId);
         setView(ViewState.POST_DETAIL);
       } else if (pathname === '/admin') {
-        console.log('🔗 Loading admin panel');
+        console.log('Loading admin panel');
         setView(ViewState.ADMIN);
       } else if (blogMatch || pathname === '/blogs') {
-        console.log('🔗 Loading blog');
+        console.log('Loading blog');
         setView(ViewState.BLOGS);
       }
     };
@@ -204,7 +186,6 @@ const App: React.FC = () => {
     handleInitialRoute();
   }, []);
 
-  // --- Handle browser back/forward button ---
   useEffect(() => {
     const handlePopState = () => {
       const pathname = window.location.pathname;
@@ -228,7 +209,6 @@ const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // --- Logout Handler ---
   const handleLogout = async () => {
     if (user) {
       await FirebaseService.setUserOnline(user.address, false);
@@ -238,27 +218,22 @@ const App: React.FC = () => {
     setViewingProfileUser(null);
     localStorage.removeItem('walletAddress');
     setView(ViewState.FEED);
-    console.log('✅ Logged out successfully');
+    console.log('Logged out successfully');
   };
 
-  // --- Navigation Handlers ---
   const handleNavigateToProfile = async (targetUser: User) => {
-    // Fetch real user data from Firebase
     try {
       const firebaseUser = await FirebaseService.getUserProfile(targetUser.address);
       if (firebaseUser) {
-        // Merge blockchain data with Firebase data
         setViewingProfileUser({
           ...targetUser,
           ...firebaseUser
         });
       } else {
-        // If no Firebase profile exists, use the basic user data
         setViewingProfileUser(targetUser);
       }
     } catch (error) {
       console.error('Failed to load user profile from Firebase:', error);
-      // Fallback to basic user data
       setViewingProfileUser(targetUser);
     }
     setView(ViewState.PROFILE);
@@ -279,18 +254,15 @@ const App: React.FC = () => {
 
   const handleUpdateProfile = async (updatedFields: Partial<User>) => {
     if (user) {
-      // Save to Firebase
       try {
         await FirebaseService.updateUserProfile(user.address, updatedFields);
-        console.log('✅ Profile updated successfully');
+        console.log('Profile updated successfully');
 
-        // Reload from Firebase to get canonical data
         const firebaseUser = await FirebaseService.getUserProfile(user.address);
         if (firebaseUser) {
           const updatedUser = { ...user, ...firebaseUser };
           setUser(updatedUser);
 
-          // If we are viewing our own profile, update that view as well
           if (viewingProfileUser && viewingProfileUser.address === user.address) {
             setViewingProfileUser(updatedUser);
           }
@@ -310,10 +282,8 @@ const App: React.FC = () => {
     try {
       const firebaseUser = await FirebaseService.getUserProfile(targetUser.address);
       if (firebaseUser) {
-        // Update the viewing profile user
         setViewingProfileUser(firebaseUser);
 
-        // If this is the current user's profile, update that too
         if (user && user.address === targetUser.address) {
           setUser(firebaseUser);
         }
@@ -323,7 +293,6 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Image Handling ---
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -342,7 +311,6 @@ const App: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // --- Create Post Logic with Optimistic Updates (Like X.com - Instant Display) ---
   const handleCreatePost = async () => {
     if (!postContent && !selectedImage) return;
     if (!user || !wallet) {
@@ -350,7 +318,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // Step 1: Create optimistic post and show IMMEDIATELY (X.com style)
     const optimisticPost = OptimisticPostService.createOptimisticPost(
       postContent,
       user,
@@ -358,10 +325,8 @@ const App: React.FC = () => {
       imagePreview || undefined
     );
 
-    // Add to feed instantly - user sees their post right away!
     OptimisticPostService.addOptimisticPost(optimisticPost);
 
-    // Close modal and navigate to feed immediately
     const savedContent = postContent;
     const savedImage = selectedImage;
     setPostContent("");
@@ -369,42 +334,34 @@ const App: React.FC = () => {
     setIsCreating(false);
     setView(ViewState.FEED);
 
-    // Step 2: Update status to show "uploading" indicator on the post
     setMintingStatus('uploading');
     OptimisticPostService.updateOptimisticPost(optimisticPost.optimisticId!, {
       optimisticStatus: 'pending'
     });
 
     try {
-      // Step 3: Mint on blockchain in background (user can browse while this happens)
       OptimisticPostService.updateOptimisticPost(optimisticPost.optimisticId!, {
         optimisticStatus: 'confirming'
       });
 
-      // Pass the wallet adapter to the minting service
       const confirmedPost = await BlockchainService.mintPost(wallet.adapter, savedContent, savedImage || undefined);
 
-      // Step 4: Replace optimistic post with real confirmed post
       OptimisticPostService.confirmOptimisticPost(optimisticPost.optimisticId!, confirmedPost);
 
       setMintingStatus('success');
-      console.log('🎉 Post confirmed on blockchain!');
+      console.log('Post confirmed on blockchain!');
 
-      // Reset status after brief success indicator
       setTimeout(() => {
         setMintingStatus('idle');
       }, 2000);
 
     } catch (error: any) {
-      // Handle error - remove the optimistic post
       console.error('Minting error:', error);
 
-      // Remove the optimistic post from feed
       OptimisticPostService.removeOptimisticPost(optimisticPost.optimisticId!);
 
       setMintingStatus('error');
 
-      // Show error notification to user
       setTimeout(() => {
         setMintingStatus('idle');
       }, 5000);
@@ -413,7 +370,6 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Render View Switcher ---
   const renderContent = () => {
     switch (view) {
       case ViewState.FEED:
@@ -429,12 +385,8 @@ const App: React.FC = () => {
         />;
 
       case ViewState.PROFILE:
-        // Determine which profile to show:
-        // 1. The specific user we clicked on (viewingProfileUser)
-        // 2. OR the current logged-in user (user)
         const targetUser = viewingProfileUser || user;
 
-        // If neither exists, it means a guest is trying to view "My Profile". Block it.
         if (!targetUser) {
           return <ConnectWalletPrompt title="Your Profile" subtitle="Connect your wallet to view your decentralized identity." />;
         }
@@ -509,7 +461,6 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Navigation Item ---
   const NavItem: React.FC<{ icon: React.ReactNode; label: string; target: ViewState; active: boolean; onClick?: () => void }> = ({ icon, label, target, active, onClick }) => (
     <button
       onClick={() => {
@@ -537,7 +488,6 @@ const App: React.FC = () => {
     sessionStorage.setItem('bsn_passed_landing', 'true');
   };
 
-  // Save current view to sessionStorage when it changes
   useEffect(() => {
     sessionStorage.setItem('bsn_current_view', view);
   }, [view]);
@@ -596,7 +546,6 @@ const App: React.FC = () => {
             target={ViewState.PROFILE}
             active={view === ViewState.PROFILE && (viewingProfileUser?.address === user?.address || (!viewingProfileUser && !user))}
             onClick={() => {
-              // When clicking "Profile" in nav, load real data from Firebase
               if (user) {
                 handleNavigateToProfile(user);
               } else {
